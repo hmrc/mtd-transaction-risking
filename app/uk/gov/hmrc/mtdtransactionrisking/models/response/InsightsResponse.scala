@@ -14,20 +14,20 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.mtdtransactionrisking
+package uk.gov.hmrc.mtdtransactionrisking.models.response
 
-import play.api.inject.{Binding, Module as AppModule}
-import play.api.{Configuration, Environment}
+import play.api.libs.json.{Json, OFormat}
 
-import java.time.Clock
+case class InsightsResponse(insights: Insights)
+object InsightsResponse:
+  given format: OFormat[InsightsResponse] = Json.format[InsightsResponse]
 
-class Module extends AppModule:
+case class Insights(strategicRisk: StrategicRisk)
+object Insights:
+  given format: OFormat[Insights] = Json.format[Insights]
 
-  override def bindings(
-                         environment: Environment,
-                         configuration: Configuration
-                       ): Seq[Binding[_]] =
-    bind[Clock].toInstance(
-      Clock.systemDefaultZone
-    ) ::
-      Nil
+case class StrategicRisk(riskCorrelationId: String, riskScore: Double)
+object StrategicRisk:
+  given format: OFormat[StrategicRisk] = Json.format[StrategicRisk]
+
+

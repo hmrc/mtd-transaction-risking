@@ -14,16 +14,21 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.mtdtransactionrisking.config
+package uk.gov.hmrc.mtdtransactionrisking.services
+
+import cats.data.EitherT
+import uk.gov.hmrc.http.HeaderCarrier
+import uk.gov.hmrc.mtdtransactionrisking.connectors.InsightsConnector
+import uk.gov.hmrc.mtdtransactionrisking.models.request.InsightsRequest
+import uk.gov.hmrc.mtdtransactionrisking.models.response.InsightsResponse
 
 import javax.inject.{Inject, Singleton}
-import play.api.Configuration
-import uk.gov.hmrc.play.bootstrap.config.ServicesConfig
+import scala.concurrent.Future
 
 @Singleton
-class AppConfig @Inject() (config: ServicesConfig, configuration: Configuration):
+class InsightsService @Inject()(connector: InsightsConnector):
 
-  val appName: String = config.getString("appName")
-
-  private val cipRiskConfig            = configuration.get[Configuration]("microservice.services.cip-risk")
-  val cipRiskServiceBaseUrl: String    = config.baseUrl("cip-risk") + cipRiskConfig.get[String]("submit-url")
+  def assess(
+              request: InsightsRequest
+            )(implicit hc: HeaderCarrier, correlationId: String): EitherT[Future, String, InsightsResponse] =
+    connector.getRiskInsights(request)
