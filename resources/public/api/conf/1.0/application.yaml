@@ -1,0 +1,559 @@
+openapi: 3.0.3
+info:
+  title: MTD Transaction Risking
+  description: >
+    A service designed to identify and flag potential risks or inaccuracies in
+    VAT Returns before submission. Vendors should call this endpoint after
+    retrieving VAT obligations (API#1330) to receive feedback on the VAT return
+    data before formally submitting.
+  contact: {}
+  version: '1.0'
+servers:
+  - url: https://test-api.service.hmrc.gov.uk
+    description: Sandbox
+  - url: https://api.service.hmrc.gov.uk
+    description: Production
+paths:
+  /organisations/vat/{vrn}/assist:
+    post:
+      tags:
+        - organisations
+      summary: Request VAT Assist feedback
+      description: |
+        Submit VAT return data to receive risk assessment feedback from HMRC
+        before formally submitting the VAT return. Vendors should have called
+        [Retrieve VAT Obligations](#_retrieve-vat-obligations_get_accordion)
+        (API#1330) to identify the VAT period before calling this endpoint.
+
+        The response will contain feedback messages in both English and Welsh
+        highlighting any potential risks or inaccuracies identified in the
+        submitted VAT return data.
+
+        ### Test data
+        <p>Scenario simulations using Gov-Test-Scenario headers are only available in the sandbox environment.</p>
+        <table>
+          <thead>
+            <tr>
+              <th>Header Value (Gov-Test-Scenario)</th>
+              <th>Scenario</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><p>Default (No header value)</p></td>
+              <td><p>Simulates a successful risk assessment with feedback returned.</p></td>
+            </tr>
+            <tr>
+              <td><p>NO_FEEDBACK</p></td>
+              <td><p>Simulates the scenario where no risks are identified and no feedback is returned.</p></td>
+            </tr>
+            <tr>
+              <td><p>NOT_FOUND</p></td>
+              <td><p>Simulates the scenario where the VRN is not found.</p></td>
+            </tr>
+          </tbody>
+        </table>
+
+      operationId: RequestVATAssistFeedback
+      parameters:
+        - name: vrn
+          in: path
+          description: |
+            VAT registration number. <br> A nine-digit number.
+          required: true
+          style: simple
+          schema:
+            type: string
+            pattern: '^[0-9]{9}$'
+            example: '123456789'
+        - name: Gov-Test-Scenario
+          in: header
+          description: Only in sandbox environment. See Test Data table for all header values.
+          style: simple
+          schema:
+            type: string
+            example: '-'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VATAssistRequest'
+            example:
+              periodKey: '18AD'
+              vatDueSales: 105.50
+              vatDueAcquisitions: 0.00
+              totalVatDue: 105.50
+              vatReclaimedCurrPeriod: 52.75
+              netVatDue: 52.75
+              totalValueSalesExVAT: 500
+              totalValuePurchasesExVAT: 250
+              totalValueGoodsSuppliedExVAT: 0
+              totalAcquisitionsExVAT: 0
+      responses:
+        '200':
+          description: Feedback returned successfully.
+          headers:
+            X-CorrelationId:
+              description: Unique ID for operation tracking. String, 36 characters.
+              content:
+                text/plain:
+                  schema:
+                    type: string
+                    example: c75f40a6-a3df-4429-a697-471eeec46435
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VATAssistResponse'
+              example:
+                reportId: 'f2fb30e5-4ab6-4a29-b3c1-c00000000001'
+                correlationId: 'c75f40a6-a3df-4429-a697-471eeec46435'
+                englishFeedback:
+                  - itemNumber: '001'
+                    title: 'VAT due on sales appears low'
+                    body: 'The VAT due on sales figure appears lower than expected based on your total sales value.'
+                    action: 'Please review box 1 and box 6 of your VAT return.'
+                    links:
+                      - title: 'VAT Notice 700'
+                        url: 'https://www.gov.uk/guidance/vat-notice-700-the-vat-guide'
+                    path: '/guidance/vat-returns'
+                welshFeedback:
+                  - itemNumber: '001'
+                    title: 'Mae TAW sy''n ddyledus ar werthiannau yn ymddangos yn isel'
+                    body: 'Mae''r ffigur TAW sy''n ddyledus ar werthiannau yn ymddangos yn is na''r disgwyl yn seiliedig ar gyfanswm eich gwerthiannau.'
+                    action: 'Adolygwch flwch 1 a blwch 6 eich ffurflen TAW.'
+                    links:
+                      - title: 'Hysbysiad TAW 700'
+                        url: 'https://www.gov.uk/guidance/vat-notice-700-the-vat-guide'
+                    path: '/guidance/vat-returns'
+        '400':
+          description: Bad request. Invalid request body or parameters.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: 'INVALID_VRN'
+                message: 'The provided VRN is invalid.'
+        '403':
+          description: Forbidden. The client is not authorised to access this resource.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: 'CLIENT_OR_AGENT_NOT_AUTHORISED'
+                message: 'The client and/or agent is not authorised.'
+        '404':
+          description: Not found. The VRN could not be found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: 'VRN_NOT_FOUND'
+                message: 'The remote endpoint has indicated that the VRN could not be found.'
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: 'INTERNAL_SERVER_ERROR'
+                message: 'An unexpected error occurred.'
+      security:
+        - userRestricted:
+            - write:vat
+
+  /organisations/vat/{vrn}/{reportId}/{correlationId}/acknowledge-report:
+    post:
+      tags:
+        - organisations
+      summary: Acknowledge a HMRC VAT Assist report
+      description: |
+        Record that the HMRC VAT Assist feedback was presented to the user.
+        This endpoint should be called once the vendor software has fully
+        displayed the feedback returned by the Request VAT Assist Feedback
+        endpoint to the user.
+
+        ### Test data
+        <p>Scenario simulations using Gov-Test-Scenario headers are only available in the sandbox environment.</p>
+        <table>
+          <thead>
+            <tr>
+              <th>Header Value (Gov-Test-Scenario)</th>
+              <th>Scenario</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><p>Default (No header value)</p></td>
+              <td><p>Simulates a successful acknowledgement.</p></td>
+            </tr>
+            <tr>
+              <td><p>NOT_FOUND</p></td>
+              <td><p>Simulates the scenario where the report cannot be found.</p></td>
+            </tr>
+          </tbody>
+        </table>
+
+      operationId: AcknowledgeVATAssistReport
+      parameters:
+        - name: vrn
+          in: path
+          description: |
+            VAT registration number. <br> A nine-digit number.
+          required: true
+          style: simple
+          schema:
+            type: string
+            pattern: '^[0-9]{9}$'
+            example: '123456789'
+        - name: reportId
+          in: path
+          description: The unique identifier for the report.
+          required: true
+          style: simple
+          schema:
+            type: string
+            pattern: '^[0-9a-fA-F]{8}\b-[0-9a-fA-F]{4}\b-[0-9a-fA-F]{4}\b-[0-9a-fA-F]{4}\b-[0-9a-fA-F]{12}$'
+            example: 'f2fb30e5-4ab6-4a29-b3c1-c00000000001'
+        - name: correlationId
+          in: path
+          description: The correlation ID of the report.
+          required: true
+          style: simple
+          schema:
+            type: string
+            pattern: '^[A-Za-z0-9\-]{36}$'
+            example: 'c75f40a6-a3df-4429-a697-471eeec46435'
+        - name: presentedDateTime
+          in: query
+          description: The date and time that the feedback was fully shown to the user.
+          required: true
+          style: form
+          explode: true
+          schema:
+            type: string
+            format: date-time
+            example: '2026-06-09T10:30:00Z'
+        - name: Gov-Test-Scenario
+          in: header
+          description: Only in sandbox environment. See Test Data table for all header values.
+          style: simple
+          schema:
+            type: string
+            example: '-'
+      responses:
+        '204':
+          description: Acknowledgement recorded successfully. No content returned.
+          headers:
+            X-CorrelationId:
+              description: Unique ID for operation tracking. String, 36 characters.
+              content:
+                text/plain:
+                  schema:
+                    type: string
+                    pattern: '^[A-Za-z0-9\-]{36}$'
+                    example: 'a1e8057e-fbbc-47a8-a8b4-78d9f015c253'
+        '400':
+          description: Bad request. Invalid request parameters.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                FORMAT_VRN:
+                  summary: Invalid VRN
+                  value:
+                    code: 'FORMAT_VRN'
+                    message: 'The provided Vrn is invalid.'
+                FORMAT_RECEIPT_ID:
+                  summary: Invalid Report ID
+                  value:
+                    code: 'FORMAT_RECEIPT_ID'
+                    message: 'The provided Report ID is invalid.'
+                FORMAT_DATETIME:
+                  summary: Invalid presentedDateTime
+                  value:
+                    code: 'FORMAT_DATETIME'
+                    message: 'The provided Presented Date Time is invalid.'
+        '401':
+          description: Unauthorised. Invalid authentication information provided.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: 'INVALID_CREDENTIALS'
+                message: 'Invalid authentication information provided.'
+        '403':
+          description: Forbidden.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                CLIENT_OR_AGENT_NOT_AUTHORISED:
+                  summary: Client and/or agent not authorised
+                  value:
+                    code: 'CLIENT_OR_AGENT_NOT_AUTHORISED'
+                    message: 'Client and/or agent is not authorised.'
+                CORRELATION_ID:
+                  summary: Mismatching correlation ID
+                  value:
+                    code: 'CORRELATION_ID'
+                    message: 'The Correlation ID is not the expected value for this report.'
+        '404':
+          description: Not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: 'MATCHING_RESOURCE_NOT_FOUND'
+                message: 'A resource with the name in the request can not be found in the API.'
+        '500':
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: 'INTERNAL_SERVER_ERROR'
+                message: 'An unexpected error occurred.'
+      security:
+        - userRestricted:
+            - write:vat
+
+components:
+  schemas:
+    VATAssistRequest:
+      title: VATAssistRequest
+      required:
+        - periodKey
+        - vatDueSales
+        - vatDueAcquisitions
+        - totalVatDue
+        - vatReclaimedCurrPeriod
+        - netVatDue
+        - totalValueSalesExVAT
+        - totalValuePurchasesExVAT
+        - totalValueGoodsSuppliedExVAT
+        - totalAcquisitionsExVAT
+      type: object
+      properties:
+        periodKey:
+          type: string
+          minLength: 4
+          maxLength: 4
+          pattern: '^[#0-9A-Z]{4}$'
+          description: >
+            The ID code for the period that this obligation belongs to.
+            The format is a string of four alphanumeric characters.
+            Occasionally the format includes the # symbol.
+          example: '18AD'
+        vatDueSales:
+          type: number
+          multipleOf: 0.01
+          minimum: -9999999999999.99
+          maximum: 9999999999999.99
+          description: >
+            VAT due on sales and other outputs. This corresponds to box 1
+            on the VAT Return form.
+          example: 105.50
+        vatDueAcquisitions:
+          type: number
+          multipleOf: 0.01
+          minimum: -9999999999999.99
+          maximum: 9999999999999.99
+          description: >
+            VAT due in the period on acquisitions of goods made in Northern
+            Ireland from EU Member States. This corresponds to box 2 on the
+            VAT Return form.
+          example: 0.00
+        totalVatDue:
+          type: number
+          multipleOf: 0.01
+          minimum: -9999999999999.99
+          maximum: 9999999999999.99
+          description: >
+            Total VAT due (the sum of vatDueSales and vatDueAcquisitions).
+            This corresponds to box 3 on the VAT Return form.
+          example: 105.50
+        vatReclaimedCurrPeriod:
+          type: number
+          multipleOf: 0.01
+          minimum: -9999999999999.99
+          maximum: 9999999999999.99
+          description: >
+            VAT reclaimed in the period on purchases and other inputs
+            (including acquisitions in Northern Ireland from EU member states).
+            This corresponds to box 4 on the VAT Return form.
+          example: 52.75
+        netVatDue:
+          type: number
+          multipleOf: 0.01
+          minimum: 0.00
+          maximum: 99999999999.99
+          description: >
+            The difference between totalVatDue and vatReclaimedCurrPeriod.
+            This corresponds to box 5 on the VAT Return form.
+          example: 52.75
+        totalValueSalesExVAT:
+          type: number
+          minimum: -9999999999999
+          maximum: 9999999999999
+          description: >
+            Total value of sales and all other outputs excluding any VAT.
+            This corresponds to box 6 on the VAT Return form.
+            The value must be in whole pounds (no pence).
+          example: 500
+        totalValuePurchasesExVAT:
+          type: number
+          minimum: -9999999999999
+          maximum: 9999999999999
+          description: >
+            Total value of purchases and all other inputs excluding any VAT
+            (including exempt purchases). This corresponds to box 7 on the
+            VAT Return form. The value must be in whole pounds (no pence).
+          example: 250
+        totalValueGoodsSuppliedExVAT:
+          type: number
+          minimum: -9999999999999
+          maximum: 9999999999999
+          description: >
+            Total value of dispatches of goods and related costs (excluding VAT)
+            from Northern Ireland to EU Member States. This corresponds to box 8
+            on the VAT Return form. The value must be in whole pounds (no pence).
+          example: 0
+        totalAcquisitionsExVAT:
+          type: number
+          minimum: -9999999999999
+          maximum: 9999999999999
+          description: >
+            Total value of acquisitions of goods and related costs (excluding VAT)
+            made in Northern Ireland from EU Member States. This corresponds to
+            box 9 on the VAT Return form. The value must be in whole pounds (no pence).
+          example: 0
+
+    VATAssistResponse:
+      title: VATAssistResponse
+      required:
+        - reportId
+        - correlationId
+        - englishFeedback
+        - welshFeedback
+      type: object
+      properties:
+        reportId:
+          type: string
+          pattern: '^[0-9a-fA-F]{8}\b-[0-9a-fA-F]{4}\b-[0-9a-fA-F]{4}\b-[0-9a-fA-F]{4}\b-[0-9a-fA-F]{12}$'
+          description: The unique identifier for the report.
+          example: 'f2fb30e5-4ab6-4a29-b3c1-c00000000001'
+        correlationId:
+          type: string
+          description: The correlation ID of the report.
+          example: 'c75f40a6-a3df-4429-a697-471eeec46435'
+        englishFeedback:
+          type: array
+          description: A list of HMRC Assist feedback messages in English.
+          items:
+            $ref: '#/components/schemas/FeedbackItem'
+        welshFeedback:
+          type: array
+          description: A list of HMRC Assist feedback messages in Welsh.
+          items:
+            $ref: '#/components/schemas/FeedbackItem'
+
+    FeedbackItem:
+      title: FeedbackItem
+      required:
+        - itemNumber
+        - title
+        - body
+        - path
+      type: object
+      properties:
+        itemNumber:
+          type: string
+          pattern: '^[0-9]{3}$'
+          description: Feedback identifier.
+          example: '001'
+        title:
+          type: string
+          maxLength: 32767
+          description: Title of the feedback message.
+          example: 'VAT due on sales appears low'
+        body:
+          type: string
+          maxLength: 32767
+          description: The body contains the message for the customer.
+          example: 'The VAT due on sales figure appears lower than expected based on your total sales value.'
+        action:
+          type: string
+          maxLength: 32767
+          description: The recommended action the customer should take.
+          example: 'Please review box 1 and box 6 of your VAT return.'
+        links:
+          type: array
+          description: A list of help or support links associated with the message body.
+          items:
+            $ref: '#/components/schemas/FeedbackLink'
+        path:
+          type: string
+          maxLength: 32767
+          description: The HTTP path to guidance provided by HMRC.
+          example: '/guidance/vat-returns'
+
+    FeedbackLink:
+      title: FeedbackLink
+      type: object
+      properties:
+        title:
+          type: string
+          maxLength: 32767
+          description: The title text that appears before the link.
+          example: 'VAT Notice 700'
+        url:
+          type: string
+          maxLength: 32767
+          description: The URL of the support or help link.
+          example: 'https://www.gov.uk/guidance/vat-notice-700-the-vat-guide'
+
+    ErrorResponse:
+      title: ErrorResponse
+      required:
+        - code
+        - message
+      type: object
+      properties:
+        code:
+          type: string
+          description: The error code.
+          example: 'INVALID_VRN'
+        message:
+          type: string
+          description: A human-readable description of the error.
+          example: 'The provided VRN is invalid.'
+
+  securitySchemes:
+    userRestricted:
+      type: oauth2
+      description: |
+        HMRC supports OAuth 2.0 for authenticating user restricted API requests
+        using an OAuth 2.0 Bearer Token in the AUTHORIZATION header.
+        See https://developer.service.hmrc.gov.uk/api-documentation/docs/authorisation/user-restricted-endpoints for details.
+      flows:
+        authorizationCode:
+          authorizationUrl: https://api.service.hmrc.gov.uk/oauth/authorize
+          tokenUrl: https://api.service.hmrc.gov.uk/oauth/token
+          refreshUrl: https://api.service.hmrc.gov.uk/oauth/refresh
+          scopes:
+            write:vat: Grant write access to VAT data
+            read:vat: Grant read access to VAT data
+
+tags:
+  - name: organisations
+    description: ''
