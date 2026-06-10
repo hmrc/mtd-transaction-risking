@@ -2,10 +2,8 @@ openapi: 3.0.3
 info:
   title: MTD Transaction Risking
   description: >
-    A service designed to identify and flag potential risks or inaccuracies in
-    VAT Returns before submission. Vendors should call this endpoint after
-    retrieving VAT obligations (API#1330) to receive feedback on the VAT return
-    data before formally submitting.
+    A service designed to identify and flag inaccuracies in
+    VAT Returns before submission.
   contact: {}
   version: '1.0'
 servers:
@@ -20,13 +18,11 @@ paths:
         - organisations
       summary: Request VAT Assist feedback
       description: |
-        Submit VAT return data to receive risk assessment feedback from HMRC
-        before formally submitting the VAT return. Vendors should have called
-        [Retrieve VAT Obligations](#_retrieve-vat-obligations_get_accordion)
-        (API#1330) to identify the VAT period before calling this endpoint.
+        Submit VAT return data to receive feedback from HMRC
+        before formally submitting the VAT return. 
 
         The response will contain feedback messages in both English and Welsh
-        highlighting any potential risks or inaccuracies identified in the
+        highlighting any potential inaccuracies identified in the
         submitted VAT return data.
 
         ### Test data
