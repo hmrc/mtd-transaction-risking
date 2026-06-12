@@ -1,7 +1,7 @@
 {
   "api": {
-    "name": "MTD Transaction Risking",
-    "description": "A service designed to identify and flag potential risks or inaccuracies in VAT Returns before submission.",
+    "name": "HMRC Assist (MTD)",
+    "description": "A service that identifies potential inaccuracies in returns before submission.",
     "context": "mtd/transaction-risking",
     "categories": ["VAT"],
     "versions": [
