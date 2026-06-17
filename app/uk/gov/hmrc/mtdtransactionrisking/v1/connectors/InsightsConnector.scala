@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.mtdtransactionrisking.connectors
+package uk.gov.hmrc.mtdtransactionrisking.v1.connectors
 
 import cats.data.EitherT
 import play.api.Logging
@@ -24,8 +24,8 @@ import uk.gov.hmrc.http.HttpReads.Implicits.*
 import uk.gov.hmrc.http.client.HttpClientV2
 import uk.gov.hmrc.http.{HeaderCarrier, StringContextOps, UpstreamErrorResponse}
 import uk.gov.hmrc.mtdtransactionrisking.config.AppConfig
-import uk.gov.hmrc.mtdtransactionrisking.models.request.InsightsRequest
-import uk.gov.hmrc.mtdtransactionrisking.models.response.InsightsResponse
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.InsightsRequest
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.InsightsResponse
 
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}

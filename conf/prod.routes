@@ -1,3 +1,7 @@
-# Add all the application routes to the app.routes file
-->         /mtd-transaction-risking              app.Routes
-->         /                                     health.Routes
+# Add all the application routes to the v1.routes file
+# NOTE: versioned API routes (e.g. v1.routes) are handled automatically
+# via VersionRoutingRequestHandler and so there is no need to include them here
+
+->         /                        definition.Routes
+->         /                        health.Routes
+

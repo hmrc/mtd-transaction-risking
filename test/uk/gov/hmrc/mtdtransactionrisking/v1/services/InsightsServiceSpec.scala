@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.mtdtransactionrisking.services
+package uk.gov.hmrc.mtdtransactionrisking.v1.services
 
 import cats.data.EitherT
 import org.mockito.ArgumentMatchers.{any, eq as eqTo}
@@ -23,9 +23,10 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import org.scalatestplus.mockito.MockitoSugar
 import uk.gov.hmrc.http.HeaderCarrier
-import uk.gov.hmrc.mtdtransactionrisking.connectors.InsightsConnector
-import uk.gov.hmrc.mtdtransactionrisking.models.request.InsightsRequest
-import uk.gov.hmrc.mtdtransactionrisking.models.response.{Insights, InsightsResponse, StrategicRisk}
+import uk.gov.hmrc.mtdtransactionrisking.v1.InsightsService
+import uk.gov.hmrc.mtdtransactionrisking.v1.connectors.InsightsConnector
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.InsightsRequest
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.{Insights, InsightsResponse, StrategicRisk}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.*

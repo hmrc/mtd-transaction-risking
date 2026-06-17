@@ -14,11 +14,20 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.mtdtransactionrisking.models.request
+package uk.gov.hmrc.mtdtransactionrisking.config
 
-import play.api.libs.json.{Json, OWrites}
+import play.api.inject.{Binding, Module as AppModule}
+import play.api.{Configuration, Environment}
 
-case class InsightsRequest(vatRegistrationNumber: String)
+import java.time.Clock
 
-object InsightsRequest:
-  given writes: OWrites[InsightsRequest] = Json.writes[InsightsRequest]
+class Module extends AppModule:
+
+  override def bindings(
+                         environment: Environment,
+                         configuration: Configuration
+                       ): Seq[Binding[_]] =
+    bind[Clock].toInstance(
+      Clock.systemDefaultZone
+    ) ::
+      Nil

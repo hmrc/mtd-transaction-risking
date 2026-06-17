@@ -6,12 +6,11 @@ ThisBuild / scalacOptions += "-Wconf:msg=Flag.*repeatedly:s"
 
 lazy val microservice = Project("mtd-transaction-risking", file("."))
   .enablePlugins(play.sbt.PlayScala, SbtDistributablesPlugin)
-  .disablePlugins(JUnitXmlReportPlugin) //Required to prevent https://github.com/scalatest/scalatest/issues/1427
+  .disablePlugins(JUnitXmlReportPlugin)
   .settings(
     libraryDependencies ++= AppDependencies.compile ++ AppDependencies.test,
-    // https://www.scala-lang.org/2021/01/12/configuring-and-suppressing-warnings.html
-    // suppress warnings in generated routes files
     scalacOptions += "-Wconf:src=routes/.*:s",
+    Compile / unmanagedResourceDirectories += baseDirectory.value / "resources"
   )
   .settings(CodeCoverageSettings.settings: _*)
 

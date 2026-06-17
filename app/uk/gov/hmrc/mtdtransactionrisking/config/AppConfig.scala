@@ -16,14 +16,22 @@
 
 package uk.gov.hmrc.mtdtransactionrisking.config
 
-import javax.inject.{Inject, Singleton}
 import play.api.Configuration
 import uk.gov.hmrc.play.bootstrap.config.ServicesConfig
 
+import javax.inject.{Inject, Singleton}
+
 @Singleton
-class AppConfig @Inject() (config: ServicesConfig, configuration: Configuration):
+class AppConfig @Inject()(config: ServicesConfig, configuration: Configuration):
 
   val appName: String = config.getString("appName")
 
-  private val cipRiskConfig            = configuration.get[Configuration]("microservice.services.cip-risk")
-  val cipRiskServiceBaseUrl: String    = config.baseUrl("cip-risk") + cipRiskConfig.get[String]("submit-url")
+  private val cipRiskConfig = configuration.get[Configuration]("microservice.services.cip-risk")
+  val cipRiskServiceBaseUrl: String = config.baseUrl("cip-risk") + cipRiskConfig.get[String]("submit-url")
+  
+  def featureSwitch: Option[Configuration] = configuration.getOptional[Configuration](s"feature-switch")
+
+  val apiGatewayContext: String                    = config.getString("api.gateway.context")
+  def apiStatus(version: String): String           = config.getString(s"api.$version.status")
+  def endpointsEnabled(version: String): Boolean   = config.getBoolean(s"feature-switch.version-$version.enabled")
+

@@ -20,7 +20,7 @@ import com.github.tomakehurst.wiremock.stubbing.StubMapping
 import play.api.http.Status.{INTERNAL_SERVER_ERROR, OK}
 import play.api.libs.ws.{WSRequest, WSResponse, writeableOf_String}
 import play.api.test.Helpers.{await, defaultAwaitTimeout}
-import uk.gov.hmrc.mtdtransactionrisking.models.response.InsightsResponse
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.InsightsResponse
 import uk.gov.hmrc.mtdtransactionrisking.stubs.{CommonTestData, InsightsRiskStub}
 import uk.gov.hmrc.mtdtransactionrisking.support.IntegrationBaseSpec
 

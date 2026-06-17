@@ -17,8 +17,8 @@
 package uk.gov.hmrc.mtdtransactionrisking.stubs
 
 import play.api.libs.json.{JsValue, Json}
-import uk.gov.hmrc.mtdtransactionrisking.models.request.InsightsRequest
-import uk.gov.hmrc.mtdtransactionrisking.models.response.{Insights, InsightsResponse, StrategicRisk}
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.InsightsRequest
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.{Insights, InsightsResponse, StrategicRisk}
 
 object CommonTestData:
 
