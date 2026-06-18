@@ -26,9 +26,7 @@ object Versions {
 
   def getFromRequest(request: RequestHeader): Option[String] = {
     val headers = request.headers.headers
-    println(s"DEBUG headers: $headers")
     val result = getFrom(headers)
-    println(s"DEBUG version extracted: $result")
     result
   }
 
