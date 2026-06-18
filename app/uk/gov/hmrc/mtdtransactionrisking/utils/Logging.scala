@@ -1,5 +1,5 @@
 /*
- * Copyright 2026 HM Revenue & Customs
+ * Copyright 2024 HM Revenue & Customs
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,20 +14,10 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.mtdtransactionrisking
+package uk.gov.hmrc.mtdtransactionrisking.utils
 
-import play.api.inject.{Binding, Module as AppModule}
-import play.api.{Configuration, Environment}
+import play.api.Logger
 
-import java.time.Clock
-
-class Module extends AppModule:
-
-  override def bindings(
-                         environment: Environment,
-                         configuration: Configuration
-                       ): Seq[Binding[_]] =
-    bind[Clock].toInstance(
-      Clock.systemDefaultZone
-    ) ::
-      Nil
+trait Logging {
+  lazy val logger: Logger = Logger(this.getClass)
+}

@@ -14,16 +14,16 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.mtdtransactionrisking.controllers
+package uk.gov.hmrc.mtdtransactionrisking.v1.controllers
 
 import play.api.libs.json.Json
 import play.api.mvc.*
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
-import uk.gov.hmrc.mtdtransactionrisking.models.request.InsightsRequest
-import uk.gov.hmrc.mtdtransactionrisking.models.response.InsightsResponse
-import uk.gov.hmrc.mtdtransactionrisking.services.InsightsService
 import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator
+import uk.gov.hmrc.mtdtransactionrisking.v1.InsightsService
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.InsightsRequest
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.InsightsResponse
 
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.ExecutionContext
