@@ -51,7 +51,7 @@ class InsightsConnector @Inject()(
 
     EitherT(
       httpClient
-        .post(url"${appConfig.cipRiskServiceBaseUrl}")
+        .post(url"${appConfig.insightsProxyServiceBaseUrl}")
         .withBody(Json.toJson(request))
         .setHeader(requiredHeaders(correlationId, appConfig.appName) *)
         .execute[Either[UpstreamErrorResponse, InsightsResponse]]

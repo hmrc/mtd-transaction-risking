@@ -26,8 +26,8 @@ class AppConfig @Inject()(config: ServicesConfig, configuration: Configuration):
 
   val appName: String = config.getString("appName")
 
-  private val cipRiskConfig = configuration.get[Configuration]("microservice.services.cip-risk")
-  val cipRiskServiceBaseUrl: String = config.baseUrl("cip-risk") + cipRiskConfig.get[String]("submit-url")
+  private val insightsProxyConfig = configuration.get[Configuration]("microservice.services.insights-proxy")
+  val insightsProxyServiceBaseUrl: String = config.baseUrl("insights-proxy") + insightsProxyConfig.get[String]("submit-url")
   
   def featureSwitch: Option[Configuration] = configuration.getOptional[Configuration](s"feature-switch")
 

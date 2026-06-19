@@ -16,77 +16,30 @@
 
 package uk.gov.hmrc.mtdtransactionrisking.v1.models.errors
 
-import play.api.libs.json.{JsObject, JsValue, Json, Reads, Writes, OWrites}
+import play.api.libs.json.*
 
-case class MtdError(code: String, message: String, customJson: Option[JsValue] = None){
-  lazy val toJson: JsValue = Json.obj(
-    "code" -> this.code,
-    "message" -> this.message
-  )
-}
+case class MtdError(code: String, message: String)
 
-object MtdError {
-  implicit val writes: Writes[MtdError] = {
-    case o@MtdError(_, _, None) => o.toJson
-    case MtdError("INVALID_REQUEST", _, Some(customJson)) => BadRequestError.toJson.as[JsObject] + ("errors" -> Json.toJson(Seq(customJson)))
-    case MtdError(_, _, Some(customJson)) => customJson
-  }
-
-  implicit def genericWrites[T <: MtdError]: Writes[T] =
+object MtdError:
+  given writes: OWrites[MtdError] = Json.writes[MtdError]
+  given reads: Reads[MtdError] = Json.reads[MtdError]
+  given genericWrites[T <: MtdError]: Writes[T] =
     writes.contramap[T](c => c: MtdError)
 
-  implicit val reads: Reads[MtdError] = Json.reads[MtdError]
-}
-
-case class MtdErrorWrapper(code: String, message: String, path: Option[String], errors: Option[Seq[MtdErrorWrapper]] = None)
-
-object MtdErrorWrapper {
-  implicit val writes: OWrites[MtdErrorWrapper] = Json.writes[MtdErrorWrapper]
-
-  implicit def genericWrites[T <: MtdErrorWrapper]: OWrites[T] =
-    writes.contramap[T](c => c: MtdErrorWrapper)
-
-  implicit val reads: Reads[MtdErrorWrapper] = Json.reads[MtdErrorWrapper]
-}
-
-// Format Errors
+// VRN
 object VrnFormatError extends MtdError("VRN_INVALID", "The provided VRN is invalid")
 
-// Rule Errors
-object RuleIncorrectOrEmptyBodyError extends MtdError("RULE_INCORRECT_OR_EMPTY_BODY_SUBMITTED", "An empty or non-matching body was submitted")
+// Request body
+object InvalidJsonError extends MtdError("INVALID_REQUEST", "Invalid JSON received")
 
-// Standard Errors
-object NotFoundError extends MtdError("MATCHING_RESOURCE_NOT_FOUND", "Matching resource not found")
-object DownstreamError extends MtdError("INTERNAL_SERVER_ERROR", "An internal server error occurred")
 object BadRequestError extends MtdError("INVALID_REQUEST", "Invalid request")
-object ServiceUnavailableError extends MtdError("SERVICE_UNAVAILABLE", "Internal server error")
-object InvalidJson extends MtdError("INVALID_JSON", "Invalid JSON received")
-object UnexpectedFailure {
-  def mtdError(status: Int, body: String): MtdError = MtdError("UNEXPECTED_FAILURE", s"Unexpected failure. Status $status, body $body")
-}
 
-// Authorisation Errors
+// Auth
 object UnauthorisedError extends MtdError("CLIENT_OR_AGENT_NOT_AUTHORISED", "The client and/or agent is not authorised")
-object InvalidBearerTokenError extends MtdError("UNAUTHORIZED", "Bearer token is missing or not authorized")
 
-object ForbiddenDownstreamError extends MtdError(
-  code = "INTERNAL_SERVER_ERROR",
-  message = "An internal server error occurred",
-  customJson = Some(
-    Json.parse(
-      """
-        |{
-        |  "code": "INTERNAL_SERVER_ERROR",
-        |  "message": "An internal server error occurred"
-        |}
-      """.stripMargin
-    )
-  )
-)
+// Downstream
+object DownstreamError extends MtdError("INTERNAL_SERVER_ERROR", "An internal server error occurred")
 
 // Accept header Errors
 object InvalidAcceptHeaderError extends MtdError("ACCEPT_HEADER_INVALID", "The accept header is missing or invalid")
 object UnsupportedVersionError extends MtdError("NOT_FOUND", "The requested resource could not be found")
-object InvalidBodyTypeError extends MtdError("INVALID_BODY_TYPE", "Expecting text/json or application/json body")
-
-object RuleIncorrectGovTestScenarioError extends MtdError(code = "RULE_INCORRECT_GOV_TEST_SCENARIO", message = "The Gov-Test-Scenario was not found")

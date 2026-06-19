@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.mtdtransactionrisking.v1
+package uk.gov.hmrc.mtdtransactionrisking.v1.services
 
 import cats.data.EitherT
 import uk.gov.hmrc.http.HeaderCarrier

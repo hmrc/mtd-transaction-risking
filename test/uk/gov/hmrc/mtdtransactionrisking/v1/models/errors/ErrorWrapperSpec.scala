@@ -16,118 +16,159 @@
 
 package uk.gov.hmrc.mtdtransactionrisking.v1.models.errors
 
-import play.api.libs.json.Json
+import play.api.libs.json.{JsSuccess, Json}
 import uk.gov.hmrc.mtdtransactionrisking.support.UnitSpec
 
 class ErrorWrapperSpec extends UnitSpec {
 
-  val correlationId = "X-123"
+  val correlationId = "test-correlation-id"
 
   "ErrorWrapper" when {
 
-    "written to JSON with a single simple error and no additional errors" should {
-      "generate the correct JSON" in {
-        val wrapper = ErrorWrapper(correlationId, NotFoundError, None)
-        Json.toJson(wrapper) shouldBe Json.parse(
-          """
-            |{
-            |  "code": "MATCHING_RESOURCE_NOT_FOUND",
-            |  "message": "Matching resource not found"
-            |}
-          """.stripMargin
-        )
+    "written to JSON" when {
+
+      "there is a single error and no additional errors" should {
+        "serialise to code and message only" in {
+          Json.toJson(ErrorWrapper(correlationId, VrnFormatError)) shouldBe Json.parse(
+            """
+              |{
+              |  "code": "VRN_INVALID",
+              |  "message": "The provided VRN is invalid"
+              |}
+            """.stripMargin
+          )
+        }
+      }
+
+      "there is a single error with errors set to None" should {
+        "not include an errors field" in {
+          val json = Json.toJson(ErrorWrapper(correlationId, BadRequestError, None))
+          (json \ "errors").toOption shouldBe None
+        }
+      }
+
+      "there is a single error with an empty errors list" should {
+        "not include an errors field" in {
+          val json = Json.toJson(ErrorWrapper(correlationId, BadRequestError, Some(Nil)))
+          (json \ "errors").toOption shouldBe None  
+        }
+      }
+
+      "there are multiple errors" should {
+        "serialise with an errors array" in {
+          val wrapper = ErrorWrapper(
+            correlationId,
+            BadRequestError,
+            Some(List(VrnFormatError, InvalidJsonError))
+          )
+          Json.toJson(wrapper) shouldBe Json.parse(
+            """
+              |{
+              |  "code": "INVALID_REQUEST",
+              |  "message": "Invalid request",
+              |  "errors": [
+              |    {"code": "VRN_INVALID",       "message": "The provided VRN is invalid"},
+              |    {"code": "INVALID_REQUEST",    "message": "Invalid JSON received"}
+              |  ]
+              |}
+            """.stripMargin
+          )
+        }
+      }
+
+      "the error is DownstreamError" should {
+        "serialise correctly" in {
+          Json.toJson(ErrorWrapper(correlationId, DownstreamError)) shouldBe Json.parse(
+            """{"code": "INTERNAL_SERVER_ERROR", "message": "An internal server error occurred"}"""
+          )
+        }
+      }
+
+      "the error is UnauthorisedError" should {
+        "serialise correctly" in {
+          Json.toJson(ErrorWrapper(correlationId, UnauthorisedError)) shouldBe Json.parse(
+            """{"code": "CLIENT_OR_AGENT_NOT_AUTHORISED", "message": "The client and/or agent is not authorised"}"""
+          )
+        }
       }
     }
 
-    "written to JSON with a single simple error and an empty errors sequence" should {
-      "generate the correct JSON without an errors field" in {
-        val wrapper = ErrorWrapper(correlationId, VrnFormatError, Some(Seq.empty))
-        Json.toJson(wrapper) shouldBe Json.parse(
-          """
-            |{
-            |  "code": "VRN_INVALID",
-            |  "message": "The provided VRN is invalid"
-            |}
-          """.stripMargin
-        )
+    "read from JSON" when {
+
+      "the JSON has a single error and no errors array" should {
+        "deserialise correctly" in {
+          Json.parse(
+            s"""
+               |{
+               |  "correlationId": "$correlationId",
+               |  "error": {"code": "VRN_INVALID", "message": "The provided VRN is invalid"}
+               |}
+            """.stripMargin
+          ).validate[ErrorWrapper] shouldBe JsSuccess(
+            ErrorWrapper(correlationId, MtdError("VRN_INVALID", "The provided VRN is invalid"))
+          )
+        }
+      }
+
+      "the JSON has multiple errors" should {
+        "deserialise the errors list correctly" in {
+          Json.parse(
+            s"""
+               |{
+               |  "correlationId": "$correlationId",
+               |  "error": {"code": "INVALID_REQUEST", "message": "Invalid request"},
+               |  "errors": [
+               |    {"code": "VRN_INVALID",    "message": "The provided VRN is invalid"},
+               |    {"code": "INVALID_REQUEST", "message": "Invalid JSON received"}
+               |  ]
+               |}
+            """.stripMargin
+          ).validate[ErrorWrapper] shouldBe JsSuccess(
+            ErrorWrapper(
+              correlationId,
+              MtdError("INVALID_REQUEST", "Invalid request"),
+              Some(List(
+                MtdError("VRN_INVALID",    "The provided VRN is invalid"),
+                MtdError("INVALID_REQUEST", "Invalid JSON received")
+              ))
+            )
+          )
+        }
       }
     }
 
-    "written to JSON with multiple simple errors" should {
-      "generate the correct JSON with an errors array" in {
-        val wrapper = ErrorWrapper(
-          correlationId,
-          BadRequestError,
-          Some(Seq(VrnFormatError, RuleIncorrectOrEmptyBodyError))
-        )
-        Json.toJson(wrapper) shouldBe Json.parse(
-          """
-            |{
-            |  "code": "INVALID_REQUEST",
-            |  "message": "Invalid request",
-            |  "errors": [
-            |    {
-            |      "code": "VRN_INVALID",
-            |      "message": "The provided VRN is invalid"
-            |    },
-            |    {
-            |      "code": "RULE_INCORRECT_OR_EMPTY_BODY_SUBMITTED",
-            |      "message": "An empty or non-matching body was submitted"
-            |    }
-            |  ]
-            |}
-          """.stripMargin
-        )
+    "deserialising vat-api error responses" when {
+
+      "vat-api returns a simple error" should {
+        "deserialise correctly" in {
+          Json.parse(
+            s"""
+               |{
+               |  "correlationId": "$correlationId",
+               |  "error": {"code": "PERIOD_KEY_INVALID", "message": "period key should be a 4 character string"}
+               |}
+            """.stripMargin
+          ).validate[ErrorWrapper].isSuccess shouldBe true
+        }
       }
-    }
 
-    "written to JSON with an error whose customJson is a valid MtdErrorWrapper with nested errors" should {
-      "unwrap and flatten the nested errors into the errors array" in {
-        val innerWrapper = MtdErrorWrapper(
-          code    = "NESTED_CODE",
-          message = "nested message",
-          path    = Some("/field"),
-          errors  = Some(Seq(MtdErrorWrapper("DEEP_CODE", "deep message", Some("/deep"))))
-        )
-        val customJson = Json.toJson(innerWrapper)
-        val errorWithCustom = MtdError("INVALID_REQUEST", "Invalid request", Some(customJson))
-
-        val wrapper = ErrorWrapper(correlationId, BadRequestError, Some(Seq(errorWithCustom)))
-        val result  = Json.toJson(wrapper)
-
-        (result \ "errors").as[Seq[MtdErrorWrapper]] shouldBe Seq(
-          MtdErrorWrapper("DEEP_CODE", "deep message", Some("/deep"))
-        )
-      }
-    }
-
-    "written to JSON with an error whose customJson is a valid MtdErrorWrapper with no nested errors" should {
-      "include the wrapper itself in the errors array" in {
-        val innerWrapper = MtdErrorWrapper(
-          code    = "WRAPPER_CODE",
-          message = "wrapper message",
-          path    = Some("/path"),
-          errors  = None
-        )
-        val customJson      = Json.toJson(innerWrapper)
-        val errorWithCustom = MtdError("SOME_CODE", "some message", Some(customJson))
-
-        val wrapper = ErrorWrapper(correlationId, BadRequestError, Some(Seq(errorWithCustom)))
-        val result  = Json.toJson(wrapper)
-
-        (result \ "errors").as[Seq[MtdErrorWrapper]] shouldBe Seq(innerWrapper)
-      }
-    }
-
-    "written to JSON with an error whose customJson is not a valid MtdErrorWrapper" should {
-      "include the raw customJson in the errors array" in {
-        val rawCustom       = Json.parse("""{"arbitrary": "json"}""")
-        val errorWithCustom = MtdError("SOME_CODE", "some message", Some(rawCustom))
-
-        val wrapper = ErrorWrapper(correlationId, BadRequestError, Some(Seq(errorWithCustom)))
-        val result  = Json.toJson(wrapper)
-
-        (result \ "errors")(0) shouldBe rawCustom
+      "vat-api returns a envelope" should {
+        "be passed through as VatApiError without deserialisation" in {
+          val businessError = Json.parse(
+            """
+              |{
+              |  "code": "BUSINESS_ERROR",
+              |  "message": "Business validation error",
+              |  "errors": [
+              |    {"code": "DUPLICATE_SUBMISSION", "message": "Already submitted"}
+              |  ]
+              |}
+            """.stripMargin
+          )
+          val vatApiError = VatApiError(409, businessError)
+          vatApiError.status shouldBe 409
+          vatApiError.body   shouldBe businessError
+        }
       }
     }
   }
