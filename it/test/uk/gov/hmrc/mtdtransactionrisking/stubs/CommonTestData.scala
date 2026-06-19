@@ -17,6 +17,7 @@
 package uk.gov.hmrc.mtdtransactionrisking.stubs
 
 import play.api.libs.json.{JsValue, Json}
+import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.InsightsRequest
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.{Insights, InsightsResponse, StrategicRisk}
 
@@ -24,10 +25,10 @@ object CommonTestData:
 
   val simpleVrn: String           = "123456789"
   val invalidVrn: String          = "INVALID"
-  val simpleCorrelationId: String = "test-correlation-id"
   val setRiskScore: Double        = 12.33
 
-  val simpleStrRiskRequest: InsightsRequest = InsightsRequest(vatRegistrationNumber = simpleVrn)
+  val simpleCorrelationId: CorrelationId    = CorrelationId("test-correlation-id")
+  val simpleStrRiskRequest: InsightsRequest = InsightsRequest(simpleVrn)
 
   val simpleInsightsRiskResponse: InsightsResponse = InsightsResponse(
     Insights(

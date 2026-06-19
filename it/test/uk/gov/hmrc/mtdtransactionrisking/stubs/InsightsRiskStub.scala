@@ -27,7 +27,7 @@ object InsightsRiskStub:
 
   def successResponse(vrn: String): StubMapping =
     stubFor(
-      post(urlEqualTo(InsightsRiskUrl))
+      post(urlMatching(InsightsRiskUrl))
         .withRequestBody(equalToJson(
           Json.obj("vatRegistrationNumber" -> vrn).toString(),
           true,
@@ -43,7 +43,7 @@ object InsightsRiskStub:
 
   def serverErrorResponse(): StubMapping =
     stubFor(
-      post(urlEqualTo(InsightsRiskUrl))
+      post(urlMatching(InsightsRiskUrl))
         .willReturn(
           aResponse()
             .withStatus(INTERNAL_SERVER_ERROR)
@@ -54,7 +54,7 @@ object InsightsRiskStub:
 
   def serviceUnavailableResponse(): StubMapping =
     stubFor(
-      post(urlEqualTo(InsightsRiskUrl))
+      post(urlMatching(InsightsRiskUrl))
         .willReturn(
           aResponse()
             .withStatus(SERVICE_UNAVAILABLE)
@@ -65,7 +65,7 @@ object InsightsRiskStub:
 
   def malformedJsonResponse(): StubMapping =
     stubFor(
-      post(urlEqualTo(InsightsRiskUrl))
+      post(urlMatching(InsightsRiskUrl))
         .willReturn(
           aResponse()
             .withStatus(OK)

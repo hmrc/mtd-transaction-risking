@@ -18,6 +18,7 @@ package uk.gov.hmrc.mtdtransactionrisking.v1
 
 import cats.data.EitherT
 import uk.gov.hmrc.http.HeaderCarrier
+import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
 import uk.gov.hmrc.mtdtransactionrisking.v1.connectors.InsightsConnector
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.InsightsRequest
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.InsightsResponse
@@ -30,5 +31,5 @@ class InsightsService @Inject()(connector: InsightsConnector):
 
   def assess(
               request: InsightsRequest
-            )(implicit hc: HeaderCarrier, correlationId: String): EitherT[Future, String, InsightsResponse] =
+            )(implicit hc: HeaderCarrier, correlationId: CorrelationId): EitherT[Future, String, InsightsResponse] =
     connector.getRiskInsights(request)

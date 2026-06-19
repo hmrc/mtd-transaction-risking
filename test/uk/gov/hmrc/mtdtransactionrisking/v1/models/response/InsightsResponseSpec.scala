@@ -18,10 +18,11 @@ package uk.gov.hmrc.mtdtransactionrisking.v1.models.response
 
 import play.api.libs.json.Json
 import uk.gov.hmrc.mtdtransactionrisking.support.UnitSpec
+import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
 
 class InsightsResponseSpec extends UnitSpec {
 
-  private val strategicRisk = StrategicRisk(riskCorrelationId = "abc-123", riskScore = 0.75)
+  private val strategicRisk = StrategicRisk(riskCorrelationId = CorrelationId("abc-123"), riskScore = 0.75)
   private val insights      = Insights(strategicRisk = strategicRisk)
   private val fullModel     = InsightsResponse(insights = insights)
 

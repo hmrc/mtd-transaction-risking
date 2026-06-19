@@ -24,6 +24,7 @@ import uk.gov.hmrc.http.HttpReads.Implicits.*
 import uk.gov.hmrc.http.client.HttpClientV2
 import uk.gov.hmrc.http.{HeaderCarrier, StringContextOps, UpstreamErrorResponse}
 import uk.gov.hmrc.mtdtransactionrisking.config.AppConfig
+import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.InsightsRequest
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.InsightsResponse
 
@@ -36,18 +37,16 @@ class InsightsConnector @Inject()(
                                    appConfig: AppConfig
                                  )(implicit val ec: ExecutionContext) extends Logging:
 
-  private[connectors] def requiredHeaders(correlationId: String, appName: String): Seq[(String, String)] =
+  private[connectors] def requiredHeaders(correlationId: CorrelationId, appName: String): Seq[(String, String)] =
     Seq(
       "User-Agent" -> appName,
       "Content-Type" -> "application/json",
-      "X-Correlation-Id" -> correlationId
+      "X-Correlation-Id" -> correlationId.value
     )
 
-  def getRiskInsights(
-                       request: InsightsRequest
-                     )(implicit hc: HeaderCarrier, correlationId: String): EitherT[Future, String, InsightsResponse] =
-
-    logger.info(s"$correlationId::[InsightsConnector:getRiskInsights] calling insights API")
+  def getRiskInsights(request: InsightsRequest)
+                     (implicit hc: HeaderCarrier, correlationId: CorrelationId): EitherT[Future, String, InsightsResponse] =
+    logger.debug(s"${correlationId.value}::[InsightsConnector:getRiskInsights] calling insights API")
 
     EitherT(
       httpClient
@@ -55,17 +54,17 @@ class InsightsConnector @Inject()(
         .withBody(Json.toJson(request))
         .setHeader(requiredHeaders(correlationId, appConfig.appName) *)
         .execute[Either[UpstreamErrorResponse, InsightsResponse]]
-        .map {
+        .map:
           case Right(response) =>
-            logger.info(s"$correlationId::[InsightsConnector:getRiskInsights] success")
+            logger.debug(s"$correlationId::[InsightsConnector:getRiskInsights] success")
             Right(response)
 
           case Left(errorResponse) =>
-            logger.error(s"$correlationId::[InsightsConnector:getRiskInsights] failed status ${errorResponse.statusCode}: ${errorResponse.message}")
+            logger.error(s"$correlationId::[InsightsConnector:getRiskInsights] " +
+              s"failed status ${errorResponse.statusCode}: ${errorResponse.message}")
             Left(s"Unexpected status ${errorResponse.statusCode} from insights service")
-        }
-        .recover { case ex =>
-          logger.error(s"$correlationId::[InsightsConnector:getRiskInsights] unexpected exception", ex)
-          Left(s"Exception calling insights service: ${ex.getMessage}")
-        }
+        .recover:
+          case ex =>
+            logger.error(s"$correlationId::[InsightsConnector:getRiskInsights] unexpected exception", ex)
+            Left(s"Exception calling insights service: ${ex.getMessage}")
     )

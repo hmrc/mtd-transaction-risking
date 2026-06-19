@@ -17,6 +17,7 @@
 package uk.gov.hmrc.mtdtransactionrisking.v1.models.response
 
 import play.api.libs.json.{Json, OFormat}
+import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.*
 
 case class InsightsResponse(insights: Insights)
 object InsightsResponse:
@@ -26,7 +27,7 @@ case class Insights(strategicRisk: StrategicRisk)
 object Insights:
   given format: OFormat[Insights] = Json.format[Insights]
 
-case class StrategicRisk(riskCorrelationId: String, riskScore: Double)
+case class StrategicRisk(riskCorrelationId: CorrelationId, riskScore: Double)
 object StrategicRisk:
   given format: OFormat[StrategicRisk] = Json.format[StrategicRisk]
 
