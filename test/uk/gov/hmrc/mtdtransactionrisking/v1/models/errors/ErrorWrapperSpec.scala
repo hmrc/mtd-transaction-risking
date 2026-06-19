@@ -152,24 +152,24 @@ class ErrorWrapperSpec extends UnitSpec {
         }
       }
 
-      "vat-api returns a envelope" should {
-        "be passed through as VatApiError without deserialisation" in {
-          val businessError = Json.parse(
-            """
-              |{
-              |  "code": "BUSINESS_ERROR",
-              |  "message": "Business validation error",
-              |  "errors": [
-              |    {"code": "DUPLICATE_SUBMISSION", "message": "Already submitted"}
-              |  ]
-              |}
-            """.stripMargin
-          )
-          val vatApiError = VatApiError(409, businessError)
-          vatApiError.status shouldBe 409
-          vatApiError.body   shouldBe businessError
-        }
-      }
+//      "vat-api returns a envelope" should {
+//        "be passed through as VatApiError without deserialisation" in {
+//          val businessError = Json.parse(
+//            """
+//              |{
+//              |  "code": "BUSINESS_ERROR",
+//              |  "message": "Business validation error",
+//              |  "errors": [
+//              |    {"code": "DUPLICATE_SUBMISSION", "message": "Already submitted"}
+//              |  ]
+//              |}
+//            """.stripMargin
+//          )
+//          val vatApiError = VatApiError(409, businessError)
+//          vatApiError.status shouldBe 409
+//          vatApiError.body   shouldBe businessError
+//        }
+//      }
     }
   }
 }

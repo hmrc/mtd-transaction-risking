@@ -38,9 +38,9 @@ trait IntegrationBaseSpec
   val mockPort: Int = WireMockHelper.wireMockPort
 
   def servicesConfig: Map[String, Any] = Map(
-    "microservice.services.cip-risk.host"          -> mockHost,
-    "microservice.services.cip-risk.port"          -> mockPort,
-    "feature-switch.version-1.enabled"             -> true
+    "microservice.services.insights-proxy.host" -> mockHost,
+    "microservice.services.insights-proxy.port" -> mockPort,
+    "feature-switch.version-1.enabled" -> true
   )
 
   override implicit lazy val app: Application =
@@ -59,13 +59,13 @@ trait IntegrationBaseSpec
     super.afterAll()
 
   def buildRequest(path: String): WSRequest =
-  client
-    .url(s"http://localhost:$port$path")
-    .withFollowRedirects(false)
-    .withHttpHeaders(
-      "Accept"       -> "application/vnd.hmrc.1.0+json",
-      "Content-Type" -> "application/json"
-    )
+    client
+      .url(s"http://localhost:$port$path")
+      .withFollowRedirects(false)
+      .withHttpHeaders(
+        "Accept" -> "application/vnd.hmrc.1.0+json",
+        "Content-Type" -> "application/json"
+      )
 
   def document(response: WSResponse): JsValue =
     Json.parse(response.body)
