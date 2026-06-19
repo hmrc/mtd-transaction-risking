@@ -36,41 +36,6 @@ class AcknowledgeController @Inject()(
                                        idGenerator: IdGenerator
                                      )(implicit ec: ExecutionContext) extends BackendController(cc) {
 
-//  def acknowledgeReport(vrn: String, reportId: String, correlationId: String): Action[AnyContent] = {
-//
-//    val vrnPattern = "^[0-9]{9}$"
-//    val idPattern = "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
-//
-//    if (!vrn.matches(vrnPattern)) {
-//      Action { BadRequest(Json.obj("code" -> "INVALID_VRN", "message" -> "The provided VRN is invalid")) }
-//    } else if (!reportId.matches(idPattern)) {
-//      Action { BadRequest(Json.obj("code" -> "INVALID_REPORT_ID", "message" -> "The provided Report ID is invalid")) }
-//    } else if (!correlationId.matches(idPattern)) {
-//      Action { BadRequest(Json.obj("code" -> "INVALID_CORRELATION_ID", "message" -> "The provided Correlation ID is invalid")) }
-//    } else {
-//      Action.async { implicit request =>
-//        request.getQueryString("presentedDateTime") match {
-//          case None =>
-//            Future.successful(BadRequest(Json.obj("code" -> "MISSING_PRESENTED_DATE_TIME", "message" -> "Query parameter presentedDateTime is required")))
-//          case Some(value) =>
-//            parsePresentedDateTime(value) match {
-//              case Failure(_) =>
-//                Future.successful(BadRequest(Json.obj("code" -> "INVALID_PRESENTED_DATE_TIME", "message" -> "presentedDateTime must be in YYYY-MM-DDTHH:mm:ssZ format")))
-//              case Success(presentedDateTime) =>
-//                val acknowledgeRequest = AcknowledgeRequest(vrn, reportId, correlationId, presentedDateTime)
-//
-//                acknowledgeService.acknowledge(acknowledgeRequest).value.map {
-//                  case Right(response) => Ok(Json.toJson(response))
-//                  case Left(error) => InternalServerError(Json.obj("code" -> "INTERNAL_SERVER_ERROR", "message" -> error))
-//                }
-//            }
-//        }
-//      }
-//    }
-//  }
-
-
-
   def acknowledgeReport(vrn: String, reportId: String, correlationId: String): Action[AnyContent] = Action.async { implicit request =>
     validate(vrn, reportId, request.getQueryString("presentedDateTime")) match
 
