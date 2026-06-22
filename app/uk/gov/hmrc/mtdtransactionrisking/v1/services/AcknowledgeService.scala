@@ -14,14 +14,14 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.mtdtransactionrisking.services
+package uk.gov.hmrc.mtdtransactionrisking.v1.services
 
 import cats.data.EitherT
 import uk.gov.hmrc.http.HeaderCarrier
-import uk.gov.hmrc.mtdtransactionrisking.connectors.AcknowledgeConnector
-import uk.gov.hmrc.mtdtransactionrisking.models.request.AcknowledgeRequest
-import uk.gov.hmrc.mtdtransactionrisking.models.response.AcknowledgeResponse
-import uk.gov.hmrc.mtdtransactionrisking.connectors.AcknowledgeConnector.AcknowledgeFailure
+import uk.gov.hmrc.mtdtransactionrisking.v1.connectors.AcknowledgeConnector
+import uk.gov.hmrc.mtdtransactionrisking.v1.connectors.AcknowledgeConnector.AcknowledgeFailure
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.AcknowledgeRequest
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.AcknowledgeResponse
 
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.Future

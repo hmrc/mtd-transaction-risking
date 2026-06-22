@@ -14,20 +14,20 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.mtdtransactionrisking.controllers
+package uk.gov.hmrc.mtdtransactionrisking.v1.controllers
 
 import play.api.libs.json.Json
 import play.api.mvc.{Action, AnyContent, ControllerComponents}
-import uk.gov.hmrc.mtdtransactionrisking.models.request.AcknowledgeRequest
-import uk.gov.hmrc.mtdtransactionrisking.services.AcknowledgeService
+import uk.gov.hmrc.mtdtransactionrisking.v1.connectors.AcknowledgeConnector.AcknowledgeFailure
+import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.AcknowledgeRequest
+import uk.gov.hmrc.mtdtransactionrisking.v1.services.AcknowledgeService
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
 
 import java.time.{Instant, OffsetDateTime, ZoneOffset}
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success, Try}
-import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator
-import uk.gov.hmrc.mtdtransactionrisking.connectors.AcknowledgeConnector.AcknowledgeFailure
 
 @Singleton
 class AcknowledgeController @Inject()(

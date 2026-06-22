@@ -14,11 +14,13 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.mtdtransactionrisking.models.response
+package uk.gov.hmrc.mtdtransactionrisking.v1.models.request
 
-import play.api.libs.json.{Json, OFormat}
+import java.time.OffsetDateTime
 
-case class AcknowledgeResponse(status: String)
-
-object AcknowledgeResponse:
-  given format: OFormat[AcknowledgeResponse] = Json.format[AcknowledgeResponse]
+case class AcknowledgeRequest(
+                               vrn: String,
+                               reportId: String,
+                               correlationId: String,
+                               presentedDateTime: OffsetDateTime
+                             )

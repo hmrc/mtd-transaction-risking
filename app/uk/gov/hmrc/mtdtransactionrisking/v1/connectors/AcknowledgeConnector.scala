@@ -14,23 +14,24 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.mtdtransactionrisking.connectors
+package uk.gov.hmrc.mtdtransactionrisking.v1.connectors
 
 import cats.data.EitherT
 import play.api.Logging
 import play.api.http.Status.*
+import play.api.libs.json.{Json, Reads}
 import uk.gov.hmrc.http.HttpReads.Implicits.*
 import uk.gov.hmrc.http.client.HttpClientV2
 import uk.gov.hmrc.http.{HeaderCarrier, StringContextOps, UpstreamErrorResponse}
 import uk.gov.hmrc.mtdtransactionrisking.config.AppConfig
-import uk.gov.hmrc.mtdtransactionrisking.models.request.AcknowledgeRequest
-import uk.gov.hmrc.mtdtransactionrisking.models.response.AcknowledgeResponse
-import play.api.libs.json.{Json, Reads}
+import uk.gov.hmrc.mtdtransactionrisking.v1.connectors.AcknowledgeConnector.*
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.AcknowledgeRequest
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.AcknowledgeResponse
+
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
-import AcknowledgeConnector.*
 
 
 object AcknowledgeConnector:
