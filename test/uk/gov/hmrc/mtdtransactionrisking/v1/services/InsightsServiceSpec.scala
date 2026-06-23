@@ -23,6 +23,7 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import org.scalatestplus.mockito.MockitoSugar
 import uk.gov.hmrc.http.HeaderCarrier
+import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
 import uk.gov.hmrc.mtdtransactionrisking.v1.InsightsService
 import uk.gov.hmrc.mtdtransactionrisking.v1.connectors.InsightsConnector
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.InsightsRequest
@@ -35,7 +36,7 @@ import scala.concurrent.{Await, Future}
 class InsightsServiceSpec extends AnyWordSpec with Matchers with MockitoSugar:
 
   implicit val hc: HeaderCarrier = HeaderCarrier()
-  implicit val correlationId: String = "test-correlation-id"
+  implicit val correlationId: CorrelationId = CorrelationId("test-correlation-id")
 
   private val validVatNumber = "GB123456789"
   private val invalidVatNumber = "INVALID"
@@ -48,7 +49,7 @@ class InsightsServiceSpec extends AnyWordSpec with Matchers with MockitoSugar:
       Insights(
         StrategicRisk(
           riskScore = 12.46,
-          riskCorrelationId = "123e4567-e89b-12d3-a456-426614174000",
+          riskCorrelationId = CorrelationId("123e4567-e89b-12d3-a456-426614174000"),
         )
       )
     )

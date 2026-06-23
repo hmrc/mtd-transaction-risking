@@ -25,6 +25,7 @@ import play.api.libs.json.{JsValue, Json}
 import play.api.libs.ws.{WSClient, WSRequest, WSResponse}
 import play.api.{Application, Environment, Mode}
 import uk.gov.hmrc.mongo.play.PlayMongoModule
+import uk.gov.hmrc.mtdtransactionrisking.stubs.AuthStub
 
 trait IntegrationBaseSpec
   extends AnyWordSpecLike
@@ -40,6 +41,8 @@ trait IntegrationBaseSpec
   def servicesConfig: Map[String, Any] = Map(
     "microservice.services.cip-risk.host"          -> mockHost,
     "microservice.services.cip-risk.port"          -> mockPort,
+    "microservice.services.auth.host"              -> mockHost,
+    "microservice.services.auth.port"              -> mockPort,
     "feature-switch.version-1.enabled"             -> true
   )
 
@@ -59,13 +62,15 @@ trait IntegrationBaseSpec
     super.afterAll()
 
   def buildRequest(path: String): WSRequest =
-  client
-    .url(s"http://localhost:$port$path")
-    .withFollowRedirects(false)
-    .withHttpHeaders(
-      "Accept"       -> "application/vnd.hmrc.1.0+json",
-      "Content-Type" -> "application/json"
-    )
+    client
+      .url(s"http://localhost:$port$path")
+      .withFollowRedirects(false)
+      .withHttpHeaders(
+        "Authorization"-> "Bearer abc123",
+        "Accept"       -> "application/vnd.hmrc.1.0+json",
+        "Content-Type" -> "application/json",
+        AuthStub.headers
+      )
 
   def document(response: WSResponse): JsValue =
     Json.parse(response.body)

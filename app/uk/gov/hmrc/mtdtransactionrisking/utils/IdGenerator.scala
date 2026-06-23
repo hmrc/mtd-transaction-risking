@@ -16,12 +16,17 @@
 
 package uk.gov.hmrc.mtdtransactionrisking.utils
 
+import play.api.libs.json.{Format, JsResult, JsString, JsValue}
+
 import java.util.UUID
-import javax.inject.{Inject, Singleton}
 
-@Singleton
-class IdGenerator @Inject() {
+object IdGenerator:
 
-  def generateId(): String = UUID.randomUUID().toString
+  case class CorrelationId(value: String)
+  given Format[CorrelationId] = new Format[CorrelationId]:
+      override def writes(id: CorrelationId): JsValue = JsString(id.value)
+      override def reads(json: JsValue): JsResult[CorrelationId] =
+        json.validate[String].map:
+          id => CorrelationId(id)
 
-}
+  def generateId(): CorrelationId = CorrelationId(UUID.randomUUID().toString)

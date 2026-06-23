@@ -18,7 +18,7 @@ package uk.gov.hmrc.mtdtransactionrisking.v1.models.errors
 
 import play.api.libs.json.{JsObject, JsValue, Json, Writes}
 
-case class ErrorWrapper(correlationId: String, error: MtdError, errors: Option[Seq[MtdError]] = None)
+case class ErrorWrapper(error: MtdError, errors: Option[Seq[MtdError]] = None)
 
 object ErrorWrapper {
 
@@ -30,10 +30,10 @@ object ErrorWrapper {
   private val mtdErrors : MtdError => Seq[JsValue] = {
     case MtdError(_, _, Some(customJson)) =>
       customJson.asOpt[MtdErrorWrapper] match {
-        case Some(e) => mtdErrorWrapper(e)
+        case Some(error) => mtdErrorWrapper(error)
         case _ => Seq(customJson)
       }
-    case _@o => Seq(Json.toJson(o))
+    case _ @ error => Seq(Json.toJson(error))
   }
 
   private val mtdErrorWrapper: MtdErrorWrapper => Seq[JsValue]= wrapper => wrapper.errors match {
