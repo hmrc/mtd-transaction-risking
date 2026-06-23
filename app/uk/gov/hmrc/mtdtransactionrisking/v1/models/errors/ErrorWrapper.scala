@@ -16,25 +16,38 @@
 
 package uk.gov.hmrc.mtdtransactionrisking.v1.models.errors
 
-import play.api.libs.json.{Json, Reads, Writes}
+import play.api.libs.json.{JsObject, JsValue, Json, Writes}
 
-case class ErrorWrapper(
-                         correlationId: String,
-                         error: MtdError,
-                         errors: Option[List[MtdError]] = None
-                       )
+case class ErrorWrapper(error: MtdError, errors: Option[Seq[MtdError]] = None)
 
-object ErrorWrapper:
+object ErrorWrapper {
 
-  given writes: Writes[ErrorWrapper] = (ew: ErrorWrapper) =>
-    val base = Json.obj(
-      "code" -> ew.error.code,
-      "message" -> ew.error.message
-    )
-    ew.errors match
-      case Some(errs) if errs.nonEmpty =>
-        base ++ Json.obj("errors" -> Json.toJson(errs))
-      case _ =>
-        base
+  val allErrors: Seq[MtdError] => Seq[JsValue] = {
+    case mtdError :: Nil => mtdErrors(mtdError)
+    case mtdError :: rest => mtdErrors(mtdError) ++ allErrors(rest)
+  }
 
-  given reads: Reads[ErrorWrapper] = Json.reads[ErrorWrapper]
+  private val mtdErrors : MtdError => Seq[JsValue] = {
+    case MtdError(_, _, Some(customJson)) =>
+      customJson.asOpt[MtdErrorWrapper] match {
+        case Some(error) => mtdErrorWrapper(error)
+        case _ => Seq(customJson)
+      }
+    case _ @ error => Seq(Json.toJson(error))
+  }
+
+  private val mtdErrorWrapper: MtdErrorWrapper => Seq[JsValue]= wrapper => wrapper.errors match {
+    case Some(errors) if errors.nonEmpty => errors.map(error => Json.toJson(error))
+    case _ => Seq(Json.toJson(wrapper))
+  }
+
+  implicit val writes: Writes[ErrorWrapper] = (errorResponse: ErrorWrapper) => {
+
+    val singleJson: JsObject = Json.toJson(errorResponse.error).as[JsObject]
+
+    errorResponse.errors match {
+      case Some(errors) if errors.nonEmpty => singleJson + ("errors" -> Json.toJson(allErrors(errors)))
+      case _ => singleJson
+    }
+  }
+}

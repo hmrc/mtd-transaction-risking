@@ -25,6 +25,7 @@ import play.api.libs.json.{JsValue, Json}
 import play.api.libs.ws.{WSClient, WSRequest, WSResponse}
 import play.api.{Application, Environment, Mode}
 import uk.gov.hmrc.mongo.play.PlayMongoModule
+import uk.gov.hmrc.mtdtransactionrisking.stubs.AuthStub
 
 trait IntegrationBaseSpec
   extends AnyWordSpecLike
@@ -38,9 +39,11 @@ trait IntegrationBaseSpec
   val mockPort: Int = WireMockHelper.wireMockPort
 
   def servicesConfig: Map[String, Any] = Map(
-    "microservice.services.insights-proxy.host" -> mockHost,
-    "microservice.services.insights-proxy.port" -> mockPort,
-    "feature-switch.version-1.enabled" -> true
+    "microservice.services.cip-risk.host"          -> mockHost,
+    "microservice.services.cip-risk.port"          -> mockPort,
+    "microservice.services.auth.host"              -> mockHost,
+    "microservice.services.auth.port"              -> mockPort,
+    "feature-switch.version-1.enabled"             -> true
   )
 
   override implicit lazy val app: Application =
@@ -63,8 +66,10 @@ trait IntegrationBaseSpec
       .url(s"http://localhost:$port$path")
       .withFollowRedirects(false)
       .withHttpHeaders(
-        "Accept" -> "application/vnd.hmrc.1.0+json",
-        "Content-Type" -> "application/json"
+        "Authorization"-> "Bearer abc123",
+        "Accept"       -> "application/vnd.hmrc.1.0+json",
+        "Content-Type" -> "application/json",
+        AuthStub.headers
       )
 
   def document(response: WSResponse): JsValue =

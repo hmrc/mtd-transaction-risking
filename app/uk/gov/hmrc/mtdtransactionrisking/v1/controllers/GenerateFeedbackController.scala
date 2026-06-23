@@ -18,44 +18,39 @@ package uk.gov.hmrc.mtdtransactionrisking.v1.controllers
 
 import play.api.libs.json.Json
 import play.api.mvc.*
-import uk.gov.hmrc.http.HeaderCarrier
-import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
 import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator
-import uk.gov.hmrc.mtdtransactionrisking.v1.services.InsightsService
+import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
+import uk.gov.hmrc.mtdtransactionrisking.v1.InsightsService
+import uk.gov.hmrc.mtdtransactionrisking.v1.controllers.auth.VATAuthAction
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.InsightsRequest
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.InsightsResponse
+import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
 
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.ExecutionContext
 
 @Singleton
-class GenerateFeedbackController @Inject()(
-                                            cc: ControllerComponents,
-                                            insightsService: InsightsService,
-                                            idGenerator: IdGenerator
-                                          )(implicit ec: ExecutionContext)
-  extends BackendController(cc) {
+class GenerateFeedbackController @Inject()(cc: ControllerComponents,
+                                           insightsService: InsightsService,
+                                           authAction: VATAuthAction)(implicit ec: ExecutionContext)
+  extends BackendController(cc):
 
-  def generateFeedback(vrn: String): Action[AnyContent] = Action.async { implicit request =>
-    implicit val correlationId: String = idGenerator.generateId()
-    implicit val hc: HeaderCarrier = HeaderCarrier()
+  def generateFeedback(vrn: String): Action[AnyContent] = authAction.authorisedFor(vrn).async:
+    request =>
+      given Request[AnyContent] = request
+      given CorrelationId = IdGenerator.generateId()
 
-    val pipeline = for
-      riskResponse <- insightsService.assess(InsightsRequest(vrn))
+      insightsService.assess(InsightsRequest(vrn)).map:
+        riskResponse =>
+          riskResponse
+        // nextResponse <- nextService.call(riskResponse.riskScore)
 
-    // nextResponse <- nextService.call(riskResponse.riskScore)
+      .value.map {
+        case Right(response: InsightsResponse) =>
+          Ok(Json.toJson(response))
+            .withHeaders("X-CorrelationId" -> summon[CorrelationId].value)
 
-    yield riskResponse
-
-    pipeline.value.map {
-      case Right(response: InsightsResponse) =>
-        Ok(Json.toJson(response))
-          .withHeaders("X-CorrelationId" -> correlationId)
-
-      case Left(error: String) =>
-        InternalServerError(Json.obj("message" -> error))
-          .withHeaders("X-CorrelationId" -> correlationId)
-    }
-  }
-
-}
+        case Left(error: String) =>
+          InternalServerError(Json.obj("message" -> error))
+            .withHeaders("X-CorrelationId" -> summon[CorrelationId].value)
+      }
