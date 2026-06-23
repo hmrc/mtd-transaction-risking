@@ -40,15 +40,35 @@ paths:
           <tbody>
             <tr>
               <td><p>Default (No header value)</p></td>
-              <td><p>Simulates a successful risk assessment with feedback returned.</p></td>
+              <td><p>Simulates the scenario where there is one HMRC Assist feedback message.</p></td>
+            </tr>
+            <tr>
+              <td><p>MULTIPLE_FEEDBACK</p></td>
+              <td><p>Simulates the scenario where there are more than one HMRC VAT Assist feedback messages.</p></td>
             </tr>
             <tr>
               <td><p>NO_FEEDBACK</p></td>
-              <td><p>Simulates the scenario where no risks are identified and no feedback is returned.</p></td>
+              <td><p>Simulates the scenario where there is no HMRC VAT Assist feedback.</p></td>
             </tr>
             <tr>
-              <td><p>NOT_FOUND</p></td>
-              <td><p>Simulates the scenario where the VRN is not found.</p></td>
+              <td><p>INVALID_VRN</p></td>
+              <td><p>Simulates the scenario where the VRN has not passed validation.</p></td>
+            </tr>
+            <tr>
+              <td><p>INVALID_PERIODKEY</p></td>
+              <td><p>Simulates the scenario where the periodKey has not passed validation.</p></td>
+            </tr>
+            <tr>
+              <td><p>INVALID_PAYLOAD</p></td>
+              <td><p>Submission has not passed validation. Invalid parameter payload.</p></td>
+            </tr>
+            <tr>
+              <td><p>TAX_PERIOD_NOT_ENDED</p></td>
+              <td><p>Simulates the scenario where the accounting period has not ended.</p></td>
+            </tr>
+            <tr>
+              <td><p>INSOLVENT_TRADER</p></td>
+              <td><p>Simulates the scenario where the client is an insolvent trader.</p></td>
             </tr>
           </tbody>
         </table>
@@ -77,18 +97,19 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/VATAssistRequest'
-            example:
-              periodKey: '18AD'
-              vatDueSales: 105.50
-              vatDueAcquisitions: 0.00
-              totalVatDue: 105.50
-              vatReclaimedCurrPeriod: 52.75
-              netVatDue: 52.75
-              totalValueSalesExVAT: 500
-              totalValuePurchasesExVAT: 250
-              totalValueGoodsSuppliedExVAT: 0
-              totalAcquisitionsExVAT: 0
+              allOf:
+                - $ref: '#/components/schemas/VATAssistRequest'
+                - example:
+                    periodKey: '18AD'
+                    vatDueSales: 105.50
+                    vatDueAcquisitions: 0.00
+                    totalVatDue: 105.50
+                    vatReclaimedCurrPeriod: 52.75
+                    netVatDue: 52.75
+                    totalValueSalesExVAT: 500
+                    totalValuePurchasesExVAT: 250
+                    totalValueGoodsSuppliedExVAT: 0
+                    totalAcquisitionsExVAT: 0
       responses:
         '200':
           description: Feedback returned successfully.
@@ -130,19 +151,73 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
-              example:
-                code: 'INVALID_VRN'
-                message: 'The provided VRN is invalid.'
+                allOf:
+                - $ref: '#/components/schemas/ErrorResponse'
+                -  example:
+                     code: 'INVALID_VRN'
+                     message: 'The provided VRN is invalid.'
+              examples:
+                invalidVrn:
+                  description: Invalid VRN
+                  value:
+                    code: VRN_INVALID
+                    message: The provided VRN is invalid
+                invalidPeriodKey:
+                  description: Invalid period key
+                  value:
+                    code: PERIOD_KEY_INVALID
+                    message: Invalid period key
+                invalidRequest:
+                  description: Invalid request
+                  value:
+                    code: INVALID_REQUEST
+                    message: Invalid request
+                invalidTotalValue:
+                  description: totalVatDue should be equal to the sum of vatDueSales and vatDueAcquisitions
+                  value:
+                    code: VAT_TOTAL_VALUE
+                    message: totalVatDue should be equal to the sum of vatDueSales and vatDueAcquisitions
+                invalidNetValue:
+                  description: netVatDue should be the difference between the largest and the smallest values among totalVatDue and vatReclaimedCurrPeriod
+                  value:
+                    code: VAT_NET_VALUE
+                    message: netVatDue should be the difference between the largest and the smallest values among totalVatDue and vatReclaimedCurrPeriod
+                invalidNumericValue:
+                  description: Please provide a numeric field
+                  value:
+                    code: INVALID_NUMERIC_VALUE
+                    message: please provide a numeric field
+                invalidMonetaryAmount:
+                  description: The monetary amount is invalid
+                  value:
+                    code: INVALID_MONETARY_AMOUNT
+                    message: amount should be a monetary value (to 2 decimal places), between 0 and 99,999,999,999.99
         '403':
           description: Forbidden. The client is not authorised to access this resource.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
-              example:
-                code: 'CLIENT_OR_AGENT_NOT_AUTHORISED'
-                message: 'The client and/or agent is not authorised.'
+                allOf:
+                - $ref: '#/components/schemas/ErrorResponse'
+                - example:
+                    code: 'CLIENT_OR_AGENT_NOT_AUTHORISED'
+                    message: 'The client and/or agent is not authorised.'
+              examples:
+                submittedTooEarly:
+                  description: Return submitted too early
+                  value:
+                    code: TAX_PERIOD_NOT_ENDED
+                    message: The remote endpoint has indicated that the submission is for a tax period that has not ended
+                clientNotSubscribedToMTD:
+                  description: 'The client and/or agent is not authorised. This is normally because: the client is not subscribed to MTD, the agent is not subscribed to Agent Services, or the client has not authorised the agent to act on their behalf.'
+                  value:
+                    code: CLIENT_OR_AGENT_NOT_AUTHORISED
+                    message: The client and/or agent is not authorised
+                ruleInsolventTrader:
+                  description: The request could not be completed as it relates to an insolvent trader, which are not supported by this API.
+                  value:
+                    code: RULE_INSOLVENT_TRADER
+                    message: The remote endpoint has indicated that the Trader is insolvent
         '404':
           description: Not found. The VRN could not be found.
           content:
@@ -185,7 +260,31 @@ paths:
           <tbody>
             <tr>
               <td><p>Default (No header value)</p></td>
-              <td><p>Simulates a successful acknowledgement.</p></td>
+              <td><p>Acknowledgement received.</p></td>
+            </tr>
+            <tr>
+              <td><p>INVALID_VRN</p></td>
+              <td><p>Scenario where the VRN has not passed validation.</p></td>
+            </tr>
+            <tr>
+              <td><p>INVALID_REPORTID</p></td>
+              <td><p>Scenario where the reportId has not passed validation.</p></td>
+            </tr>
+            <tr>
+              <td><p>INVALID_DATETIME</p></td>
+              <td><p>Scenario where the presented DateTime has not passed validation.</p></td>
+            </tr>
+            <tr>
+              <td><p>INVALID_CREDENTIALS</p></td>
+              <td><p>Scenario where invalid authentication information is provided.</p></td>
+            </tr>
+            <tr>
+              <td><p>NOT_AUTHORISED</p></td>
+              <td><p>Scenario where the client or their agent is not authorised.</p></td>
+            </tr>
+            <tr>
+              <td><p>CORRELATION_ID</p></td>
+              <td><p>Scenario where the correlation ID does not match.</p></td>
             </tr>
             <tr>
               <td><p>NOT_FOUND</p></td>
@@ -501,7 +600,7 @@ components:
         path:
           type: string
           maxLength: 32767
-          description: The HTTP path to guidance provided by HMRC.
+          description: The VAT box numbers and equivalent descriptions (as appearing on a paper return) that are the focus of the feedback presented in the message.
           example: '/guidance/vat-returns'
 
     FeedbackLink:
