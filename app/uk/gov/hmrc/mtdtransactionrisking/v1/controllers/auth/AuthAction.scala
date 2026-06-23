@@ -16,13 +16,13 @@
 
 package uk.gov.hmrc.mtdtransactionrisking.v1.controllers.auth
 
-import play.api.mvc.Results.Unauthorized
 import play.api.mvc.*
+import play.api.mvc.Results.{Forbidden, Unauthorized}
 import uk.gov.hmrc.auth.core.authorise.Predicate
 import uk.gov.hmrc.auth.core.retrieve.v2.Retrievals.*
 import uk.gov.hmrc.auth.core.retrieve.~
 import uk.gov.hmrc.auth.core.{AuthConnector, AuthorisationException, AuthorisedFunctions, Enrolment}
-import uk.gov.hmrc.http.{ForbiddenException, HeaderCarrier, UnauthorizedException}
+import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.mtdtransactionrisking.utils.Logging
 import uk.gov.hmrc.play.http.HeaderCarrierConverter
 
@@ -47,36 +47,40 @@ class VATAuthAction @Inject()(override val authConnector: AuthConnector,
     new ActionBuilder[AuthenticatedVATRequest, AnyContent]:
 
       override protected def executionContext: ExecutionContext = ec
+
       override def parser: BodyParser[AnyContent] = bodyParser
 
       override def invokeBlock[A](request: Request[A],
                                   block: AuthenticatedVATRequest[A] => Future[Result]): Future[Result] =
         given hc: HeaderCarrier = HeaderCarrierConverter.fromRequest(request)
-        
+
         authorised(predicate(requestedVRN))
-          .retrieve(internalId and allEnrolments):
+          .retrieve(internalId and allEnrolments) {
             case Some(userId) ~ userEnrolments =>
-              val vrn = userEnrolments
+              val maybeVrn = userEnrolments
                 .getEnrolment("HMRC-MTD-VAT")
                 .flatMap(_.getIdentifier("VRN"))
                 .map(_.value)
-                .getOrElse(throw new ForbiddenException("User has no MTD VAT enrolment"))
 
-              if requestedVRN == vrn then
-                block(
-                  AuthenticatedVATRequest(
-                    request,
-                    userId,
-                    vrn
-                  )
-                )
-              else
-                logger.warn(s"User VRN ($vrn) does not match the requested VRN ($requestedVRN)")
-                throw ForbiddenException(s"User VRN ($vrn) does not match the requested VRN ($requestedVRN)")
+              maybeVrn match
+                case None =>
+                  logger.warn(s"User has no MTD VAT enrolment")
+                  Future.successful(Forbidden("User has no MTD VAT enrolment"))
+
+                case Some(vrn) if vrn != requestedVRN =>
+                  logger.warn(s"User VRN ($vrn) does not match requested VRN ($requestedVRN)")
+                  Future.successful(Forbidden(s"User VRN does not match requested VRN"))
+
+                case Some(vrn) =>
+                  block(AuthenticatedVATRequest(request, userId, vrn))
+
             case _ =>
-              throw new UnauthorizedException("Unable to retrieve required auth values")
-          .recover:
+              logger.warn("Unable to retrieve required auth values")
+              Future.successful(Unauthorized("Unable to retrieve required auth values"))
+          }
+          .recover {
             case e: AuthorisationException =>
-                val error = s"Failed to authorise request $e"
-                logger.warn(error)
-                Unauthorized(error)
+              val error = s"Failed to authorise request $e"
+              logger.warn(error)
+              Unauthorized(error)
+          }
