@@ -49,12 +49,6 @@ class MtdErrorsSpec extends UnitSpec {
         )
       }
 
-      // --- Request body ---
-      "serialise InvalidJsonError" in {
-        Json.toJson(InvalidJsonError: MtdError) shouldBe Json.parse(
-          """{"code": "INVALID_REQUEST", "message": "Invalid JSON received"}"""
-        )
-      }
 
       "serialise BadRequestError" in {
         Json.toJson(BadRequestError: MtdError) shouldBe Json.parse(
@@ -75,6 +69,11 @@ class MtdErrorsSpec extends UnitSpec {
           """{"code": "INTERNAL_SERVER_ERROR", "message": "An internal server error occurred"}"""
         )
       }
+      "serialise ForbiddenDownstreamError using its customJson" in {
+        Json.toJson(ForbiddenDownstreamError: MtdError) shouldBe Json.parse(
+          """{"code": "INTERNAL_SERVER_ERROR", "message": "An internal server error occurred"}"""
+        )
+      }
 
       // --- Routing ---
       "serialise UnsupportedVersionError" in {
@@ -88,6 +87,13 @@ class MtdErrorsSpec extends UnitSpec {
           """{"code": "ACCEPT_HEADER_INVALID", "message": "The accept header is missing or invalid"}"""
         )
       }
+
+      "serialise RuleIncorrectGovTestScenarioError" in {
+        Json.toJson(RuleIncorrectGovTestScenarioError: MtdError) shouldBe Json.parse(
+          """{"code": "RULE_INCORRECT_GOV_TEST_SCENARIO", "message": "The Gov-Test-Scenario was not found"}"""
+        )
+      }
+
     }
   }
 }

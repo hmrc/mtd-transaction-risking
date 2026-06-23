@@ -24,7 +24,6 @@ import org.scalatest.wordspec.AnyWordSpec
 import org.scalatestplus.mockito.MockitoSugar
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
-import uk.gov.hmrc.mtdtransactionrisking.v1.InsightsService
 import uk.gov.hmrc.mtdtransactionrisking.v1.connectors.InsightsConnector
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.InsightsRequest
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.{Insights, InsightsResponse, StrategicRisk}
@@ -86,15 +85,15 @@ class InsightsServiceSpec extends AnyWordSpec with Matchers with MockitoSugar:
     "assess is called and the connector returns an unexpected status" must :
       "return a Left with the error message" in new Test:
         when(mockConnector.getRiskInsights(eqTo(invalidInsightsRiskRequest))(any(), any()))
-          .thenReturn(leftT("Unexpected status 400 from cip-risk"))
+          .thenReturn(leftT("Unexpected status 400 from insights-proxy"))
 
         val result: Either[String, InsightsResponse] = await(service.assess(invalidInsightsRiskRequest).value)
-        result shouldBe Left("Unexpected status 400 from cip-risk")
+        result shouldBe Left("Unexpected status 400 from insights-proxy")
 
     "assess is called and the connector throws an exception" must :
       "return a Left with the exception message" in new Test:
         when(mockConnector.getRiskInsights(eqTo(insightsRequest))(any(), any()))
-          .thenReturn(leftT("Exception calling cip-risk: connection refused"))
+          .thenReturn(leftT("Exception calling insights-proxy: connection refused"))
 
         val result: Either[String, InsightsResponse] = await(service.assess(insightsRequest).value)
-        result shouldBe Left("Exception calling cip-risk: connection refused")
+        result shouldBe Left("Exception calling insights-proxy: connection refused")
