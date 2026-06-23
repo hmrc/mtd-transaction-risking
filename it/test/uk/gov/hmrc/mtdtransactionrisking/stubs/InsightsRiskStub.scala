@@ -23,7 +23,7 @@ import play.api.libs.json.Json
 
 object InsightsRiskStub:
 
-  private val InsightsRiskUrl = "/vat-insights-proxy"
+  private val InsightsRiskUrl = "/check/insights"
 
   def successResponse(vrn: String): StubMapping =
     stubFor(
