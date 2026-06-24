@@ -28,7 +28,10 @@ class AppConfig @Inject()(config: ServicesConfig, configuration: Configuration):
 
   private val insightsProxyConfig = configuration.get[Configuration]("microservice.services.insights-proxy")
   val insightsProxyServiceBaseUrl: String = config.baseUrl("insights-proxy") + insightsProxyConfig.get[String]("submit-url")
-  
+
+  val EnvironmentHeaders: Option[Seq[String]] =
+    configuration.getOptional[Seq[String]]("microservice.services.insights-proxy.environmentHeaders")
+
   def featureSwitch: Option[Configuration] = configuration.getOptional[Configuration](s"feature-switch")
 
   val apiGatewayContext: String                    = config.getString("api.gateway.context")
