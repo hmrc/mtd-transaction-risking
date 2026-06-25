@@ -15,19 +15,30 @@
  */
 
 package uk.gov.hmrc.mtdtransactionrisking.v1.services
-
 import cats.data.EitherT
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.mtdtransactionrisking.v1.connectors.AcknowledgeConnector
-import uk.gov.hmrc.mtdtransactionrisking.v1.connectors.AcknowledgeConnector.AcknowledgeFailure
+import uk.gov.hmrc.mtdtransactionrisking.v1.connectors.AcknowledgeConnector.AcknowledgeConnectorError
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.AcknowledgeRequest
-import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.AcknowledgeResponse
 
 import javax.inject.{Inject, Singleton}
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
+
+object AcknowledgeService:
+  sealed trait AcknowledgeServiceError
+  final case class ClientOrAuthError(status: Int, code: String, message: String) extends AcknowledgeServiceError
+  case object InternalServiceError extends AcknowledgeServiceError
 
 @Singleton
-class AcknowledgeService @Inject()(connector: AcknowledgeConnector):
+class AcknowledgeService @Inject()(connector: AcknowledgeConnector)(implicit ec: ExecutionContext):
+  import AcknowledgeService.*
 
-  def acknowledge(request: AcknowledgeRequest)(implicit hc: HeaderCarrier): EitherT[Future, AcknowledgeFailure, Unit] =
-    connector.acknowledge(request)
+  private val passThroughStatuses = Set(400, 401, 403, 404)
+
+  def acknowledge(request: AcknowledgeRequest)(implicit hc: HeaderCarrier): EitherT[Future, AcknowledgeServiceError, Unit] =
+    connector.acknowledge(request).leftMap {
+      case AcknowledgeConnectorError(status, code, message) if passThroughStatuses.contains(status) =>
+        ClientOrAuthError(status, code, message)
+      case _ =>
+        InternalServiceError
+    }

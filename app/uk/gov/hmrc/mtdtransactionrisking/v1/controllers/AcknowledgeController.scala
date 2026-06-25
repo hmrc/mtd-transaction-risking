@@ -17,64 +17,66 @@
 package uk.gov.hmrc.mtdtransactionrisking.v1.controllers
 
 import play.api.libs.json.Json
-import play.api.mvc.{Action, AnyContent, ControllerComponents}
-import uk.gov.hmrc.mtdtransactionrisking.v1.connectors.AcknowledgeConnector.AcknowledgeFailure
-import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator
+import play.api.mvc.{Action, AnyContent, ControllerComponents, Result}
+import uk.gov.hmrc.http.HeaderCarrier
+import uk.gov.hmrc.mtdtransactionrisking.v1.controllers.auth.VATAuthAction
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.AcknowledgeRequest
 import uk.gov.hmrc.mtdtransactionrisking.v1.services.AcknowledgeService
+import uk.gov.hmrc.mtdtransactionrisking.v1.services.AcknowledgeService.{AcknowledgeServiceError, ClientOrAuthError, InternalServiceError}
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
-
+import uk.gov.hmrc.play.http.HeaderCarrierConverter
 import java.time.{Instant, OffsetDateTime, ZoneOffset}
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
-import scala.util.{Failure, Success, Try}
 
 @Singleton
 class AcknowledgeController @Inject()(
                                        cc: ControllerComponents,
                                        acknowledgeService: AcknowledgeService,
-                                       idGenerator: IdGenerator
-                                     )(implicit ec: ExecutionContext) extends BackendController(cc) {
+                                       authAction: VATAuthAction
+                                     )(implicit ec: ExecutionContext) extends BackendController(cc):
 
-  def acknowledgeReport(vrn: String, reportId: String, correlationId: String): Action[AnyContent] = Action.async { implicit request =>
-    validate(vrn, reportId, request.getQueryString("presentedDateTime")) match
+  def acknowledgeReport(vrn: String, reportId: String, correlationId: String): Action[AnyContent] =
+    authAction.authorisedFor(vrn).async: request =>
+      validate(vrn, reportId, request.getQueryString("presentedDateTime")) match
+        case Left(result) =>
+          Future.successful(result)
 
-      case Left(result) =>
-        Future.successful(result)
+        case Right(presentedDateTime) =>
+          given HeaderCarrier = HeaderCarrierConverter.fromRequest(request)
 
-      case Right(presentedDateTime) =>
-        acknowledgeService.acknowledge(AcknowledgeRequest(vrn, reportId, correlationId, presentedDateTime)).value.map {
+          acknowledgeService
+            .acknowledge(AcknowledgeRequest(vrn, reportId, correlationId, presentedDateTime))
+            .value
+            .map {
+              case Right(_) =>
+                NoContent.withHeaders("X-CorrelationId" -> correlationId)
 
-        case Right(_) =>
-          NoContent.withHeaders("X-CorrelationId" -> idGenerator.generateId())
+              case Left(error) =>
+                toResult(error, correlationId)
+            }
 
-        case Left(AcknowledgeFailure(status, code, message)) if Set(400, 401, 403, 404).contains(status) =>
-          Status(status)(Json.obj("code" -> code, "message" -> message))
+  private def toResult(error: AcknowledgeServiceError, correlationId: String): Result =
+    error match
+      case ClientOrAuthError(status, code, message) =>
+        Status(status)(Json.obj("code" -> code, "message" -> message))
+          .withHeaders("X-CorrelationId" -> correlationId)
 
-        case Left(_) =>
-          InternalServerError(Json.obj("code" -> "INTERNAL_SERVER_ERROR", "message" -> "An unexpected error occurred."))
-
-    }
-
-  }
+      case InternalServiceError =>
+        InternalServerError(Json.obj("code" -> "INTERNAL_SERVER_ERROR", "message" -> "An unexpected error occurred."))
+          .withHeaders("X-CorrelationId" -> correlationId)
 
   private val vrnPattern = "^[0-9]{9}$"
-
   private val reportIdPattern = "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
-
   private val presentedDateTimePattern = raw"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$$"
 
-
-  private def validate(vrn: String, reportId: String, presentedDateTime: Option[String]): Either[play.api.mvc.Result, OffsetDateTime] =
-
+  private def validate(vrn: String, reportId: String, presentedDateTime: Option[String]): Either[Result, OffsetDateTime] =
     if !vrn.matches(vrnPattern) then Left(BadRequest(Json.obj("code" -> "FORMAT_VRN", "message" -> "The provided Vrn is invalid.")))
     else if !reportId.matches(reportIdPattern) then Left(BadRequest(Json.obj("code" -> "FORMAT_RECEIPT_ID", "message" -> "The provided Report ID is invalid.")))
     else presentedDateTime.flatMap(parsePresentedDateTime).toRight(
       BadRequest(Json.obj("code" -> "FORMAT_DATETIME", "message" -> "The provided Presented Date Time is invalid."))
     )
 
-
   private def parsePresentedDateTime(value: String): Option[OffsetDateTime] =
     if !value.matches(presentedDateTimePattern) then None
     else scala.util.Try(OffsetDateTime.ofInstant(Instant.parse(value), ZoneOffset.UTC)).toOption
-}
