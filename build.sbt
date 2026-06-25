@@ -13,6 +13,7 @@ lazy val microservice = Project("mtd-transaction-risking", file("."))
     Compile / unmanagedResourceDirectories += baseDirectory.value / "resources"
   )
   .settings(CodeCoverageSettings.settings: _*)
+  .settings(PlayKeys.playDefaultPort := 9858)
 
 lazy val it = project
   .enablePlugins(PlayScala)

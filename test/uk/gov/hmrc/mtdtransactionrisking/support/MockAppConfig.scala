@@ -40,7 +40,7 @@ trait MockAppConfig extends MockitoSugar {
       when(mockAppConfig.endpointsEnabled(version)).thenReturn(returns)
 
     def cipRiskServiceBaseUrl(returns: String): Unit =
-      when(mockAppConfig.cipRiskServiceBaseUrl).thenReturn(returns)
+      when(mockAppConfig.insightsProxyServiceBaseUrl).thenReturn(returns)
 
     def appName(returns: String): Unit =
       when(mockAppConfig.appName).thenReturn(returns)

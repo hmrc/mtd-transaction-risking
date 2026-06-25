@@ -187,6 +187,11 @@ class MtdErrorsSpec extends UnitSpec {
           .as[MtdError] shouldBe MtdError("SOME_CODE", "Some message", None)
       }
     }
+
+    "ignore any customJson present in the source JSON" in {
+      Json.parse("""{"code": "SOME_CODE", "message": "Some message", "extra": {"foo": "bar"}}""")
+        .as[MtdError] shouldBe MtdError("SOME_CODE", "Some message", None)
+    }
   }
 
   "MtdErrorWrapper" when {

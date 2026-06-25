@@ -17,7 +17,7 @@
 package uk.gov.hmrc.mtdtransactionrisking.controllers
 
 import com.github.tomakehurst.wiremock.stubbing.StubMapping
-import play.api.http.Status.{FORBIDDEN, INTERNAL_SERVER_ERROR, OK, UNAUTHORIZED}
+import play.api.http.Status.{BAD_REQUEST, FORBIDDEN, INTERNAL_SERVER_ERROR, OK, UNAUTHORIZED}
 import play.api.mvc.Result
 import play.api.test.FakeRequest
 import play.api.test.Helpers.{contentAsJson, contentAsString, defaultAwaitTimeout, headers, status}
@@ -37,7 +37,7 @@ class GenerateFeedbackControllerISpec extends IntegrationBaseSpec:
     "POST /feedback/:vrn" should :
 
       "return 200 with risk response and correlation ID header" when :
-        "a valid VRN is provided and cip-risk responds successfully" in new Test:
+        "a valid VRN is provided and insights-proxy responds successfully" in new Test:
           override def setupStubs(): StubMapping = {
             AuthStub.successfulAuthWith(vrn)
             InsightsRiskStub.successResponse(vrn)
@@ -47,6 +47,17 @@ class GenerateFeedbackControllerISpec extends IntegrationBaseSpec:
           status(response) shouldBe OK
           headers(response).get("X-CorrelationId") shouldBe defined
           contentAsJson(response).as[InsightsResponse].insights.strategicRisk.riskScore shouldBe CommonTestData.setRiskScore
+
+      "return 400" when :
+
+        "user has an invalid VRN in their request" in new Test:
+          override def setupStubs(): StubMapping = InsightsRiskStub.successResponse(vrn)
+
+          val response: Future[Result] = request("Bad-vrn-1234")
+
+          status(response) shouldBe BAD_REQUEST
+          contentAsString(response) should include("VRN_INVALID")
+          contentAsString(response) should include("The provided VRN is invalid")
 
       "return 401" when :
 
@@ -86,7 +97,7 @@ class GenerateFeedbackControllerISpec extends IntegrationBaseSpec:
           contentAsString(response) shouldBe "User VRN does not match requested VRN"
 
       "return 500" when :
-        "cip-risk returns 500" in new Test:
+        "insights-proxy returns 500" in new Test:
           override def setupStubs(): StubMapping = {
             AuthStub.successfulAuthWith(vrn)
             InsightsRiskStub.serverErrorResponse()
@@ -95,7 +106,7 @@ class GenerateFeedbackControllerISpec extends IntegrationBaseSpec:
           val response: Future[Result] = request(vrn)
           status(response) shouldBe INTERNAL_SERVER_ERROR
 
-        "cip-risk returns 503" in new Test:
+        "insights-proxy returns 503" in new Test:
           override def setupStubs(): StubMapping = {
             AuthStub.successfulAuthWith(vrn)
             InsightsRiskStub.serviceUnavailableResponse()
@@ -104,7 +115,7 @@ class GenerateFeedbackControllerISpec extends IntegrationBaseSpec:
           val response: Future[Result] = request(vrn)
           status(response) shouldBe INTERNAL_SERVER_ERROR
 
-        "cip-risk returns malformed JSON" in new Test:
+        "insights-proxy returns malformed JSON" in new Test:
           override def setupStubs(): StubMapping = {
             AuthStub.successfulAuthWith(vrn)
             InsightsRiskStub.malformedJsonResponse()

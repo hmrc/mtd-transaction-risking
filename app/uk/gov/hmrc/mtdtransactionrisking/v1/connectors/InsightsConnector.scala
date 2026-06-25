@@ -37,12 +37,13 @@ class InsightsConnector @Inject()(
                                    appConfig: AppConfig
                                  )(implicit val ec: ExecutionContext) extends Logging:
 
-  private[connectors] def requiredHeaders(correlationId: CorrelationId, appName: String): Seq[(String, String)] =
+  private[connectors] def requiredHeaders(correlationId: CorrelationId, appName: String)
+                                         (implicit hc: HeaderCarrier): Seq[(String, String)] =
     Seq(
       "User-Agent" -> appName,
       "Content-Type" -> "application/json",
       "X-Correlation-Id" -> correlationId.value
-    )
+    ) ++ hc.headers(appConfig.EnvironmentHeaders.getOrElse(Seq.empty))
 
   def getRiskInsights(request: InsightsRequest)
                      (implicit hc: HeaderCarrier, correlationId: CorrelationId): EitherT[Future, String, InsightsResponse] =
@@ -50,7 +51,7 @@ class InsightsConnector @Inject()(
 
     EitherT(
       httpClient
-        .post(url"${appConfig.cipRiskServiceBaseUrl}")
+        .post(url"${appConfig.insightsProxyServiceBaseUrl}")
         .withBody(Json.toJson(request))
         .setHeader(requiredHeaders(correlationId, appConfig.appName) *)
         .execute[Either[UpstreamErrorResponse, InsightsResponse]]
