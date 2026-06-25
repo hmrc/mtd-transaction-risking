@@ -20,6 +20,7 @@ import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.mtdtransactionrisking.v1.connectors.AcknowledgeConnector
 import uk.gov.hmrc.mtdtransactionrisking.v1.connectors.AcknowledgeConnector.AcknowledgeConnectorError
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.AcknowledgeRequest
+import AcknowledgeService.*
 
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
@@ -31,7 +32,6 @@ object AcknowledgeService:
 
 @Singleton
 class AcknowledgeService @Inject()(connector: AcknowledgeConnector)(implicit ec: ExecutionContext):
-  import AcknowledgeService.*
 
   private val passThroughStatuses = Set(400, 401, 403, 404)
 

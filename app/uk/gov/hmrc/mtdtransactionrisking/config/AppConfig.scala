@@ -26,6 +26,11 @@ class AppConfig @Inject()(config: ServicesConfig, configuration: Configuration):
 
   val appName: String = config.getString("appName")
 
+  //START OF RDS PLACEHOLDER
+  private val RDSConfig = configuration.get[Configuration]("microservice.services.rds")
+  val rdsBaseUrl: String = config.baseUrl("rds") + RDSConfig.get[String]("rds-url")
+  //END OF RDS PLACEHOLDER
+
   private val insightsProxyConfig = configuration.get[Configuration]("microservice.services.insights-proxy")
   val insightsProxyServiceBaseUrl: String = config.baseUrl("insights-proxy") + insightsProxyConfig.get[String]("submit-url")
 

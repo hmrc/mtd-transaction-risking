@@ -44,7 +44,7 @@ class AcknowledgeConnector @Inject()(
   def acknowledge(request: AcknowledgeRequest)(implicit hc: HeaderCarrier): EitherT[Future, AcknowledgeConnectorError, Unit] =
     EitherT(
       httpClient
-        .post(url"${appConfig.cipRiskServiceBaseUrl}")
+        .post(url"${appConfig.rdsBaseUrl}")
         .execute[Either[UpstreamErrorResponse, Unit]]
         .map {
           case Right(_) =>
