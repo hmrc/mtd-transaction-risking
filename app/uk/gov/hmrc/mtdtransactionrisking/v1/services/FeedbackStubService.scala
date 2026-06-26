@@ -27,7 +27,7 @@ import javax.inject.{Inject, Singleton}
 import scala.concurrent.Future
 
 @Singleton
-class FeedbackService @Inject()(connector: FeedbackConnector):
+class FeedbackStubService @Inject()(connector: FeedbackConnector):
 
   def requestFeedback(
                        request: InsightsRequest

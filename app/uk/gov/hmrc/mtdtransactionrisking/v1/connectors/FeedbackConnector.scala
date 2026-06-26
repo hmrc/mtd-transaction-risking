@@ -55,7 +55,7 @@ class FeedbackConnector @Inject()(
 
     EitherT(
       httpClient
-        .post(url"${appConfig.feedbackServiceBaseUrl.getOrElse("")}")
+        .post(url"${appConfig.feedbackStubBaseUrl.getOrElse("")}")
         .withBody(Json.toJson(request))
         .setHeader(requiredHeaders(correlationId, appConfig.appName) *)
         .execute[Either[UpstreamErrorResponse, FeedbackResponse]]

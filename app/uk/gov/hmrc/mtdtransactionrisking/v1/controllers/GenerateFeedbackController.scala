@@ -24,7 +24,7 @@ import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
 import uk.gov.hmrc.mtdtransactionrisking.v1.controllers.auth.VATAuthAction
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.InsightsRequest
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.{FeedbackResponse, InsightsResponse}
-import uk.gov.hmrc.mtdtransactionrisking.v1.services.{FeedbackService, InsightsService}
+import uk.gov.hmrc.mtdtransactionrisking.v1.services.{FeedbackStubService, InsightsService}
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
 
 import javax.inject.{Inject, Singleton}
@@ -33,7 +33,7 @@ import scala.concurrent.ExecutionContext
 @Singleton
 class GenerateFeedbackController @Inject()(cc: ControllerComponents,
                                            insightsService: InsightsService,
-                                           feedbackService: FeedbackService,
+                                           feedbackStubService: FeedbackStubService,
                                            authAction: VATAuthAction,
                                            appConfig: AppConfig)(implicit ec: ExecutionContext)
   extends BackendController(cc):
@@ -43,10 +43,10 @@ class GenerateFeedbackController @Inject()(cc: ControllerComponents,
       given Request[AnyContent] = request
       given CorrelationId = IdGenerator.generateId()
 
-      appConfig.feedbackServiceBaseUrl match {
+      appConfig.feedbackStubBaseUrl match {
 
         case Some(_) =>
-          feedbackService.requestFeedback(InsightsRequest(vrn)).value.map:
+          feedbackStubService.requestFeedback(InsightsRequest(vrn)).value.map:
             case Right(response: FeedbackResponse) =>
               Ok(Json.toJson(response))
                 .withHeaders("X-CorrelationId" -> summon[CorrelationId].value)
