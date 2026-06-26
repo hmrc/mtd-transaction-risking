@@ -26,46 +26,51 @@ import uk.gov.hmrc.http.{HeaderCarrier, StringContextOps, UpstreamErrorResponse}
 import uk.gov.hmrc.mtdtransactionrisking.config.AppConfig
 import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.InsightsRequest
-import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.InsightsResponse
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.FeedbackResponse
 
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
-class InsightsConnector @Inject()(
-                                   val httpClient: HttpClientV2,
+class FeedbackConnector @Inject()(
+                                   httpClient: HttpClientV2,
                                    appConfig: AppConfig
-                                 )(implicit val ec: ExecutionContext) extends Logging:
+                                 )(implicit ec: ExecutionContext) extends Logging:
 
-  private[connectors] def requiredHeaders(correlationId: CorrelationId, appName: String)
-                                         (implicit hc: HeaderCarrier): Seq[(String, String)] =
+  private def requiredHeaders(
+                               correlationId: CorrelationId,
+                               appName: String
+                             )(implicit hc: HeaderCarrier): Seq[(String, String)] =
     Seq(
       "User-Agent" -> appName,
       "Content-Type" -> "application/json",
       "X-Correlation-Id" -> correlationId.value
-    )
+    ) ++ hc.headers(appConfig.feedbackEnvironmentHeaders.getOrElse(Seq.empty))
+  
+  def requestFeedback(
+                       request: InsightsRequest
+                     )(implicit hc: HeaderCarrier, correlationId: CorrelationId): EitherT[Future, String, FeedbackResponse] =
 
-  def getRiskInsights(request: InsightsRequest)
-                     (implicit hc: HeaderCarrier, correlationId: CorrelationId): EitherT[Future, String, InsightsResponse] =
-    logger.debug(s"${correlationId.value}::[InsightsConnector:getRiskInsights] calling insights API")
+    logger.info(s"${correlationId.value}::[FeedbackConnector][requestFeedback] calling feedback service for VRN: ${request.vatRegistrationNumber}")
 
     EitherT(
       httpClient
-        .post(url"${appConfig.insightsProxyServiceBaseUrl}")
+        .post(url"${appConfig.feedbackServiceBaseUrl.getOrElse("")}")
         .withBody(Json.toJson(request))
         .setHeader(requiredHeaders(correlationId, appConfig.appName) *)
-        .execute[Either[UpstreamErrorResponse, InsightsResponse]]
-        .map:
+        .execute[Either[UpstreamErrorResponse, FeedbackResponse]]
+        .map {
           case Right(response) =>
-            logger.debug(s"$correlationId::[InsightsConnector:getRiskInsights] success")
+            logger.info(s"${correlationId.value}::[FeedbackConnector][requestFeedback] success")
             Right(response)
-
-          case Left(errorResponse) =>
-            logger.error(s"$correlationId::[InsightsConnector:getRiskInsights] " +
-              s"failed status ${errorResponse.statusCode}: ${errorResponse.message}")
-            Left(s"Unexpected status ${errorResponse.statusCode} from insights service")
+          case Left(err) =>
+            logger.error(s"${correlationId.value}::[FeedbackConnector][requestFeedback] failed status ${err.statusCode}: ${err.message}")
+            Left(s"Unexpected status ${err.statusCode} from feedback service")
+        }
         .recover:
           case ex =>
-            logger.error(s"$correlationId::[InsightsConnector:getRiskInsights] unexpected exception", ex)
-            Left(s"Exception calling insights service: ${ex.getMessage}")
+            logger.error(s"${correlationId.value}::[FeedbackConnector][requestFeedback] unexpected exception", ex)
+            Left(s"Exception calling feedback service: ${ex.getMessage}")
     )
+
+  
