@@ -32,14 +32,14 @@ class GenerateFeedbackControllerStubPathISpec extends IntegrationBaseSpec:
 
   override def servicesConfig: Map[String, Any] =
     super.servicesConfig ++ Map(
-      "microservice.services.feedback-service.host"       -> mockHost,
-      "microservice.services.feedback-service.port"       -> mockPort,
-      "microservice.services.feedback-service.submit-url" -> "/feedback"
+      "microservice.services.feedback-stub.host"       -> mockHost,
+      "microservice.services.feedback-stub.port"       -> mockPort,
+      "microservice.services.feedback-stub.submit-url" -> "/feedback"
     )
 
   "GenerateFeedbackController" when:
 
-    "POST /feedback/:vrn with feedback-service configured" should:
+    "POST /feedback/:vrn with feedback-stub configured" should:
 
       "return 200 with single feedback response" when:
         "no Gov-Test-Scenario header is sent" in new Test:
@@ -56,7 +56,7 @@ class GenerateFeedbackControllerStubPathISpec extends IntegrationBaseSpec:
           (contentAsJson(response) \ "welshFeedback").as[JsArray].value   should not be empty
 
       "return 200 with empty feedback arrays" when:
-        "feedback-service returns NO_FEEDBACK response" in new Test:
+        "feedback-stub returns NO_FEEDBACK response" in new Test:
           override def setupStubs(): StubMapping =
             AuthStub.successfulAuthWith(vrn)
             FeedbackStub.noFeedbackResponse()
@@ -67,7 +67,7 @@ class GenerateFeedbackControllerStubPathISpec extends IntegrationBaseSpec:
           (contentAsJson(response) \ "welshFeedback").as[JsArray].value   shouldBe empty
 
       "return 500" when:
-        "feedback-service returns 500" in new Test:
+        "feedback-stub returns 500" in new Test:
           override def setupStubs(): StubMapping =
             AuthStub.successfulAuthWith(vrn)
             FeedbackStub.serverErrorResponse()
