@@ -57,7 +57,7 @@ class ApiDefinitionFactorySpec extends UnitSpec with MockAppConfig {
 
       result.api.name shouldBe "VAT Assist (MTD)"
       result.api.context shouldBe "mtd/transaction-risking"
-      result.api.categories shouldBe Seq("INCOME_TAX_MTD")
+      result.api.categories shouldBe Seq("VAT_MTD")
       result.api.versions should have size 1
       result.api.versions.head.version shouldBe VERSION_1
       result.api.versions.head.endpointsEnabled shouldBe true

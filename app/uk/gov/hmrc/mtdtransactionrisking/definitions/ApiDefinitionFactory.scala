@@ -31,7 +31,7 @@ class ApiDefinitionFactory @Inject()(appConfig: AppConfig) extends Logging {
         name = "VAT Assist (MTD)",
         description = "A service that identifies potential inaccuracies in returns before submission.",
         context = appConfig.apiGatewayContext,
-        categories = Seq("INCOME_TAX_MTD"),
+        categories = Seq("VAT_MTD"),
         versions = Seq(
           APIVersion(
             version = VERSION_1,
