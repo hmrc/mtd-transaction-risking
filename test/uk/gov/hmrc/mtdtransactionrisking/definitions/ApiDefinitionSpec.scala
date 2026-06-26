@@ -27,7 +27,7 @@ class ApiDefinitionSpec extends UnitSpec {
     APIVersion(VERSION_1, ALPHA, endpointsEnabled = false)
 
   val apiDefinition: APIDefinition =
-    APIDefinition("HMRC Assist (MTD)", "A service that identifies potential inaccuracies in returns before submission.", "context", Seq("INCOME_TAX_MTD"), Seq(apiVersion), requiresTrust = Some(false))
+    APIDefinition("VAT Assist (MTD)", "A service that identifies potential inaccuracies in returns before submission.", "context", Seq("INCOME_TAX_MTD"), Seq(apiVersion), requiresTrust = Some(false))
 
   private val apiVersionJson = Json.parse(
     """
@@ -42,7 +42,7 @@ class ApiDefinitionSpec extends UnitSpec {
   private val apiDefinitionJson = Json.parse(
     """
       {
-        "name": "HMRC Assist (MTD)",
+        "name": "VAT Assist (MTD)",
         "description": "A service that identifies potential inaccuracies in returns before submission.",
         "context": "context",
         "categories": ["INCOME_TAX_MTD"],
@@ -62,7 +62,7 @@ class ApiDefinitionSpec extends UnitSpec {
     """
       {
         "api": {
-          "name": "HMRC Assist (MTD)",
+          "name": "VAT Assist (MTD)",
           "description": "A service that identifies potential inaccuracies in returns before submission.",
           "context": "context",
           "categories": ["INCOME_TAX_MTD"],

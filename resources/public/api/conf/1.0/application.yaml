@@ -3,10 +3,10 @@ info:
   title: VAT Assist (MTD)
   description: |
     # Overview
-    Use this API to get HMRC Assist feedback about potential inaccuracies in returns before they are formally submitted.
+    Use this API to get VAT Assist feedback about potential inaccuracies in returns before they are formally submitted.
     You must follow a two-step process:
     1. Send draft return data.
-    2. Use the relevant acknowledgement endpoint to confirm that your software has presented the HMRC Assist feedback messages to the user.
+    2. Use the relevant acknowledgement endpoint to confirm that your software has presented the VAT Assist feedback messages to the user.
 
   contact: {}
   version: '1.0'
@@ -20,7 +20,7 @@ paths:
     post:
       tags:
         - organisations
-      summary: Request HMRC Assist feedback for VAT [test only]
+      summary: Request VAT Assist feedback [test only]
       description: |
         Send VAT return data, to receive feedback from HMRC before formally submitting a VAT return. 
 
@@ -40,7 +40,7 @@ paths:
           <tbody>
             <tr>
               <td><p>Default (No header value)</p></td>
-              <td><p>Simulates the scenario where there is one HMRC Assist feedback message.</p></td>
+              <td><p>Simulates the scenario where there is one VAT Assist feedback message.</p></td>
             </tr>
             <tr>
               <td><p>MULTIPLE_FEEDBACK</p></td>
@@ -244,9 +244,9 @@ paths:
     post:
       tags:
         - organisations
-      summary: Acknowledge HMRC Assist for VAT feedback [test only]
+      summary: Acknowledge VAT Assist feedback [test only]
       description: |
-        Acknowledge an HMRC Assist for VAT report, and confirm that your software has presented the feedback messages verbatim to the user.
+        Acknowledge an VAT Assist report, and confirm that your software has presented the feedback messages verbatim to the user.
 
         ### Test data
         <p>Scenario simulations using Gov-Test-Scenario headers are only available in the sandbox environment.</p>
@@ -554,12 +554,12 @@ components:
           example: 'c75f40a6-a3df-4429-a697-471eeec46435'
         englishFeedback:
           type: array
-          description: An array that contains up to 5 HMRC Assist feedback messages, in English.
+          description: An array that contains up to 5 VAT Assist feedback messages, in English.
           items:
             $ref: '#/components/schemas/FeedbackItem'
         welshFeedback:
           type: array
-          description: An array that contains up to 5 HMRC Assist feedback messages, in Welsh.
+          description: An array that contains up to 5 VAT Assist feedback messages, in Welsh.
           items:
             $ref: '#/components/schemas/FeedbackItem'
 

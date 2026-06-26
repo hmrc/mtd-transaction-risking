@@ -28,7 +28,7 @@ class ApiDefinitionFactory @Inject()(appConfig: AppConfig) extends Logging {
   val definition: Definition = {
     Definition(
       api = APIDefinition(
-        name = "HMRC Assist (MTD)",
+        name = "VAT Assist (MTD)",
         description = "A service that identifies potential inaccuracies in returns before submission.",
         context = appConfig.apiGatewayContext,
         categories = Seq("INCOME_TAX_MTD"),

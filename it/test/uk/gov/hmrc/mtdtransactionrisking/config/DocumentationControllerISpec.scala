@@ -95,7 +95,7 @@ class DocumentationControllerISpec extends AnyWordSpec with Matchers with ScalaF
           .futureValue
       response.status shouldBe 200
       response.contentType shouldBe "application/json"
-      response.body should include("HMRC Assist")
+      response.body should include("VAT Assist")
     }
   }
 

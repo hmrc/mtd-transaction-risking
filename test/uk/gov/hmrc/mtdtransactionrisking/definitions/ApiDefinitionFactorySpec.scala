@@ -55,7 +55,7 @@ class ApiDefinitionFactorySpec extends UnitSpec with MockAppConfig {
       val factory = new ApiDefinitionFactory(mockAppConfig)
       val result = factory.definition
 
-      result.api.name shouldBe "HMRC Assist (MTD)"
+      result.api.name shouldBe "VAT Assist (MTD)"
       result.api.context shouldBe "mtd/transaction-risking"
       result.api.categories shouldBe Seq("INCOME_TAX_MTD")
       result.api.versions should have size 1
