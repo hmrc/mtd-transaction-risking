@@ -26,20 +26,30 @@ class AppConfig @Inject()(config: ServicesConfig, configuration: Configuration):
 
   val appName: String = config.getString("appName")
 
+
   //START OF RDS PLACEHOLDER
   private val RDSConfig = configuration.get[Configuration]("microservice.services.rds")
   val rdsBaseUrl: String = config.baseUrl("rds") + RDSConfig.get[String]("rds-url")
   //END OF RDS PLACEHOLDER
 
-  private val insightsProxyConfig = configuration.get[Configuration]("microservice.services.insights-proxy")
-  val insightsProxyServiceBaseUrl: String = config.baseUrl("insights-proxy") + insightsProxyConfig.get[String]("submit-url")
-
-  val EnvironmentHeaders: Option[Seq[String]] =
-    configuration.getOptional[Seq[String]]("microservice.services.insights-proxy.environmentHeaders")
-
+ 
   def featureSwitch: Option[Configuration] = configuration.getOptional[Configuration](s"feature-switch")
 
   val apiGatewayContext: String                    = config.getString("api.gateway.context")
   def apiStatus(version: String): String           = config.getString(s"api.$version.status")
   def endpointsEnabled(version: String): Boolean   = config.getBoolean(s"feature-switch.version-$version.enabled")
 
+  // insights-proxy
+  private val insightsProxyConfig = configuration.get[Configuration]("microservice.services.insights-proxy")
+  val insightsProxyServiceBaseUrl: String = config.baseUrl("insights-proxy") + insightsProxyConfig.get[String]("submit-url")
+
+  // feedback endpoint for external test
+  val feedbackStubBaseUrl: Option[String] =
+    configuration
+      .getOptional[Configuration]("microservice.services.feedback-stub")
+      .map(feedbackConfig => config.baseUrl("feedback-stub") + feedbackConfig.get[String]("submit-url"))
+
+  val feedbackEnvironmentHeaders: Option[Seq[String]] =
+    configuration.getOptional[Seq[String]](
+      "microservice.services.feedback-stub.environmentHeaders"
+    )

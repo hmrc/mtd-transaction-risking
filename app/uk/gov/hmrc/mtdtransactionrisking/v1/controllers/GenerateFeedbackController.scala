@@ -18,12 +18,13 @@ package uk.gov.hmrc.mtdtransactionrisking.v1.controllers
 
 import play.api.libs.json.Json
 import play.api.mvc.*
+import uk.gov.hmrc.mtdtransactionrisking.config.AppConfig
 import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator
 import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
 import uk.gov.hmrc.mtdtransactionrisking.v1.controllers.auth.VATAuthAction
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.InsightsRequest
-import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.InsightsResponse
-import uk.gov.hmrc.mtdtransactionrisking.v1.services.InsightsService
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.{FeedbackResponse, InsightsResponse}
+import uk.gov.hmrc.mtdtransactionrisking.v1.services.{FeedbackStubService, InsightsService}
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
 
 import javax.inject.{Inject, Singleton}
@@ -32,7 +33,9 @@ import scala.concurrent.ExecutionContext
 @Singleton
 class GenerateFeedbackController @Inject()(cc: ControllerComponents,
                                            insightsService: InsightsService,
-                                           authAction: VATAuthAction)(implicit ec: ExecutionContext)
+                                           feedbackStubService: FeedbackStubService,
+                                           authAction: VATAuthAction,
+                                           appConfig: AppConfig)(implicit ec: ExecutionContext)
   extends BackendController(cc):
 
   def generateFeedback(vrn: String): Action[AnyContent] = authAction.authorisedFor(vrn).async:
@@ -40,17 +43,25 @@ class GenerateFeedbackController @Inject()(cc: ControllerComponents,
       given Request[AnyContent] = request
       given CorrelationId = IdGenerator.generateId()
 
-      insightsService.assess(InsightsRequest(vrn)).map:
-        riskResponse =>
-          riskResponse
-        // nextResponse <- nextService.call(riskResponse.riskScore)
+      appConfig.feedbackStubBaseUrl match {
 
-      .value.map {
-        case Right(response: InsightsResponse) =>
-          Ok(Json.toJson(response))
-            .withHeaders("X-CorrelationId" -> summon[CorrelationId].value)
+        case Some(_) =>
+          feedbackStubService.requestFeedback(InsightsRequest(vrn)).value.map:
+            case Right(response: FeedbackResponse) =>
+              Ok(Json.toJson(response))
+                .withHeaders("X-CorrelationId" -> summon[CorrelationId].value)
+            case Left((status, rawBody)) =>
+              val jsonBody = try Json.parse(rawBody)
+                catch case _ => Json.obj("code" -> "INTERNAL_SERVER_ERROR", "message" -> rawBody)
+              Status(status)(jsonBody)
+                .withHeaders("X-CorrelationId" -> summon[CorrelationId].value)
 
-        case Left(error: String) =>
-          InternalServerError(Json.obj("message" -> error))
-            .withHeaders("X-CorrelationId" -> summon[CorrelationId].value)
+        case None =>
+          insightsService.assess(InsightsRequest(vrn)).value.map:
+            case Right(response: InsightsResponse) =>
+              Ok(Json.toJson(response))
+                .withHeaders("X-CorrelationId" -> summon[CorrelationId].value)
+            case Left(error: String) =>
+              InternalServerError(Json.obj("message" -> error))
+                .withHeaders("X-CorrelationId" -> summon[CorrelationId].value)
       }

@@ -1,6 +1,6 @@
 openapi: 3.0.3
 info:
-  title: HMRC Assist (MTD)
+  title: VAT Assist (MTD)
   description: |
     # Overview
     Use this API to get HMRC Assist feedback about potential inaccuracies in returns before they are formally submitted.
@@ -152,10 +152,10 @@ paths:
             application/json:
               schema:
                 allOf:
-                - $ref: '#/components/schemas/ErrorResponse'
-                -  example:
-                     code: 'INVALID_VRN'
-                     message: 'The provided VRN is invalid.'
+                  - $ref: '#/components/schemas/ErrorResponse'
+                  -  example:
+                       code: 'INVALID_VRN'
+                       message: 'The provided VRN is invalid.'
               examples:
                 invalidVrn:
                   description: Invalid VRN
@@ -198,10 +198,10 @@ paths:
             application/json:
               schema:
                 allOf:
-                - $ref: '#/components/schemas/ErrorResponse'
-                - example:
-                    code: 'CLIENT_OR_AGENT_NOT_AUTHORISED'
-                    message: 'The client and/or agent is not authorised.'
+                  - $ref: '#/components/schemas/ErrorResponse'
+                  - example:
+                      code: 'CLIENT_OR_AGENT_NOT_AUTHORISED'
+                      message: 'The client and/or agent is not authorised.'
               examples:
                 submittedTooEarly:
                   description: Return submitted too early

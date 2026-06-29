@@ -43,7 +43,7 @@ class InsightsConnector @Inject()(
       "User-Agent" -> appName,
       "Content-Type" -> "application/json",
       "X-Correlation-Id" -> correlationId.value
-    ) ++ hc.headers(appConfig.EnvironmentHeaders.getOrElse(Seq.empty))
+    )
 
   def getRiskInsights(request: InsightsRequest)
                      (implicit hc: HeaderCarrier, correlationId: CorrelationId): EitherT[Future, String, InsightsResponse] =

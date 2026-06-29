@@ -38,7 +38,7 @@ case class VersionRoutingMapImpl @Inject() (appConfig: AppConfig, defaultRouter:
 
   val featureSwitch: FeatureSwitch = FeatureSwitch(appConfig.featureSwitch)
 
-  logger.info(s"[VersionRoutingMapImpl] Using feature-switch version-1::${featureSwitch.isVersionEnabled("version-1")}")
+  logger.info(s"[VersionRoutingMapImpl] Using feature-switch version-1::${featureSwitch.isVersionEnabled(VERSION_1)}")
   logger.info(s"[VersionRoutingMapImpl] Using feature-switch auth::${featureSwitch.isEnabled(AuthFeature)}")
 
   val map: Map[String, Router] = Map(
