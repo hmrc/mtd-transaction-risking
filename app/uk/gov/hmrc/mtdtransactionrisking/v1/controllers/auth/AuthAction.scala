@@ -16,6 +16,7 @@
 
 package uk.gov.hmrc.mtdtransactionrisking.v1.controllers.auth
 
+import play.api.Configuration
 import play.api.libs.json.Json
 import play.api.mvc.*
 import play.api.mvc.Results.{BadRequest, Forbidden, Unauthorized}
@@ -36,9 +37,14 @@ case class AuthenticatedVATRequest[A](request: Request[A],
                                       internalId: String,
                                       vrn: String) extends WrappedRequest[A](request)
 
-class VATAuthAction @Inject()(override val authConnector: AuthConnector,
+class VATAuthAction @Inject()(override val authConnector: AuthConnector, configuration: Configuration,
                               bodyParser: BodyParsers.Default)(using ec: ExecutionContext)
   extends AuthorisedFunctions with Logging:
+
+  private val authEnabled: Boolean =
+    configuration
+      .getOptional[Boolean]("feature-switch.auth.enabled")
+      .getOrElse(true)
 
   private val vrnRegex = """^\d{9}$"""
 
@@ -58,9 +64,14 @@ class VATAuthAction @Inject()(override val authConnector: AuthConnector,
                                   block: AuthenticatedVATRequest[A] => Future[Result]): Future[Result] =
         given hc: HeaderCarrier = HeaderCarrierConverter.fromRequest(request)
 
-        if !requestedVRN.matches(vrnRegex) then
+        if !authEnabled then
+          logger.warn("[VATAuthAction] Auth disabled via feature switch — bypassing authorisation")
+          block(AuthenticatedVATRequest(request, "local-test-user", requestedVRN))
+
+        else if !requestedVRN.matches(vrnRegex) then
           logger.warn(s"VRN format invalid: $requestedVRN")
           Future.successful(BadRequest(Json.toJson(ErrorWrapper(VrnFormatError))))
+
         else
           authorised(predicate(requestedVRN))
             .retrieve(internalId and allEnrolments) {

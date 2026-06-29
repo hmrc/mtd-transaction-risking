@@ -39,8 +39,8 @@ trait IntegrationBaseSpec
   val mockPort: Int = WireMockHelper.wireMockPort
 
   def servicesConfig: Map[String, Any] = Map(
-    "microservice.services.insights-proxy.host"          -> mockHost,
-    "microservice.services.insights-proxy.port"          -> mockPort,
+    "microservice.services.insights-proxy.host"    -> mockHost,
+    "microservice.services.insights-proxy.port"    -> mockPort,
     "microservice.services.auth.host"              -> mockHost,
     "microservice.services.auth.port"              -> mockPort,
     "feature-switch.version-1.enabled"             -> true
