@@ -50,8 +50,10 @@ class GenerateFeedbackController @Inject()(cc: ControllerComponents,
             case Right(response: FeedbackResponse) =>
               Ok(Json.toJson(response))
                 .withHeaders("X-CorrelationId" -> summon[CorrelationId].value)
-            case Left(error: String) =>
-              InternalServerError(Json.obj("message" -> error))
+            case Left((status, rawBody)) =>
+              val jsonBody = try Json.parse(rawBody)
+                catch case _ => Json.obj("code" -> "INTERNAL_SERVER_ERROR", "message" -> rawBody)
+              Status(status)(jsonBody)
                 .withHeaders("X-CorrelationId" -> summon[CorrelationId].value)
 
         case None =>

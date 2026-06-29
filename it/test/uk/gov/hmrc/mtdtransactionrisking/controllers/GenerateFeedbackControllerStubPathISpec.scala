@@ -37,9 +37,11 @@ class GenerateFeedbackControllerStubPathISpec extends IntegrationBaseSpec:
       "microservice.services.feedback-stub.submit-url" -> "/feedback"
     )
 
-  "GenerateFeedbackController" when:
+  "GenerateFeedbackController feedback path" when:
 
     "POST /feedback/:vrn with feedback-stub configured" should:
+
+      // --- Success scenarios ---
 
       "return 200 with single feedback response" when:
         "no Gov-Test-Scenario header is sent" in new Test:
@@ -65,6 +67,47 @@ class GenerateFeedbackControllerStubPathISpec extends IntegrationBaseSpec:
           status(response) shouldBe OK
           (contentAsJson(response) \ "englishFeedback").as[JsArray].value shouldBe empty
           (contentAsJson(response) \ "welshFeedback").as[JsArray].value   shouldBe empty
+
+      // --- Error scenarios ---
+
+      "return 400" when:
+        "feedback-stub returns VRN_INVALID" in new Test:
+          override def setupStubs(): StubMapping =
+            AuthStub.successfulAuthWith(vrn)
+            FeedbackStub.vrnInvalidResponse()
+
+          val response: Future[Result] = request(vrn)
+          status(response) shouldBe BAD_REQUEST
+          (contentAsJson(response) \ "code").as[String] shouldBe "VRN_INVALID"
+
+        "feedback-stub returns PERIOD_KEY_INVALID" in new Test:
+          override def setupStubs(): StubMapping =
+            AuthStub.successfulAuthWith(vrn)
+            FeedbackStub.periodKeyInvalidResponse()
+
+          val response: Future[Result] = request(vrn)
+          status(response) shouldBe BAD_REQUEST
+          (contentAsJson(response) \ "code").as[String] shouldBe "INVALID_REQUEST"
+          (contentAsJson(response) \ "errors").as[JsArray].value should not be empty
+
+      "return 403" when:
+        "feedback-stub returns TAX_PERIOD_NOT_ENDED" in new Test:
+          override def setupStubs(): StubMapping =
+            AuthStub.successfulAuthWith(vrn)
+            FeedbackStub.taxPeriodNotEndedResponse()
+
+          val response: Future[Result] = request(vrn)
+          status(response) shouldBe FORBIDDEN
+          (contentAsJson(response) \ "code").as[String] shouldBe "TAX_PERIOD_NOT_ENDED"
+
+        "feedback-stub returns INSOLVENT_TRADER" in new Test:
+          override def setupStubs(): StubMapping =
+            AuthStub.successfulAuthWith(vrn)
+            FeedbackStub.insolventTraderResponse()
+
+          val response: Future[Result] = request(vrn)
+          status(response) shouldBe FORBIDDEN
+          (contentAsJson(response) \ "code").as[String] shouldBe "RULE_INSOLVENT_TRADER"
 
       "return 500" when:
         "feedback-stub returns 500" in new Test:

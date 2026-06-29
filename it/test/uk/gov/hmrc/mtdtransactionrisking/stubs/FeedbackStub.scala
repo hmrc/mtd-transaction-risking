@@ -33,22 +33,22 @@ object FeedbackStub:
             .withHeader("Content-Type", "application/json")
             .withBody(
               Json.obj(
-                "reportId"        -> "f2fb30e5-4ab6-4a29-b3c1-c00000000001",
-                "correlationId"   -> "c75f40a6-a3df-4429-a697-471eeec46435",
+                "reportId" -> "f2fb30e5-4ab6-4a29-b3c1-c00000000001",
+                "correlationId" -> "c75f40a6-a3df-4429-a697-471eeec46435",
                 "englishFeedback" -> Json.arr(
                   Json.obj(
                     "itemNumber" -> "001",
-                    "title"      -> "VAT due on sales appears low",
-                    "body"       -> "The VAT due on sales figure appears lower than expected.",
-                    "path"       -> "/guidance/vat-returns"
+                    "title" -> "VAT due on sales appears low",
+                    "body" -> "The VAT due on sales figure appears lower than expected.",
+                    "path" -> "/guidance/vat-returns"
                   )
                 ),
                 "welshFeedback" -> Json.arr(
                   Json.obj(
                     "itemNumber" -> "001",
-                    "title"      -> "Mae'r TAW ar werthiannau'n isel",
-                    "body"       -> "Mae'r ffigwr TAW ar werthiannau'n ymddangos yn is na'r disgwyl.",
-                    "path"       -> "/guidance/vat-returns"
+                    "title" -> "Mae'r TAW ar werthiannau'n isel",
+                    "body" -> "Mae'r ffigwr TAW ar werthiannau'n ymddangos yn is na'r disgwyl.",
+                    "path" -> "/guidance/vat-returns"
                   )
                 )
               ).toString
@@ -65,10 +65,81 @@ object FeedbackStub:
             .withHeader("Content-Type", "application/json")
             .withBody(
               Json.obj(
-                "reportId"        -> "f2fb30e5-4ab6-4a29-b3c1-c00000000002",
-                "correlationId"   -> "c75f40a6-a3df-4429-a697-471eeec46436",
+                "reportId" -> "f2fb30e5-4ab6-4a29-b3c1-c00000000002",
+                "correlationId" -> "c75f40a6-a3df-4429-a697-471eeec46436",
                 "englishFeedback" -> Json.arr(),
-                "welshFeedback"   -> Json.arr()
+                "welshFeedback" -> Json.arr()
+              ).toString
+            )
+        )
+    )
+
+  def vrnInvalidResponse(): StubMapping =
+    stubFor(
+      post(urlEqualTo(feedbackUrl))
+        .willReturn(
+          aResponse()
+            .withStatus(400)
+            .withHeader("Content-Type", "application/json")
+            .withBody(
+              Json.obj(
+                "code" -> "VRN_INVALID",
+                "message" -> "The provided VRN is invalid"
+              ).toString
+            )
+        )
+    )
+
+  def periodKeyInvalidResponse(): StubMapping =
+    stubFor(
+      post(urlEqualTo(feedbackUrl))
+        .willReturn(
+          aResponse()
+            .withStatus(400)
+            .withHeader("Content-Type", "application/json")
+            .withBody(
+              Json.obj(
+                "code" -> "INVALID_REQUEST",
+                "message" -> "Invalid request",
+                "errors" -> Json.arr(
+                  Json.obj(
+                    "code" -> "PERIOD_KEY_INVALID",
+                    "message" -> "period key should be a 4 character string",
+                    "path" -> "/periodKey"
+                  )
+                )
+              ).toString
+            )
+        )
+    )
+
+  def taxPeriodNotEndedResponse(): StubMapping =
+    stubFor(
+      post(urlEqualTo(feedbackUrl))
+        .willReturn(
+          aResponse()
+            .withStatus(403)
+            .withHeader("Content-Type", "application/json")
+            .withBody(
+              Json.obj(
+                "code" -> "TAX_PERIOD_NOT_ENDED",
+                "message" -> "The remote endpoint has indicated that the submission is for a tax period that has not ended"
+              ).toString
+            )
+        )
+    )
+
+  def insolventTraderResponse(): StubMapping =
+    stubFor(
+      post(urlEqualTo(feedbackUrl))
+        .willReturn(
+          aResponse()
+            .withStatus(403)
+            .withHeader("Content-Type", "application/json")
+            .withBody(
+              Json.obj(
+                "code" -> "RULE_INSOLVENT_TRADER",
+                "message" -> "The remote endpoint has indicated that the Trader is insolvent"
               ).toString
             )
         )
@@ -81,6 +152,11 @@ object FeedbackStub:
           aResponse()
             .withStatus(500)
             .withHeader("Content-Type", "application/json")
-            .withBody(Json.obj("code" -> "INTERNAL_SERVER_ERROR", "message" -> "An internal server error occurred").toString)
+            .withBody(
+              Json.obj(
+                "code" -> "INTERNAL_SERVER_ERROR",
+                "message" -> "An internal server error occurred"
+              ).toString
+            )
         )
     )

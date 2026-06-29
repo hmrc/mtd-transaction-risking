@@ -31,5 +31,5 @@ class FeedbackStubService @Inject()(connector: FeedbackConnector):
 
   def requestFeedback(
                        request: InsightsRequest
-                     )(implicit hc: HeaderCarrier, correlationId: CorrelationId): EitherT[Future, String, FeedbackResponse] =
+                     )(implicit hc: HeaderCarrier, correlationId: CorrelationId): EitherT[Future, (Int, String), FeedbackResponse] =
     connector.requestFeedback(request)
