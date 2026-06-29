@@ -38,7 +38,7 @@ class AcknowledgeController @Inject()(
 
   def acknowledgeReport(vrn: String, reportId: String, correlationId: String): Action[AnyContent] =
     authAction.authorisedFor(vrn).async: request =>
-      validate(vrn, reportId, request.getQueryString("presentedDateTime")) match
+      validate(reportId, request.getQueryString("presentedDateTime")) match
         case Left(result) =>
           Future.successful(result)
 
@@ -66,13 +66,12 @@ class AcknowledgeController @Inject()(
         InternalServerError(Json.obj("code" -> "INTERNAL_SERVER_ERROR", "message" -> "An unexpected error occurred."))
           .withHeaders("X-CorrelationId" -> correlationId)
 
-  private val vrnPattern = "^[0-9]{9}$"
+
   private val reportIdPattern = "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
   private val presentedDateTimePattern = raw"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$$"
 
-  private def validate(vrn: String, reportId: String, presentedDateTime: Option[String]): Either[Result, OffsetDateTime] =
-    if !vrn.matches(vrnPattern) then Left(BadRequest(Json.obj("code" -> "FORMAT_VRN", "message" -> "The provided Vrn is invalid.")))
-    else if !reportId.matches(reportIdPattern) then Left(BadRequest(Json.obj("code" -> "FORMAT_RECEIPT_ID", "message" -> "The provided Report ID is invalid.")))
+  private def validate(reportId: String, presentedDateTime: Option[String]): Either[Result, OffsetDateTime] =
+    if !reportId.matches(reportIdPattern) then Left(BadRequest(Json.obj("code" -> "FORMAT_RECEIPT_ID", "message" -> "The provided Report ID is invalid.")))
     else presentedDateTime.flatMap(parsePresentedDateTime).toRight(
       BadRequest(Json.obj("code" -> "FORMAT_DATETIME", "message" -> "The provided Presented Date Time is invalid."))
     )

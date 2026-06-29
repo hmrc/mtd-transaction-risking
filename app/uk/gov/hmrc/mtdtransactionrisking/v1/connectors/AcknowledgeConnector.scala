@@ -44,7 +44,7 @@ class AcknowledgeConnector @Inject()(
   def acknowledge(request: AcknowledgeRequest)(implicit hc: HeaderCarrier): EitherT[Future, AcknowledgeConnectorError, Unit] =
     EitherT(
       httpClient
-        .post(url"${appConfig.rdsBaseUrl}")
+        .post(url"${appConfig.rdsBaseUrl}/${request.vrn}/${request.correlationId}/acknowledge-report?presentedDateTime=${request.presentedDateTime}")
         .execute[Either[UpstreamErrorResponse, Unit]]
         .map {
           case Right(_) =>
@@ -62,5 +62,12 @@ class AcknowledgeConnector @Inject()(
                 Left(AcknowledgeConnectorError(errorResponse.statusCode, body.code, body.message))
               case None =>
                 Left(AcknowledgeConnectorError(errorResponse.statusCode, "INTERNAL_SERVER_ERROR", "An unexpected error occurred."))
+        }
+        .recover {
+          case ex =>
+            logger.error(
+              s"${request.correlationId}::[AcknowledgeConnector:acknowledge] unexpected exception: ${ex.getMessage}", ex
+            )
+            Left(AcknowledgeConnectorError(500, "INTERNAL_SERVER_ERROR", "An unexpected error occurred."))
         }
     )
