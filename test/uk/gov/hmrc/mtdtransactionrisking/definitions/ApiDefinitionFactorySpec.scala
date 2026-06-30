@@ -25,7 +25,7 @@ class ApiDefinitionFactorySpec extends UnitSpec with MockAppConfig {
   "buildAPIStatus" when {
     "the configured status is valid" should {
       "return the matching APIStatus" in {
-        MockedAppConfig.apiGatewayContext("mtd/transaction-risking")
+        MockedAppConfig.apiGatewayContext("misc/transaction-risking")
         MockedAppConfig.apiStatus(VERSION_1)("BETA")
         MockedAppConfig.endpointsEnabled("1")(true)
 
@@ -36,7 +36,7 @@ class ApiDefinitionFactorySpec extends UnitSpec with MockAppConfig {
 
     "the configured status is invalid" should {
       "default to ALPHA" in {
-        MockedAppConfig.apiGatewayContext("mtd/transaction-risking")
+        MockedAppConfig.apiGatewayContext("misc/transaction-risking")
         MockedAppConfig.apiStatus(VERSION_1)("INVALID")
         MockedAppConfig.endpointsEnabled("1")(true)
 
@@ -48,7 +48,7 @@ class ApiDefinitionFactorySpec extends UnitSpec with MockAppConfig {
 
   "definition" should {
     "return a Definition with the correct API metadata" in {
-      MockedAppConfig.apiGatewayContext("mtd/transaction-risking")
+      MockedAppConfig.apiGatewayContext("misc/transaction-risking")
       MockedAppConfig.apiStatus(VERSION_1)("BETA")
       MockedAppConfig.endpointsEnabled("1")(true)
 
@@ -56,7 +56,7 @@ class ApiDefinitionFactorySpec extends UnitSpec with MockAppConfig {
       val result = factory.definition
 
       result.api.name shouldBe "VAT Assist (MTD)"
-      result.api.context shouldBe "mtd/transaction-risking"
+      result.api.context shouldBe "misc/transaction-risking"
       result.api.categories shouldBe Seq("VAT_MTD")
       result.api.versions should have size 1
       result.api.versions.head.version shouldBe VERSION_1
