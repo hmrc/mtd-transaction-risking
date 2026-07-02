@@ -23,7 +23,7 @@ relevant feedback before submission.
 - **Gov-Test-Scenario** — an HTTP request header used in external test environments to select
   which canned scenario the stub returns; forwarded downstream by this service via
   `environmentHeaders` configuration
-- **feedbackServiceBaseUrl** — an optional config value present only in external test
+- **feedbackStubBaseUrl** — an optional config value present only in external test
   environments; its presence determines whether the service calls the feedback service or
   the insights proxy
 
@@ -59,7 +59,7 @@ To bypass auth locally, set `auth.enabled = false` in `application.conf`.
 
 ### Endpoints
 
-#### `POST /feedback/:vrn`
+#### `POST /assist/:vrn`
 
 Requests VAT Assist feedback for a given VRN. The request body must contain the nine VAT
 return fields corresponding to boxes 1–9 on a paper VAT return.
