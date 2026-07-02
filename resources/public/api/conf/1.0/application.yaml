@@ -16,10 +16,10 @@ servers:
   - url: https://api.service.hmrc.gov.uk
     description: Production
 paths:
-  /organisations/vat/{vrn}/assist:
+  /misc/transaction-risking/{vrn}/assist:
     post:
       tags:
-        - organisations
+        - Endpoints
       summary: Request HMRC Assist feedback for VAT [test only]
       description: |
         Send VAT return data, to receive feedback from HMRC before formally submitting a VAT return. 
@@ -59,8 +59,8 @@ paths:
               <td><p>Simulates the scenario where the periodKey has not passed validation.</p></td>
             </tr>
             <tr>
-              <td><p>INVALID_PAYLOAD</p></td>
-              <td><p>Submission has not passed validation. Invalid parameter payload.</p></td>
+              <td><p>INVALID_REQUEST</p></td>
+              <td><p>Submission has not passed validation. Invalid values.</p></td>
             </tr>
             <tr>
               <td><p>TAX_PERIOD_NOT_ENDED</p></td>
@@ -136,7 +136,7 @@ paths:
                     links:
                       - title: 'VAT Notice 700'
                         url: 'https://www.gov.uk/guidance/vat-notice-700-the-vat-guide'
-                    path: '/guidance/vat-returns'
+                    path: 'vatDueSales'
                 welshFeedback:
                   - itemNumber: '001'
                     title: 'Mae TAW sy''n ddyledus ar werthiannau yn ymddangos yn isel'
@@ -145,7 +145,7 @@ paths:
                     links:
                       - title: 'Hysbysiad TAW 700'
                         url: 'https://www.gov.uk/guidance/vat-notice-700-the-vat-guide'
-                    path: '/guidance/vat-returns'
+                    path: 'vatDueSales'
         '400':
           description: Bad request. Invalid request body or parameters.
           content:
@@ -240,10 +240,10 @@ paths:
         - userRestricted:
             - write:vat
 
-  /organisations/vat/{vrn}/{reportId}/{correlationId}/acknowledge-report:
+  /misc/transaction-risking/{vrn}/{reportId}/{correlationId}/acknowledge-report:
     post:
       tags:
-        - organisations
+        - Endpoints
       summary: Acknowledge HMRC Assist for VAT feedback [test only]
       description: |
         Acknowledge an HMRC Assist for VAT report, and confirm that your software has presented the feedback messages verbatim to the user.
@@ -601,7 +601,7 @@ components:
           type: string
           maxLength: 32767
           description: The VAT box numbers and equivalent descriptions (as appearing on a paper return) that are the focus of the feedback presented in the message.
-          example: '/guidance/vat-returns'
+          example: 'vatDueSales'
 
     FeedbackLink:
       title: FeedbackLink
@@ -651,5 +651,5 @@ components:
             read:vat: Grant read access to VAT data
 
 tags:
-  - name: organisations
+  - name: Endpoints
     description: ''
