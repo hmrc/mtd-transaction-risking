@@ -24,3 +24,16 @@ object AcknowledgeStub:
 
         )
     )
+  def noReportId(vrn: String, correlationId: String, presentedDateTime: String): StubMapping =
+    stubFor(
+      post(urlEqualTo(acknowledgeUrl))
+        .withRequestBody(equalToJson(
+          Json.obj("vrn" -> vrn, "correlationId" -> correlationId, "presentedDateTime" -> presentedDateTime).toString
+        ))
+        .willReturn(
+          aResponse()
+            .withStatus(400)
+            .withHeader("Content-Type", "application/json")
+            .withBody(Json.obj("code" -> "FORMAT_Recipt_ID", "message" -> "The provided Report ID is invalid").toString)
+        )
+    )

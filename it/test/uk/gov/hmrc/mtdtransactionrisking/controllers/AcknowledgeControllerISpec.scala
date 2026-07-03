@@ -29,6 +29,19 @@ class AcknowledgeControllerISpec extends IntegrationBaseSpec:
           headers(response).get("X-CorrelationId") shouldBe defined
           contentAsString(response) shouldBe ""
 
+
+      "return 400 " when :
+        "no reportId is parsed" in new Test:
+          override def setupStubs(): StubMapping = {
+            AuthStub.successfulAuthWith(vrn)
+            AcknowledgeStub.noReportId(vrn, correlationId, presentedDateTime)
+          }
+
+          val response: Future[Result] = request(vrn)
+          status(response) shouldBe 400
+          headers(response).get("X-CorrelationId") shouldBe defined
+          contentAsString(response) shouldBe """{"code":"FORMAT_Recipt_ID","message":"The provided Report ID is invalid"}"""
+
   private trait Test:
 
       def vrn: String = CommonTestData.simpleVrn
