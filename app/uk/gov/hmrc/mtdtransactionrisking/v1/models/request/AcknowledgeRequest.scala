@@ -16,6 +16,8 @@
 
 package uk.gov.hmrc.mtdtransactionrisking.v1.models.request
 
+import play.api.libs.json.{Json, Reads}
+
 import java.time.OffsetDateTime
 
 case class AcknowledgeRequest(
@@ -24,3 +26,6 @@ case class AcknowledgeRequest(
                                correlationId: String,
                                presentedDateTime: OffsetDateTime
                              )
+object AcknowledgeRequest:
+  given reads: Reads[AcknowledgeRequest] = Json.reads[AcknowledgeRequest]
+

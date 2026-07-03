@@ -17,8 +17,8 @@ class AcknowledgeControllerISpec extends IntegrationBaseSpec:
 
     "POST /acknowledge/:vrn/:reportId/:correlationId" should :
 
-      "return 200 " when :
-        "a valid VRN is provided and insights-proxy responds successfully" in new Test:
+      "return 204 " when :
+        "a valid VRN is provided and acknowledge responds successfully" in new Test:
           override def setupStubs(): StubMapping = {
             AuthStub.successfulAuthWith(vrn)
             AcknowledgeStub.successResponse(vrn, reportId, correlationId, presentedDateTime)
@@ -30,17 +30,6 @@ class AcknowledgeControllerISpec extends IntegrationBaseSpec:
           contentAsString(response) shouldBe ""
 
 
-      "return 400 " when :
-        "no reportId is parsed" in new Test:
-          override def setupStubs(): StubMapping = {
-            AuthStub.successfulAuthWith(vrn)
-            AcknowledgeStub.noReportId(vrn, correlationId, presentedDateTime)
-          }
-
-          val response: Future[Result] = request(vrn)
-          status(response) shouldBe 400
-          headers(response).get("X-CorrelationId") shouldBe defined
-          contentAsString(response) shouldBe """{"code":"FORMAT_Recipt_ID","message":"The provided Report ID is invalid"}"""
 
   private trait Test:
 
@@ -53,10 +42,23 @@ class AcknowledgeControllerISpec extends IntegrationBaseSpec:
       def setupStubs(): StubMapping
 
 
-      def request(vrn: String): Future[Result] =
+      def request(VRN: String = vrn, Report_Id: String = reportId, Correlation_Id: String = correlationId, Presented_DateTime: String = presentedDateTime): Future[Result] =
         setupStubs()
         app.injector.instanceOf[AcknowledgeController].acknowledgeReport(vrn, reportId, correlationId).apply(
-          FakeRequest("POST", s"/acknowledge/$vrn/$reportId/$correlationId?presentedDateTime=$presentedDateTime")
+          FakeRequest("POST", s"/acknowledge/$VRN/$Report_Id/$Correlation_Id?presentedDateTime=$presentedDateTime")
+            .withSession(authToken -> vrn)
+            .withHeaders(
+              "Authorization" -> "Bearer abc123",
+              "Accept" -> "application/vnd.hmrc.1.0+json",
+              "Content-Type" -> "application/json"
+            )
+
+        )
+
+      def requestWithoutPresentDateTime(vrn: String): Future[Result] =
+        setupStubs()
+        app.injector.instanceOf[AcknowledgeController].acknowledgeReport(vrn, reportId, correlationId).apply(
+          FakeRequest("POST", s"/acknowledge/$vrn/$reportId/$correlationId")
             .withSession(authToken -> vrn)
             .withHeaders(
               "Authorization" -> "Bearer abc123",
