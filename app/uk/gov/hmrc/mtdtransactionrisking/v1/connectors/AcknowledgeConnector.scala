@@ -19,11 +19,13 @@ package uk.gov.hmrc.mtdtransactionrisking.v1.connectors
 import cats.data.EitherT
 import play.api.Logging
 import play.api.libs.json.{Json, Reads}
+import play.api.libs.ws.DefaultBodyWritables.writeableOf_WsBody
+import play.api.libs.ws.EmptyBody
+import play.api.libs.ws.JsonBodyWritables.writeableOf_JsValue
 import uk.gov.hmrc.http.HttpReads.Implicits.*
 import uk.gov.hmrc.http.client.HttpClientV2
 import uk.gov.hmrc.http.{HeaderCarrier, StringContextOps, UpstreamErrorResponse}
 import uk.gov.hmrc.mtdtransactionrisking.config.AppConfig
-import uk.gov.hmrc.mtdtransactionrisking.v1.connectors.AcknowledgeConnector.*
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.AcknowledgeRequest
 
 import javax.inject.{Inject, Singleton}
@@ -41,10 +43,11 @@ class AcknowledgeConnector @Inject()(
                                       appConfig: AppConfig
                                     )(implicit ec: ExecutionContext) extends Logging:
 
-  def acknowledge(request: AcknowledgeRequest)(implicit hc: HeaderCarrier): EitherT[Future, AcknowledgeConnectorError, Unit] =
-    EitherT(
+
+
+  def acknowledge(request: AcknowledgeRequest)(implicit hc: HeaderCarrier): EitherT[Future, AcknowledgeConnector.AcknowledgeConnectorError, Unit] =    EitherT(
       httpClient
-        .post(url"${appConfig.rdsBaseUrl}/${request.vrn}/${request.correlationId}/acknowledge-report?presentedDateTime=${request.presentedDateTime}")
+        .post(url"${appConfig.acknowledgeProxyServiceBaseUrl}").withBody(Json.obj())
         .execute[Either[UpstreamErrorResponse, Unit]]
         .map {
           case Right(_) =>
@@ -56,18 +59,19 @@ class AcknowledgeConnector @Inject()(
               s"${request.correlationId}::[AcknowledgeConnector:acknowledge] failed status ${errorResponse.statusCode}: ${errorResponse.message}"
             )
 
-            val parsedBody = scala.util.Try(Json.parse(errorResponse.message).as[UpstreamErrorBody]).toOption
+
+            val parsedBody = scala.util.Try(Json.parse(errorResponse.message).as[AcknowledgeConnector.UpstreamErrorBody]).toOption
             parsedBody match
               case Some(body) =>
-                Left(AcknowledgeConnectorError(errorResponse.statusCode, body.code, body.message))
+                Left(AcknowledgeConnector.AcknowledgeConnectorError(errorResponse.statusCode, body.code, body.message))
               case None =>
-                Left(AcknowledgeConnectorError(errorResponse.statusCode, "INTERNAL_SERVER_ERROR", "An unexpected error occurred."))
+                Left(AcknowledgeConnector.AcknowledgeConnectorError(errorResponse.statusCode, "INTERNAL_SERVER_ERROR", "An unexpected error occurred."))
         }
         .recover {
           case ex =>
             logger.error(
               s"${request.correlationId}::[AcknowledgeConnector:acknowledge] unexpected exception: ${ex.getMessage}", ex
             )
-            Left(AcknowledgeConnectorError(500, "INTERNAL_SERVER_ERROR", "An unexpected error occurred."))
+            Left(AcknowledgeConnector.AcknowledgeConnectorError(500, "INTERNAL_SERVER_ERROR", "An unexpected error occurred."))
         }
     )
