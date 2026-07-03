@@ -27,10 +27,10 @@ class AppConfig @Inject()(config: ServicesConfig, configuration: Configuration):
   val appName: String = config.getString("appName")
 
 
-  //START OF RDS PLACEHOLDER
-  private val RDSConfig = configuration.get[Configuration]("microservice.services.rds")
-  val rdsBaseUrl: String = config.baseUrl("rds") + RDSConfig.get[String]("rds-url")
-  //END OF RDS PLACEHOLDER
+//  //START OF RDS PLACEHOLDER
+//  private val RDSConfig = configuration.get[Configuration]("microservice.services.rds")
+//  val rdsBaseUrl: String = config.baseUrl("rds") + RDSConfig.get[String]("rds-url")
+//  //END OF RDS PLACEHOLDER
 
  
   def featureSwitch: Option[Configuration] = configuration.getOptional[Configuration](s"feature-switch")
