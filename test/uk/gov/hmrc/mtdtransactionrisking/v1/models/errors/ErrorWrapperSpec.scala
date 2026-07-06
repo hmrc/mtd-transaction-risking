@@ -18,35 +18,28 @@ package uk.gov.hmrc.mtdtransactionrisking.v1.models.errors
 
 import play.api.libs.json.Json
 import uk.gov.hmrc.mtdtransactionrisking.support.UnitSpec
+import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
 
 class ErrorWrapperSpec extends UnitSpec {
+
+  private val correlationId = CorrelationId("test-correlation-id")
 
   "ErrorWrapper" when {
 
     "written to JSON with a single simple error and no additional errors" should {
       "generate the correct JSON" in {
-        val wrapper = ErrorWrapper(NotFoundError, None)
+        val wrapper = ErrorWrapper(correlationId, NotFoundError, None)
         Json.toJson(wrapper) shouldBe Json.parse(
-          """
-            |{
-            |  "code": "MATCHING_RESOURCE_NOT_FOUND",
-            |  "message": "Matching resource not found"
-            |}
-          """.stripMargin
+          """{"code": "MATCHING_RESOURCE_NOT_FOUND", "message": "Matching resource not found"}"""
         )
       }
     }
 
     "written to JSON with a single simple error and an empty errors sequence" should {
       "generate the correct JSON without an errors field" in {
-        val wrapper = ErrorWrapper(VrnFormatError, Some(Seq.empty))
+        val wrapper = ErrorWrapper(correlationId, VrnFormatError, Some(Seq.empty))
         Json.toJson(wrapper) shouldBe Json.parse(
-          """
-            |{
-            |  "code": "VRN_INVALID",
-            |  "message": "The provided VRN is invalid"
-            |}
-          """.stripMargin
+          """{"code": "VRN_INVALID", "message": "The provided VRN is invalid"}"""
         )
       }
     }
@@ -54,6 +47,7 @@ class ErrorWrapperSpec extends UnitSpec {
     "written to JSON with multiple simple errors" should {
       "generate the correct JSON with an errors array" in {
         val wrapper = ErrorWrapper(
+          correlationId,
           BadRequestError,
           Some(Seq(VrnFormatError, RuleIncorrectOrEmptyBodyError))
         )
@@ -63,14 +57,8 @@ class ErrorWrapperSpec extends UnitSpec {
             |  "code": "INVALID_REQUEST",
             |  "message": "Invalid request",
             |  "errors": [
-            |    {
-            |      "code": "VRN_INVALID",
-            |      "message": "The provided VRN is invalid"
-            |    },
-            |    {
-            |      "code": "RULE_INCORRECT_OR_EMPTY_BODY_SUBMITTED",
-            |      "message": "An empty or non-matching body was submitted"
-            |    }
+            |    { "code": "VRN_INVALID", "message": "The provided VRN is invalid" },
+            |    { "code": "RULE_INCORRECT_OR_EMPTY_BODY_SUBMITTED", "message": "An empty or non-matching body was submitted" }
             |  ]
             |}
           """.stripMargin
@@ -86,10 +74,10 @@ class ErrorWrapperSpec extends UnitSpec {
           path    = Some("/field"),
           errors  = Some(Seq(MtdErrorWrapper("DEEP_CODE", "deep message", Some("/deep"))))
         )
-        val customJson = Json.toJson(innerWrapper)
-        val errorWithCustom = MtdError("INVALID_REQUEST", "Invalid request", Some(customJson))
+        val customJson      = Json.toJson(innerWrapper)
+        val errorWithCustom = MtdError("INVALID_REQUEST", "Invalid request", customJson = Some(customJson))
 
-        val wrapper = ErrorWrapper(BadRequestError, Some(Seq(errorWithCustom)))
+        val wrapper = ErrorWrapper(correlationId, BadRequestError, Some(Seq(errorWithCustom)))
         val result  = Json.toJson(wrapper)
 
         (result \ "errors").as[Seq[MtdErrorWrapper]] shouldBe Seq(
@@ -107,9 +95,9 @@ class ErrorWrapperSpec extends UnitSpec {
           errors  = None
         )
         val customJson      = Json.toJson(innerWrapper)
-        val errorWithCustom = MtdError("SOME_CODE", "some message", Some(customJson))
+        val errorWithCustom = MtdError("SOME_CODE", "some message", customJson = Some(customJson))
 
-        val wrapper = ErrorWrapper(BadRequestError, Some(Seq(errorWithCustom)))
+        val wrapper = ErrorWrapper(correlationId, BadRequestError, Some(Seq(errorWithCustom)))
         val result  = Json.toJson(wrapper)
 
         (result \ "errors").as[Seq[MtdErrorWrapper]] shouldBe Seq(innerWrapper)
@@ -119,9 +107,9 @@ class ErrorWrapperSpec extends UnitSpec {
     "written to JSON with an error whose customJson is not a valid MtdErrorWrapper" should {
       "include the raw customJson in the errors array" in {
         val rawCustom       = Json.parse("""{"arbitrary": "json"}""")
-        val errorWithCustom = MtdError("SOME_CODE", "some message", Some(rawCustom))
+        val errorWithCustom = MtdError("SOME_CODE", "some message", customJson = Some(rawCustom))
 
-        val wrapper = ErrorWrapper(BadRequestError, Some(Seq(errorWithCustom)))
+        val wrapper = ErrorWrapper(correlationId, BadRequestError, Some(Seq(errorWithCustom)))
         val result  = Json.toJson(wrapper)
 
         (result \ "errors")(0) shouldBe rawCustom

@@ -17,37 +17,40 @@
 package uk.gov.hmrc.mtdtransactionrisking.v1.models.errors
 
 import play.api.libs.json.{JsObject, JsValue, Json, Writes}
+import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
 
-case class ErrorWrapper(error: MtdError, errors: Option[Seq[MtdError]] = None)
+case class ErrorWrapper(correlationId: CorrelationId, error: MtdError, errors: Option[Seq[MtdError]] = None) {
+  def statusCode: Int = error.httpStatus
+}
 
 object ErrorWrapper {
 
   val allErrors: Seq[MtdError] => Seq[JsValue] = {
-    case mtdError :: Nil => mtdErrors(mtdError)
+    case mtdError :: Nil  => mtdErrors(mtdError)
     case mtdError :: rest => mtdErrors(mtdError) ++ allErrors(rest)
+    case Nil              => Seq.empty
   }
 
-  private val mtdErrors : MtdError => Seq[JsValue] = {
-    case MtdError(_, _, Some(customJson)) =>
+  private val mtdErrors: MtdError => Seq[JsValue] = {
+    case MtdError(_, _, _, Some(customJson)) =>
       customJson.asOpt[MtdErrorWrapper] match {
         case Some(error) => mtdErrorWrapper(error)
-        case _ => Seq(customJson)
+        case _           => Seq(customJson)
       }
-    case _ @ error => Seq(Json.toJson(error))
+    case error => Seq(Json.toJson(error))
   }
 
-  private val mtdErrorWrapper: MtdErrorWrapper => Seq[JsValue]= wrapper => wrapper.errors match {
+  private val mtdErrorWrapper: MtdErrorWrapper => Seq[JsValue] = wrapper => wrapper.errors match {
     case Some(errors) if errors.nonEmpty => errors.map(error => Json.toJson(error))
-    case _ => Seq(Json.toJson(wrapper))
+    case _                               => Seq(Json.toJson(wrapper))
   }
 
   implicit val writes: Writes[ErrorWrapper] = (errorResponse: ErrorWrapper) => {
-
     val singleJson: JsObject = Json.toJson(errorResponse.error).as[JsObject]
 
     errorResponse.errors match {
       case Some(errors) if errors.nonEmpty => singleJson + ("errors" -> Json.toJson(allErrors(errors)))
-      case _ => singleJson
+      case _                               => singleJson
     }
   }
 }

@@ -16,7 +16,6 @@
 
 package uk.gov.hmrc.mtdtransactionrisking.v1.controllers
 
-import play.api.libs.json.Json
 import play.api.mvc.*
 import uk.gov.hmrc.mtdtransactionrisking.config.AppConfig
 import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator
@@ -36,32 +35,14 @@ class GenerateFeedbackController @Inject()(cc: ControllerComponents,
                                            feedbackStubService: FeedbackStubService,
                                            authAction: VATAuthAction,
                                            appConfig: AppConfig)(implicit ec: ExecutionContext)
-  extends BackendController(cc):
+  extends BackendController(cc), ResponseHandler:
 
   def generateFeedback(vrn: String): Action[AnyContent] = authAction.authorisedFor(vrn).async:
     request =>
       given Request[AnyContent] = request
-      given CorrelationId = IdGenerator.generateId()
+      given correlationId: CorrelationId = IdGenerator.generateId()
 
-      appConfig.feedbackStubBaseUrl match {
-
-        case Some(_) =>
-          feedbackStubService.requestFeedback(InsightsRequest(vrn)).value.map:
-            case Right(response: FeedbackResponse) =>
-              Ok(Json.toJson(response))
-                .withHeaders("X-CorrelationId" -> summon[CorrelationId].value)
-            case Left((status, rawBody)) =>
-              val jsonBody = try Json.parse(rawBody)
-                catch case _ => Json.obj("code" -> "INTERNAL_SERVER_ERROR", "message" -> rawBody)
-              Status(status)(jsonBody)
-                .withHeaders("X-CorrelationId" -> summon[CorrelationId].value)
-
-        case None =>
-          insightsService.assess(InsightsRequest(vrn)).value.map:
-            case Right(response: InsightsResponse) =>
-              Ok(Json.toJson(response))
-                .withHeaders("X-CorrelationId" -> summon[CorrelationId].value)
-            case Left(error: String) =>
-              InternalServerError(Json.obj("message" -> error))
-                .withHeaders("X-CorrelationId" -> summon[CorrelationId].value)
-      }
+      appConfig.feedbackStubBaseUrl match
+        // Feedback stub path used in external test while the real downstream is built
+        case Some(_) => feedbackStubService.requestFeedback(InsightsRequest(vrn)).map(handleOutcome(_))
+        case None => insightsService.assess(InsightsRequest(vrn)).map(handleOutcome(_))

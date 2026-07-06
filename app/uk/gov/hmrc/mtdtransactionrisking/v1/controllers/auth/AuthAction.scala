@@ -25,7 +25,8 @@ import uk.gov.hmrc.auth.core.retrieve.v2.Retrievals.*
 import uk.gov.hmrc.auth.core.retrieve.~
 import uk.gov.hmrc.auth.core.{AuthConnector, AuthorisationException, AuthorisedFunctions, Enrolment}
 import uk.gov.hmrc.http.HeaderCarrier
-import uk.gov.hmrc.mtdtransactionrisking.utils.Logging
+import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
+import uk.gov.hmrc.mtdtransactionrisking.utils.{IdGenerator, Logging}
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.errors.{ErrorWrapper, VrnFormatError}
 import uk.gov.hmrc.play.http.HeaderCarrierConverter
 
@@ -64,13 +65,18 @@ class VATAuthAction @Inject()(override val authConnector: AuthConnector, configu
                                   block: AuthenticatedVATRequest[A] => Future[Result]): Future[Result] =
         given hc: HeaderCarrier = HeaderCarrierConverter.fromRequest(request)
 
+        val correlationId: CorrelationId = IdGenerator.generateId()
+
         if !authEnabled then
           logger.warn("[VATAuthAction] Auth disabled via feature switch — bypassing authorisation")
           block(AuthenticatedVATRequest(request, "local-test-user", requestedVRN))
 
         else if !requestedVRN.matches(vrnRegex) then
           logger.warn(s"VRN format invalid: $requestedVRN")
-          Future.successful(BadRequest(Json.toJson(ErrorWrapper(VrnFormatError))))
+          Future.successful(
+            BadRequest(Json.toJson(ErrorWrapper(correlationId, VrnFormatError)))
+              .withHeaders("X-CorrelationId" -> correlationId.value)
+          )
 
         else
           authorised(predicate(requestedVRN))
