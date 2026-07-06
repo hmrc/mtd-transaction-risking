@@ -23,9 +23,11 @@ import uk.gov.hmrc.mtdtransactionrisking.v1.controllers.auth.VATAuthAction
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.AcknowledgeRequest
 import uk.gov.hmrc.mtdtransactionrisking.v1.services.AcknowledgeService
 import uk.gov.hmrc.mtdtransactionrisking.v1.services.AcknowledgeService.{AcknowledgeServiceError, ClientOrAuthError, InternalServiceError}
+import uk.gov.hmrc.mtdtransactionrisking.v1.validators.acknowledgeValidate
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
 import uk.gov.hmrc.play.http.HeaderCarrierConverter
-import java.time.{Instant, OffsetDateTime, ZoneOffset}
+
+import java.time.OffsetDateTime
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -38,7 +40,7 @@ class AcknowledgeController @Inject()(
 
   def acknowledgeReport(vrn: String, reportId: String, correlationId: String): Action[AnyContent] =
     authAction.authorisedFor(vrn).async: request =>
-      validate(reportId, request.getQueryString("presentedDateTime")) match
+      acknowledgeValidate(reportId, request.getQueryString("presentedDateTime")) match
         case Left(result) =>
           Future.successful(result)
 
@@ -65,17 +67,3 @@ class AcknowledgeController @Inject()(
       case InternalServiceError =>
         InternalServerError(Json.obj("code" -> "INTERNAL_SERVER_ERROR", "message" -> "An unexpected error occurred."))
           .withHeaders("X-CorrelationId" -> correlationId)
-
-
-  private val reportIdPattern = "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
-  private val presentedDateTimePattern = raw"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$$"
-
-  private def validate(reportId: String, presentedDateTime: Option[String]): Either[Result, OffsetDateTime] =
-    if !reportId.matches(reportIdPattern) then Left(BadRequest(Json.obj("code" -> "FORMAT_RECEIPT_ID", "message" -> "The provided Report ID is invalid.")))
-    else presentedDateTime.flatMap(parsePresentedDateTime).toRight(
-      BadRequest(Json.obj("code" -> "FORMAT_DATETIME", "message" -> "The provided Presented Date Time is invalid."))
-    )
-
-  private def parsePresentedDateTime(value: String): Option[OffsetDateTime] =
-    if !value.matches(presentedDateTimePattern) then None
-    else scala.util.Try(OffsetDateTime.ofInstant(Instant.parse(value), ZoneOffset.UTC)).toOption

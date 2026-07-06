@@ -1,3 +1,19 @@
+/*
+ * Copyright 2026 HM Revenue & Customs
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package uk.gov.hmrc.mtdtransactionrisking.v1.services
 
 import cats.data.EitherT
@@ -55,7 +71,7 @@ class AcknowledgeServiceSpec extends AnyWordSpec with Matchers with MockitoSugar
     "acknowledge is called and the connector returns a 400 error" must:
       "return a ClientOrAuthError" in new Test:
         when(mockConnector.acknowledge(eqTo(acknowledgeRequest))(any()))
-          .thenReturn(leftT(AcknowledgeConnectorError(400, "FORMAT_VRN", "The provided Vrn is invalid.")))
+          .thenReturn(leftT(AcknowledgeConnector.ClientOrAuthError(400, "FORMAT_VRN", "The provided Vrn is invalid.")))
 
         val result: Either[AcknowledgeService.AcknowledgeServiceError, Unit] =
           await(service.acknowledge(acknowledgeRequest).value)
@@ -65,7 +81,7 @@ class AcknowledgeServiceSpec extends AnyWordSpec with Matchers with MockitoSugar
     "acknowledge is called and the connector returns a 401 error" must:
       "return a ClientOrAuthError" in new Test:
         when(mockConnector.acknowledge(eqTo(acknowledgeRequest))(any()))
-          .thenReturn(leftT(AcknowledgeConnectorError(401, "INVALID_CREDENTIALS", "Invalid authentication information provided.")))
+          .thenReturn(leftT(AcknowledgeConnector.ClientOrAuthError(401, "INVALID_CREDENTIALS", "Invalid authentication information provided.")))
 
         val result: Either[AcknowledgeService.AcknowledgeServiceError, Unit] =
           await(service.acknowledge(acknowledgeRequest).value)
@@ -75,7 +91,7 @@ class AcknowledgeServiceSpec extends AnyWordSpec with Matchers with MockitoSugar
     "acknowledge is called and the connector returns a 403 error" must:
       "return a ClientOrAuthError" in new Test:
         when(mockConnector.acknowledge(eqTo(acknowledgeRequest))(any()))
-          .thenReturn(leftT(AcknowledgeConnectorError(403, "NOT_AUTHORISED", "The client and/or agent is not authorised.")))
+          .thenReturn(leftT(AcknowledgeConnector.ClientOrAuthError(403, "NOT_AUTHORISED", "The client and/or agent is not authorised.")))
 
         val result: Either[AcknowledgeService.AcknowledgeServiceError, Unit] =
           await(service.acknowledge(acknowledgeRequest).value)
@@ -85,7 +101,7 @@ class AcknowledgeServiceSpec extends AnyWordSpec with Matchers with MockitoSugar
     "acknowledge is called and the connector returns a 404 error" must:
       "return a ClientOrAuthError" in new Test:
         when(mockConnector.acknowledge(eqTo(acknowledgeRequest))(any()))
-          .thenReturn(leftT(AcknowledgeConnectorError(404, "MATCHING_RESOURCE_NOT_FOUND", "A matching resource was not found.")))
+          .thenReturn(leftT(AcknowledgeConnector.ClientOrAuthError(404, "MATCHING_RESOURCE_NOT_FOUND", "A matching resource was not found.")))
 
         val result: Either[AcknowledgeService.AcknowledgeServiceError, Unit] =
           await(service.acknowledge(acknowledgeRequest).value)
@@ -94,8 +110,10 @@ class AcknowledgeServiceSpec extends AnyWordSpec with Matchers with MockitoSugar
 
     "acknowledge is called and the connector returns a 500 error" must:
       "return InternalServiceError" in new Test:
+//        when(mockConnector.acknowledge(eqTo(acknowledgeRequest))(any()))
+//          .thenReturn(leftT(AcknowledgeConnector.ClientOrAuthError(500, "INTERNAL_SERVER_ERROR", "An unexpected error occurred.")))
         when(mockConnector.acknowledge(eqTo(acknowledgeRequest))(any()))
-          .thenReturn(leftT(AcknowledgeConnectorError(500, "INTERNAL_SERVER_ERROR", "An unexpected error occurred.")))
+          .thenReturn(leftT(AcknowledgeConnector.InternalServiceError))
 
         val result: Either[AcknowledgeService.AcknowledgeServiceError, Unit] =
           await(service.acknowledge(acknowledgeRequest).value)
