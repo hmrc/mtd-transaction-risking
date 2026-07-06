@@ -25,9 +25,11 @@ import java.time.{Instant, OffsetDateTime, ZoneOffset}
 
 private val reportIdPattern = "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
 private val presentedDateTimePattern = raw"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$$"
+private val correlationIdPattern = "^[A-Za-z0-9\\-]{36}$"
 
-def acknowledgeValidate(reportId: String, presentedDateTime: Option[String]): Either[Result, OffsetDateTime] =
+def acknowledgeValidate(reportId: String,correlationId: String, presentedDateTime: Option[String]): Either[Result, OffsetDateTime] =
   if !reportId.matches(reportIdPattern) then Left(BadRequest(Json.obj("code" -> "FORMAT_RECEIPT_ID", "message" -> "The provided Report ID is invalid.")))
+  else if !correlationId.matches(correlationIdPattern) then Left(BadRequest(Json.obj("code" -> "FORMAT_CORRELATION_ID", "message" -> "The provided Correlation ID is invalid.")))
   else presentedDateTime.flatMap(parsePresentedDateTime).toRight(
     BadRequest(Json.obj("code" -> "FORMAT_DATETIME", "message" -> "The provided Presented Date Time is invalid."))
   )

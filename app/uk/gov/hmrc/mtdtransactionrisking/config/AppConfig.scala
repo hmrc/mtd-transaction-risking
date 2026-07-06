@@ -45,7 +45,7 @@ class AppConfig @Inject()(config: ServicesConfig, configuration: Configuration):
 
   // acknowledge-proxy
   private val acknowledgeStubConfig = configuration.get[Configuration]("microservice.services.acknowledge-stub")
-  val acknowledgeStubServiceBaseUrl: String = config.baseUrl("acknowledge-proxy") + acknowledgeStubConfig.get[String]("submit-url")
+  val acknowledgeStubServiceBaseUrl: String = config.baseUrl("acknowledge-stub") + acknowledgeStubConfig.get[String]("submit-url")
 
 
   // feedback endpoint for external test

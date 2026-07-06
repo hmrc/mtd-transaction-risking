@@ -40,7 +40,7 @@ class AcknowledgeController @Inject()(
 
   def acknowledgeReport(vrn: String, reportId: String, correlationId: String): Action[AnyContent] =
     authAction.authorisedFor(vrn).async: request =>
-      acknowledgeValidate(reportId, request.getQueryString("presentedDateTime")) match
+      acknowledgeValidate(reportId,correlationId, request.getQueryString("presentedDateTime")) match
         case Left(result) =>
           Future.successful(result)
 
