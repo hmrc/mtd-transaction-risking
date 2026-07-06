@@ -71,7 +71,7 @@ class AcknowledgeServiceSpec extends AnyWordSpec with Matchers with MockitoSugar
     "acknowledge is called and the connector returns a 400 error" must:
       "return a ClientOrAuthError" in new Test:
         when(mockConnector.acknowledge(eqTo(acknowledgeRequest))(any()))
-          .thenReturn(leftT(AcknowledgeConnector.ClientOrAuthError(400, "FORMAT_VRN", "The provided Vrn is invalid.")))
+          .thenReturn(leftT(AcknowledgeConnectorError(400, "FORMAT_VRN", "The provided Vrn is invalid.")))
 
         val result: Either[AcknowledgeService.AcknowledgeServiceError, Unit] =
           await(service.acknowledge(acknowledgeRequest).value)
@@ -81,7 +81,7 @@ class AcknowledgeServiceSpec extends AnyWordSpec with Matchers with MockitoSugar
     "acknowledge is called and the connector returns a 401 error" must:
       "return a ClientOrAuthError" in new Test:
         when(mockConnector.acknowledge(eqTo(acknowledgeRequest))(any()))
-          .thenReturn(leftT(AcknowledgeConnector.ClientOrAuthError(401, "INVALID_CREDENTIALS", "Invalid authentication information provided.")))
+          .thenReturn(leftT(AcknowledgeConnectorError(401, "INVALID_CREDENTIALS", "Invalid authentication information provided.")))
 
         val result: Either[AcknowledgeService.AcknowledgeServiceError, Unit] =
           await(service.acknowledge(acknowledgeRequest).value)
@@ -91,7 +91,7 @@ class AcknowledgeServiceSpec extends AnyWordSpec with Matchers with MockitoSugar
     "acknowledge is called and the connector returns a 403 error" must:
       "return a ClientOrAuthError" in new Test:
         when(mockConnector.acknowledge(eqTo(acknowledgeRequest))(any()))
-          .thenReturn(leftT(AcknowledgeConnector.ClientOrAuthError(403, "NOT_AUTHORISED", "The client and/or agent is not authorised.")))
+          .thenReturn(leftT(AcknowledgeConnectorError(403, "NOT_AUTHORISED", "The client and/or agent is not authorised.")))
 
         val result: Either[AcknowledgeService.AcknowledgeServiceError, Unit] =
           await(service.acknowledge(acknowledgeRequest).value)
@@ -101,7 +101,7 @@ class AcknowledgeServiceSpec extends AnyWordSpec with Matchers with MockitoSugar
     "acknowledge is called and the connector returns a 404 error" must:
       "return a ClientOrAuthError" in new Test:
         when(mockConnector.acknowledge(eqTo(acknowledgeRequest))(any()))
-          .thenReturn(leftT(AcknowledgeConnector.ClientOrAuthError(404, "MATCHING_RESOURCE_NOT_FOUND", "A matching resource was not found.")))
+          .thenReturn(leftT(AcknowledgeConnectorError(404, "MATCHING_RESOURCE_NOT_FOUND", "A matching resource was not found.")))
 
         val result: Either[AcknowledgeService.AcknowledgeServiceError, Unit] =
           await(service.acknowledge(acknowledgeRequest).value)
@@ -110,10 +110,8 @@ class AcknowledgeServiceSpec extends AnyWordSpec with Matchers with MockitoSugar
 
     "acknowledge is called and the connector returns a 500 error" must:
       "return InternalServiceError" in new Test:
-//        when(mockConnector.acknowledge(eqTo(acknowledgeRequest))(any()))
-//          .thenReturn(leftT(AcknowledgeConnector.ClientOrAuthError(500, "INTERNAL_SERVER_ERROR", "An unexpected error occurred.")))
         when(mockConnector.acknowledge(eqTo(acknowledgeRequest))(any()))
-          .thenReturn(leftT(AcknowledgeConnector.InternalServiceError))
+          .thenReturn(leftT(AcknowledgeConnectorError(500, "INTERNAL_SERVER_ERROR", "An unexpected error occurred.")))
 
         val result: Either[AcknowledgeService.AcknowledgeServiceError, Unit] =
           await(service.acknowledge(acknowledgeRequest).value)
