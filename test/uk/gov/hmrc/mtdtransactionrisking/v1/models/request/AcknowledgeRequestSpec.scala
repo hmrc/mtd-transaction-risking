@@ -17,9 +17,8 @@
 package uk.gov.hmrc.mtdtransactionrisking.v1.models.request
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
-import play.api.libs.json.OFormat.oFormatFromReadsAndOWrites
-import play.api.libs.json.{JsObject, JsSuccess, Json}
 import play.api.libs.json.Format.GenericFormat
+import play.api.libs.json.{JsObject, JsSuccess, Json}
 
 class AcknowledgeRequestSpec extends AnyWordSpec with Matchers {
   val validJson: JsObject = Json.obj(
