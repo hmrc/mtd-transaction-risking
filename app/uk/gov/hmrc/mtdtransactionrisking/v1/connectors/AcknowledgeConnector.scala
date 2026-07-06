@@ -17,6 +17,7 @@
 package uk.gov.hmrc.mtdtransactionrisking.v1.connectors
 
 import cats.data.EitherT
+import org.apache.pekko.io.Tcp.Write
 import play.api.Logging
 import play.api.libs.json.{Json, Reads}
 import play.api.libs.ws.DefaultBodyWritables.writeableOf_WsBody
@@ -43,11 +44,11 @@ class AcknowledgeConnector @Inject()(
                                       appConfig: AppConfig
                                     )(implicit ec: ExecutionContext) extends Logging:
 
-
+  
 
   def acknowledge(request: AcknowledgeRequest)(implicit hc: HeaderCarrier): EitherT[Future, AcknowledgeConnector.AcknowledgeConnectorError, Unit] =    EitherT(
       httpClient
-        .post(url"${appConfig.acknowledgeStubServiceBaseUrl}").withBody(Json.obj())
+        .post(url"${appConfig.acknowledgeStubServiceBaseUrl}").withBody(Json.toJson(request))
         .execute[Either[UpstreamErrorResponse, Unit]]
         .map {
           case Right(_) =>

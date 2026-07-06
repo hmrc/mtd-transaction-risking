@@ -26,6 +26,28 @@ case class AcknowledgeRequest(
                                correlationId: String,
                                presentedDateTime: OffsetDateTime
                              )
+
 object AcknowledgeRequest:
   given reads: Reads[AcknowledgeRequest] = Json.reads[AcknowledgeRequest]
-
+  given writes: play.api.libs.json.Writes[AcknowledgeRequest] = (o: AcknowledgeRequest) => {
+    Json.obj(
+      "inputs" -> Json.arr(
+        Json.obj(
+          "name" -> "correlationID",
+          "value" -> o.correlationId
+        ),
+        Json.obj(
+          "name" -> "feedbackId",
+          "value" -> o.reportId
+        ),
+        Json.obj(
+          "name" -> "vrn",
+          "value" -> o.vrn
+        ),
+        Json.obj(
+          "name" -> "presentedDateTime",
+          "value" -> o.presentedDateTime.toString
+        )
+      )
+    )
+  }
