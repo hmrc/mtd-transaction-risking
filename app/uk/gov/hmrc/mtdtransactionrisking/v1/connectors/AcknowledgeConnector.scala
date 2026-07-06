@@ -47,7 +47,7 @@ class AcknowledgeConnector @Inject()(
 
   def acknowledge(request: AcknowledgeRequest)(implicit hc: HeaderCarrier): EitherT[Future, AcknowledgeConnector.AcknowledgeConnectorError, Unit] =    EitherT(
       httpClient
-        .post(url"${appConfig.acknowledgeProxyServiceBaseUrl}").withBody(Json.obj())
+        .post(url"${appConfig.acknowledgeStubServiceBaseUrl}").withBody(Json.obj())
         .execute[Either[UpstreamErrorResponse, Unit]]
         .map {
           case Right(_) =>

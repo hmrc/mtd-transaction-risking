@@ -44,8 +44,8 @@ class AppConfig @Inject()(config: ServicesConfig, configuration: Configuration):
   val insightsProxyServiceBaseUrl: String = config.baseUrl("insights-proxy") + insightsProxyConfig.get[String]("submit-url")
 
   // acknowledge-proxy
-  private val acknowledgeProxyConfig = configuration.get[Configuration]("microservice.services.acknowledge-proxy")
-  val acknowledgeProxyServiceBaseUrl: String = config.baseUrl("acknowledge-proxy") + acknowledgeProxyConfig.get[String]("submit-url")
+  private val acknowledgeStubConfig = configuration.get[Configuration]("microservice.services.acknowledge-stub")
+  val acknowledgeStubServiceBaseUrl: String = config.baseUrl("acknowledge-proxy") + acknowledgeStubConfig.get[String]("submit-url")
 
 
   // feedback endpoint for external test
