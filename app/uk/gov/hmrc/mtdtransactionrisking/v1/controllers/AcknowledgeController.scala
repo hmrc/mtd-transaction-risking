@@ -51,19 +51,17 @@ class AcknowledgeController @Inject()(
             .acknowledge(AcknowledgeRequest(vrn, reportId, correlationId, presentedDateTime))
             .value
             .map {
-              case Right(_) =>
-                NoContent.withHeaders("X-CorrelationId" -> correlationId)
-
-              case Left(error) =>
-                toResult(error, correlationId)
+              case Right(_)    => NoContent
+              case Left(error) => toResult(error)
             }
+            .map(_.withHeaders("X-CorrelationId" -> correlationId))
 
-  private def toResult(error: AcknowledgeServiceError, correlationId: String): Result =
+  private def toResult(error: AcknowledgeServiceError): Result =
     error match
       case ClientOrAuthError(status, code, message) =>
         Status(status)(Json.obj("code" -> code, "message" -> message))
-          .withHeaders("X-CorrelationId" -> correlationId)
 
       case InternalServiceError =>
-        InternalServerError(Json.obj("code" -> "INTERNAL_SERVER_ERROR", "message" -> "An unexpected error occurred."))
-          .withHeaders("X-CorrelationId" -> correlationId)
+        InternalServerError(
+          Json.obj("code" -> "INTERNAL_SERVER_ERROR", "message" -> "An unexpected error occurred.")
+        )
