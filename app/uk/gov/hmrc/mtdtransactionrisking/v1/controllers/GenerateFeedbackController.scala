@@ -22,7 +22,7 @@ import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator
 import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
 import uk.gov.hmrc.mtdtransactionrisking.v1.controllers.auth.VATAuthAction
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.InsightsRequest
-import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.{FeedbackResponse, InsightsResponse}
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.{FeedbackResponse, InsightsResponse, ResponseHandler}
 import uk.gov.hmrc.mtdtransactionrisking.v1.services.{FeedbackStubService, InsightsService}
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
 
@@ -44,5 +44,5 @@ class GenerateFeedbackController @Inject()(cc: ControllerComponents,
 
       appConfig.feedbackStubBaseUrl match
         // Feedback stub path used in external test while the real downstream is built
-        case Some(_) => feedbackStubService.requestFeedback(InsightsRequest(vrn)).map(handleOutcome(_))
-        case None => insightsService.assess(InsightsRequest(vrn)).map(handleOutcome(_))
+        case Some(_) => feedbackStubService.requestFeedback(InsightsRequest(vrn)).map(handleOutcome)
+        case None => insightsService.assess(InsightsRequest(vrn)).map(handleOutcome)

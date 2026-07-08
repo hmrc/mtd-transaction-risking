@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.mtdtransactionrisking.v1.controllers
+package uk.gov.hmrc.mtdtransactionrisking.v1.models.response
 
 import play.api.libs.json.{Json, Writes}
 import play.api.mvc.*
@@ -32,3 +32,12 @@ trait ResponseHandler:
       case Left(errorWrapper) =>
         Status(errorWrapper.statusCode)(Json.toJson(errorWrapper))
           .withHeaders("X-CorrelationId" -> errorWrapper.correlationId.value)
+
+  def handleOutcomeUnit(outcome: ServiceOutcome[Unit]): Result =
+    outcome match
+      case Right(wrapper) =>
+        NoContent.withHeaders("X-CorrelationId" -> wrapper.correlationId.value)
+      case Left(errorWrapper) =>
+        Status(errorWrapper.statusCode)(Json.toJson(errorWrapper))
+          .withHeaders("X-CorrelationId" -> errorWrapper.correlationId.value)
+

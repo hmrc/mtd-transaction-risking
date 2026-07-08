@@ -36,7 +36,7 @@ class AppConfig @Inject()(config: ServicesConfig, configuration: Configuration):
   private val insightsProxyConfig = configuration.get[Configuration]("microservice.services.insights-proxy")
   val insightsProxyServiceBaseUrl: String = config.baseUrl("insights-proxy") + insightsProxyConfig.get[String]("submit-url")
 
-  // feedback endpoint for external test
+  // feedback stub for external test
   val feedbackStubBaseUrl: Option[String] =
     configuration
       .getOptional[Configuration]("microservice.services.feedback-stub")
@@ -45,4 +45,13 @@ class AppConfig @Inject()(config: ServicesConfig, configuration: Configuration):
   val feedbackEnvironmentHeaders: Option[Seq[String]] =
     configuration.getOptional[Seq[String]](
       "microservice.services.feedback-stub.environmentHeaders"
+    )
+
+  // acknowledge stub endpoint for external test
+  private val acknowledgeStubConfig = configuration.get[Configuration]("microservice.services.acknowledge-stub")
+  val acknowledgeStubBaseUrl: String = config.baseUrl("acknowledge-stub") + acknowledgeStubConfig.get[String]("submit-url")
+
+  val acknowledgeEnvironmentHeaders: Option[Seq[String]] =
+    configuration.getOptional[Seq[String]](
+      "microservice.services.acknowledge-stub.environmentHeaders"
     )

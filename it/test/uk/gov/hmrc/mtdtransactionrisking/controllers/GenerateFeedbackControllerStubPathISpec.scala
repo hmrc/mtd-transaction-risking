@@ -118,6 +118,25 @@ class GenerateFeedbackControllerStubPathISpec extends IntegrationBaseSpec:
           val response: Future[Result] = request(vrn)
           status(response) shouldBe INTERNAL_SERVER_ERROR
 
+        "feedback-stub returns 200 with a body that does not match FeedbackResponse" in new Test:
+          override def setupStubs(): StubMapping =
+            AuthStub.successfulAuthWith(vrn)
+            FeedbackStub.malformedSuccessResponse()
+
+          val response: Future[Result] = request(vrn)
+          status(response) shouldBe INTERNAL_SERVER_ERROR
+          (contentAsJson(response) \ "code").as[String] shouldBe "INTERNAL_SERVER_ERROR"
+
+        "feedback-stub connection faults" in new Test:
+          override def setupStubs(): StubMapping =
+            AuthStub.successfulAuthWith(vrn)
+            FeedbackStub.connectionFaultResponse()
+
+          val response: Future[Result] = request(vrn)
+          status(response) shouldBe INTERNAL_SERVER_ERROR
+          (contentAsJson(response) \ "code").as[String] shouldBe "INTERNAL_SERVER_ERROR"
+
+
   private trait Test:
 
     def vrn: String = CommonTestData.simpleVrn
