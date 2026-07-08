@@ -125,27 +125,33 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/VATAssistResponse'
-              example:
-                reportId: 'f2fb30e5-4ab6-4a29-b3c1-c00000000001'
-                correlationId: 'c75f40a6-a3df-4429-a697-471eeec46435'
-                englishFeedback:
-                  - itemNumber: '001'
-                    title: 'VAT due on sales appears low'
-                    body: 'The VAT due on sales figure appears lower than expected based on your total sales value.'
-                    action: 'Please review box 1 and box 6 of your VAT return.'
-                    links:
-                      - title: 'VAT Notice 700'
-                        url: 'https://www.gov.uk/guidance/vat-notice-700-the-vat-guide'
-                    path: 'vatDueSales'
-                welshFeedback:
-                  - itemNumber: '001'
-                    title: 'Mae TAW sy''n ddyledus ar werthiannau yn ymddangos yn isel'
-                    body: 'Mae''r ffigur TAW sy''n ddyledus ar werthiannau yn ymddangos yn is na''r disgwyl yn seiliedig ar gyfanswm eich gwerthiannau.'
-                    action: 'Adolygwch flwch 1 a blwch 6 eich ffurflen TAW.'
-                    links:
-                      - title: 'Hysbysiad TAW 700'
-                        url: 'https://www.gov.uk/guidance/vat-notice-700-the-vat-guide'
-                    path: 'vatDueSales'
+              examples:
+                "Example 1":
+                  description: |
+                    The scenario where there is one HMRC Assist feedback message.
+
+                    Note that the feedback message in this example is for illustration purposes only. Actual feedback messages may differ.
+                  value:
+                    reportId: 'f2fb30e5-4ab6-4a29-b3c1-c00000000001'
+                    correlationId: 'c75f40a6-a3df-4429-a697-471eeec46435'
+                    englishFeedback:
+                      - itemNumber: '001'
+                        title: 'VAT due on sales appears low'
+                        body: 'The VAT due on sales figure appears lower than expected based on your total sales value.'
+                        action: 'Please review box 1 and box 6 of your VAT return.'
+                        links:
+                          - title: 'VAT Notice 700'
+                            url: 'https://www.gov.uk/guidance/vat-notice-700-the-vat-guide'
+                        path: 'vatDueSales'
+                    welshFeedback:
+                      - itemNumber: '001'
+                        title: 'Mae TAW sy''n ddyledus ar werthiannau yn ymddangos yn isel'
+                        body: 'Mae''r ffigur TAW sy''n ddyledus ar werthiannau yn ymddangos yn is na''r disgwyl yn seiliedig ar gyfanswm eich gwerthiannau.'
+                        action: 'Adolygwch flwch 1 a blwch 6 eich ffurflen TAW.'
+                        links:
+                          - title: 'Hysbysiad TAW 700'
+                            url: 'https://www.gov.uk/guidance/vat-notice-700-the-vat-guide'
+                        path: 'vatDueSales'
         '400':
           description: Bad request. Invalid request body or parameters.
           content:
