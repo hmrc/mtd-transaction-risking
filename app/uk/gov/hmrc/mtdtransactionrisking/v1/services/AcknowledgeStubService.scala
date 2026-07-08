@@ -18,17 +18,14 @@ package uk.gov.hmrc.mtdtransactionrisking.v1.services
 
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
-import uk.gov.hmrc.mtdtransactionrisking.v1.connectors.InsightsConnector
-import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.InsightsRequest
-import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.InsightsResponse
+import uk.gov.hmrc.mtdtransactionrisking.v1.connectors.AcknowledgeConnector
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.AcknowledgeRequest
 
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.Future
 
 @Singleton
-class InsightsService @Inject()(connector: InsightsConnector):
+class AcknowledgeStubService @Inject()(connector: AcknowledgeConnector):
 
-  def assess(
-              request: InsightsRequest
-            )(implicit hc: HeaderCarrier, correlationId: CorrelationId): Future[ServiceOutcome[InsightsResponse]] =
-    connector.getRiskInsights(request)
+  def acknowledge(request: AcknowledgeRequest)(implicit hc: HeaderCarrier, correlationId: CorrelationId): Future[ServiceOutcome[Unit]] =
+    connector.acknowledge(request)

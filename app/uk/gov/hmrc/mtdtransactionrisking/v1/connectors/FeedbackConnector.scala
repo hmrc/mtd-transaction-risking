@@ -16,7 +16,6 @@
 
 package uk.gov.hmrc.mtdtransactionrisking.v1.connectors
 
-import cats.data.EitherT
 import play.api.Logging
 import play.api.libs.json.Json
 import play.api.libs.ws.writeableOf_JsValue
@@ -25,11 +24,15 @@ import uk.gov.hmrc.http.client.HttpClientV2
 import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse, StringContextOps}
 import uk.gov.hmrc.mtdtransactionrisking.config.AppConfig
 import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.errors.{DownstreamError, ErrorWrapper}
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.outcomes.ResponseWrapper
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.InsightsRequest
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.FeedbackResponse
+import uk.gov.hmrc.mtdtransactionrisking.v1.services.ServiceOutcome
 
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
+import scala.util.Try
 
 @Singleton
 class FeedbackConnector @Inject()(
@@ -42,38 +45,35 @@ class FeedbackConnector @Inject()(
                                appName: String
                              )(implicit hc: HeaderCarrier): Seq[(String, String)] =
     Seq(
-      "User-Agent" -> appName,
-      "Content-Type" -> "application/json",
+      "User-Agent"       -> appName,
+      "Content-Type"     -> "application/json",
       "X-Correlation-Id" -> correlationId.value
     ) ++ hc.headers(appConfig.feedbackEnvironmentHeaders.getOrElse(Seq.empty))
 
-  def requestFeedback(
-                       request: InsightsRequest
-                     )(implicit hc: HeaderCarrier, correlationId: CorrelationId): EitherT[Future, (Int, String), FeedbackResponse] =
+  def requestFeedback(request: InsightsRequest)(implicit hc: HeaderCarrier, correlationId: CorrelationId): Future[ServiceOutcome[FeedbackResponse]] =
     logger.info(s"${correlationId.value}::[FeedbackConnector][requestFeedback] calling feedback service")
 
-    EitherT(
-      httpClient
-        .post(url"${appConfig.feedbackStubBaseUrl.getOrElse("")}")
-        .withBody(Json.toJson(request))
-        .setHeader(requiredHeaders(correlationId, appConfig.appName) *)
-        .execute[HttpResponse]
-        .map { response =>
-          response.status match
-            case 200 =>
-              response.json.asOpt[FeedbackResponse] match
-                case Some(feedback) =>
-                  logger.info(s"${correlationId.value}::[FeedbackConnector][requestFeedback] success")
-                  Right(feedback)
-                case None =>
-                  logger.error(s"${correlationId.value}::[FeedbackConnector][requestFeedback] malformed response")
-                  Left((500, Json.obj("code" -> "INTERNAL_SERVER_ERROR", "message" -> "Malformed response from feedback service").toString))
-            case status =>
-              logger.error(s"${correlationId.value}::[FeedbackConnector][requestFeedback] failed $status: ${response.body}")
-              Left((status, response.body))
-}
-        .recover:
-          case ex =>
-            logger.error(s"${correlationId.value}::[FeedbackConnector][requestFeedback] unexpected exception", ex)
-            Left((500, s"Exception calling feedback service: ${ex.getMessage}"))
-    )
+    httpClient
+      .post(url"${appConfig.feedbackStubBaseUrl.getOrElse("")}")
+      .withBody(Json.toJson(request))
+      .setHeader(requiredHeaders(correlationId, appConfig.appName) *)
+      .execute[HttpResponse]
+      .map { response =>
+        response.status match
+          case 200 =>
+            response.json.asOpt[FeedbackResponse] match
+              case Some(feedback) =>
+                logger.info(s"${correlationId.value}::[FeedbackConnector][requestFeedback] success")
+                Right(ResponseWrapper(correlationId, feedback))
+              case None =>
+                logger.error(s"${correlationId.value}::[FeedbackConnector][requestFeedback] malformed response")
+                Left(ErrorWrapper(correlationId, DownstreamError))
+          case status =>
+            logger.error(s"${correlationId.value}::[FeedbackConnector][requestFeedback] failed $status: ${response.body}")
+            val body = Try(response.json).getOrElse(DownstreamError.asJson)
+            Left(ErrorWrapper(correlationId, DownstreamError, rawBody = Some(body), rawStatus = Some(status)))
+      }
+      .recover:
+        case ex =>
+          logger.error(s"${correlationId.value}::[FeedbackConnector][requestFeedback] unexpected exception", ex)
+          Left(ErrorWrapper(correlationId, DownstreamError))

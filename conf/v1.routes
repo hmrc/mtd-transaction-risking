@@ -1,3 +1,5 @@
 # microservice specific routes
 
-POST       /assist/:vrn       uk.gov.hmrc.mtdtransactionrisking.v1.controllers.GenerateFeedbackController.generateFeedback(vrn: String)
+POST       /assist/:vrn   uk.gov.hmrc.mtdtransactionrisking.v1.controllers.GenerateFeedbackController.generateFeedback(vrn: String)
+
+POST       /acknowledge/:vrn/:reportId/:correlationId  uk.gov.hmrc.mtdtransactionrisking.v1.controllers.AcknowledgeController.acknowledgeReport(vrn: String, reportId: String, correlationId: String)

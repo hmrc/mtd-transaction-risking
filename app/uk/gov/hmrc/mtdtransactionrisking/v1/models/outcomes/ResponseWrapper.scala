@@ -14,21 +14,8 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.mtdtransactionrisking.v1.services
+package uk.gov.hmrc.mtdtransactionrisking.v1.models.outcomes
 
-import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
-import uk.gov.hmrc.mtdtransactionrisking.v1.connectors.InsightsConnector
-import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.InsightsRequest
-import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.InsightsResponse
 
-import javax.inject.{Inject, Singleton}
-import scala.concurrent.Future
-
-@Singleton
-class InsightsService @Inject()(connector: InsightsConnector):
-
-  def assess(
-              request: InsightsRequest
-            )(implicit hc: HeaderCarrier, correlationId: CorrelationId): Future[ServiceOutcome[InsightsResponse]] =
-    connector.getRiskInsights(request)
+final case class ResponseWrapper[A](correlationId: CorrelationId, responseData: A)

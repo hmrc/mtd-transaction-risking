@@ -133,7 +133,7 @@ class GenerateFeedbackControllerISpec extends IntegrationBaseSpec:
     def request(vrn: String): Future[Result] =
       setupStubs()
       app.injector.instanceOf[GenerateFeedbackController].generateFeedback(vrn)(
-        FakeRequest("POST", s"/feedback/$vrn")
+        FakeRequest("POST", s"/assist/$vrn")
           .withSession(authToken -> vrn)
           .withHeaders(
             "Authorization" -> "Bearer abc123",
@@ -145,7 +145,7 @@ class GenerateFeedbackControllerISpec extends IntegrationBaseSpec:
     def requestWithoutAuth(vrn: String): Future[Result] =
       setupStubs()
       app.injector.instanceOf[GenerateFeedbackController].generateFeedback(vrn)(
-        FakeRequest("POST", s"/feedback/$vrn")
+        FakeRequest("POST", s"/assist/$vrn")
           .withHeaders(
             "Accept" -> "application/vnd.hmrc.1.0+json",
             "Content-Type" -> "application/json"

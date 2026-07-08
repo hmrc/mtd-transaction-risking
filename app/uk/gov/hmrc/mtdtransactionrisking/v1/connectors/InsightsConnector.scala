@@ -16,17 +16,19 @@
 
 package uk.gov.hmrc.mtdtransactionrisking.v1.connectors
 
-import cats.data.EitherT
 import play.api.Logging
 import play.api.libs.json.Json
 import play.api.libs.ws.writeableOf_JsValue
 import uk.gov.hmrc.http.HttpReads.Implicits.*
 import uk.gov.hmrc.http.client.HttpClientV2
-import uk.gov.hmrc.http.{HeaderCarrier, StringContextOps, UpstreamErrorResponse}
+import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse, StringContextOps}
 import uk.gov.hmrc.mtdtransactionrisking.config.AppConfig
 import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.errors.{DownstreamError, ErrorWrapper}
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.outcomes.ResponseWrapper
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.InsightsRequest
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.InsightsResponse
+import uk.gov.hmrc.mtdtransactionrisking.v1.services.ServiceOutcome
 
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
@@ -40,32 +42,35 @@ class InsightsConnector @Inject()(
   private[connectors] def requiredHeaders(correlationId: CorrelationId, appName: String)
                                          (implicit hc: HeaderCarrier): Seq[(String, String)] =
     Seq(
-      "User-Agent" -> appName,
-      "Content-Type" -> "application/json",
+      "User-Agent"       -> appName,
+      "Content-Type"     -> "application/json",
       "X-Correlation-Id" -> correlationId.value
-    )
+    ) 
 
   def getRiskInsights(request: InsightsRequest)
-                     (implicit hc: HeaderCarrier, correlationId: CorrelationId): EitherT[Future, String, InsightsResponse] =
+                     (implicit hc: HeaderCarrier, correlationId: CorrelationId): Future[ServiceOutcome[InsightsResponse]] =
     logger.debug(s"${correlationId.value}::[InsightsConnector:getRiskInsights] calling insights API")
 
-    EitherT(
-      httpClient
-        .post(url"${appConfig.insightsProxyServiceBaseUrl}")
-        .withBody(Json.toJson(request))
-        .setHeader(requiredHeaders(correlationId, appConfig.appName) *)
-        .execute[Either[UpstreamErrorResponse, InsightsResponse]]
-        .map:
-          case Right(response) =>
-            logger.debug(s"$correlationId::[InsightsConnector:getRiskInsights] success")
-            Right(response)
-
-          case Left(errorResponse) =>
-            logger.error(s"$correlationId::[InsightsConnector:getRiskInsights] " +
-              s"failed status ${errorResponse.statusCode}: ${errorResponse.message}")
-            Left(s"Unexpected status ${errorResponse.statusCode} from insights service")
-        .recover:
-          case ex =>
-            logger.error(s"$correlationId::[InsightsConnector:getRiskInsights] unexpected exception", ex)
-            Left(s"Exception calling insights service: ${ex.getMessage}")
-    )
+    httpClient
+      .post(url"${appConfig.insightsProxyServiceBaseUrl}")
+      .withBody(Json.toJson(request))
+      .setHeader(requiredHeaders(correlationId, appConfig.appName)*)
+      .execute[HttpResponse]
+      .map { response =>
+        response.status match
+          case 200 =>
+            response.json.asOpt[InsightsResponse] match
+              case Some(insights) =>
+                logger.debug(s"${correlationId.value}::[InsightsConnector:getRiskInsights] success")
+                Right(ResponseWrapper(correlationId, insights))
+              case None =>
+                logger.error(s"${correlationId.value}::[InsightsConnector:getRiskInsights] malformed response")
+                Left(ErrorWrapper(correlationId, DownstreamError))
+          case status =>
+            logger.error(s"${correlationId.value}::[InsightsConnector:getRiskInsights] failed status $status: ${response.body}")
+            Left(ErrorWrapper(correlationId, DownstreamError))
+      }
+      .recover:
+        case ex =>
+          logger.error(s"${correlationId.value}::[InsightsConnector:getRiskInsights] unexpected exception", ex)
+          Left(ErrorWrapper(correlationId, DownstreamError))

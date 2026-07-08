@@ -17,6 +17,7 @@
 package uk.gov.hmrc.mtdtransactionrisking.stubs
 
 import com.github.tomakehurst.wiremock.client.WireMock.*
+import com.github.tomakehurst.wiremock.http.Fault
 import com.github.tomakehurst.wiremock.stubbing.StubMapping
 import play.api.libs.json.Json
 
@@ -159,4 +160,21 @@ object FeedbackStub:
               ).toString
             )
         )
+    )
+
+  def malformedSuccessResponse(): StubMapping =
+    stubFor(
+      post(urlEqualTo(feedbackUrl))
+        .willReturn(
+          aResponse()
+            .withStatus(200)
+            .withHeader("Content-Type", "application/json")
+            .withBody(Json.obj("unexpected" -> "shape").toString)
+        )
+    )
+
+  def connectionFaultResponse(): StubMapping =
+    stubFor(
+      post(urlEqualTo(feedbackUrl))
+        .willReturn(aResponse().withFault(Fault.CONNECTION_RESET_BY_PEER))
     )

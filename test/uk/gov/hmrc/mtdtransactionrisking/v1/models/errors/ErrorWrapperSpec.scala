@@ -16,116 +16,58 @@
 
 package uk.gov.hmrc.mtdtransactionrisking.v1.models.errors
 
+import play.api.http.Status.*
 import play.api.libs.json.Json
 import uk.gov.hmrc.mtdtransactionrisking.support.UnitSpec
+import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
 
-class ErrorWrapperSpec extends UnitSpec {
+class ErrorWrapperSpec extends UnitSpec:
 
-  "ErrorWrapper" when {
+  private val correlationId = CorrelationId("test-correlation-id")
 
-    "written to JSON with a single simple error and no additional errors" should {
-      "generate the correct JSON" in {
-        val wrapper = ErrorWrapper(NotFoundError, None)
+  "ErrorWrapper" when:
+
+    "written to JSON with a structured error and no raw body" should:
+
+      "serialise the error's code and message" in:
+        val wrapper = ErrorWrapper(correlationId, NotFoundError)
         Json.toJson(wrapper) shouldBe Json.parse(
-          """
-            |{
-            |  "code": "MATCHING_RESOURCE_NOT_FOUND",
-            |  "message": "Matching resource not found"
-            |}
-          """.stripMargin
+          """{"code": "MATCHING_RESOURCE_NOT_FOUND", "message": "Matching resource not found"}"""
         )
-      }
-    }
 
-    "written to JSON with a single simple error and an empty errors sequence" should {
-      "generate the correct JSON without an errors field" in {
-        val wrapper = ErrorWrapper(VrnFormatError, Some(Seq.empty))
+      "serialise a structured error that carries a path" in:
+        val errorWithPath = MtdError("PERIOD_KEY_INVALID", "period key should be a 4 character string", BAD_REQUEST, Some("/periodKey"))
+        val wrapper       = ErrorWrapper(correlationId, errorWithPath)
         Json.toJson(wrapper) shouldBe Json.parse(
-          """
-            |{
-            |  "code": "VRN_INVALID",
-            |  "message": "The provided VRN is invalid"
-            |}
-          """.stripMargin
+          """{"code": "PERIOD_KEY_INVALID", "message": "period key should be a 4 character string", "path": "/periodKey"}"""
         )
-      }
-    }
 
-    "written to JSON with multiple simple errors" should {
-      "generate the correct JSON with an errors array" in {
-        val wrapper = ErrorWrapper(
-          BadRequestError,
-          Some(Seq(VrnFormatError, RuleIncorrectOrEmptyBodyError))
-        )
-        Json.toJson(wrapper) shouldBe Json.parse(
+    "written to JSON with a raw body present" should:
+
+      "relay the raw body verbatim, ignoring the placeholder error" in:
+        val downstreamBody = Json.parse(
           """
             |{
             |  "code": "INVALID_REQUEST",
             |  "message": "Invalid request",
             |  "errors": [
-            |    {
-            |      "code": "VRN_INVALID",
-            |      "message": "The provided VRN is invalid"
-            |    },
-            |    {
-            |      "code": "RULE_INCORRECT_OR_EMPTY_BODY_SUBMITTED",
-            |      "message": "An empty or non-matching body was submitted"
-            |    }
+            |    { "code": "PERIOD_KEY_INVALID", "message": "period key should be a 4 character string", "path": "/periodKey" }
             |  ]
             |}
           """.stripMargin
         )
-      }
-    }
+        val wrapper = ErrorWrapper(correlationId, DownstreamError, rawBody = Some(downstreamBody), rawStatus = Some(BAD_REQUEST))
+        Json.toJson(wrapper) shouldBe downstreamBody
 
-    "written to JSON with an error whose customJson is a valid MtdErrorWrapper with nested errors" should {
-      "unwrap and flatten the nested errors into the errors array" in {
-        val innerWrapper = MtdErrorWrapper(
-          code    = "NESTED_CODE",
-          message = "nested message",
-          path    = Some("/field"),
-          errors  = Some(Seq(MtdErrorWrapper("DEEP_CODE", "deep message", Some("/deep"))))
-        )
-        val customJson = Json.toJson(innerWrapper)
-        val errorWithCustom = MtdError("INVALID_REQUEST", "Invalid request", Some(customJson))
+  "statusCode" should:
 
-        val wrapper = ErrorWrapper(BadRequestError, Some(Seq(errorWithCustom)))
-        val result  = Json.toJson(wrapper)
+    "return the error's httpStatus when no rawStatus is set" in:
+      ErrorWrapper(correlationId, TaxPeriodNotEndedError).statusCode shouldBe FORBIDDEN
 
-        (result \ "errors").as[Seq[MtdErrorWrapper]] shouldBe Seq(
-          MtdErrorWrapper("DEEP_CODE", "deep message", Some("/deep"))
-        )
-      }
-    }
+    "return rawStatus when present, overriding the error's httpStatus" in:
+      val wrapper = ErrorWrapper(correlationId, DownstreamError, rawStatus = Some(BAD_REQUEST))
+      wrapper.statusCode shouldBe BAD_REQUEST
 
-    "written to JSON with an error whose customJson is a valid MtdErrorWrapper with no nested errors" should {
-      "include the wrapper itself in the errors array" in {
-        val innerWrapper = MtdErrorWrapper(
-          code    = "WRAPPER_CODE",
-          message = "wrapper message",
-          path    = Some("/path"),
-          errors  = None
-        )
-        val customJson      = Json.toJson(innerWrapper)
-        val errorWithCustom = MtdError("SOME_CODE", "some message", Some(customJson))
-
-        val wrapper = ErrorWrapper(BadRequestError, Some(Seq(errorWithCustom)))
-        val result  = Json.toJson(wrapper)
-
-        (result \ "errors").as[Seq[MtdErrorWrapper]] shouldBe Seq(innerWrapper)
-      }
-    }
-
-    "written to JSON with an error whose customJson is not a valid MtdErrorWrapper" should {
-      "include the raw customJson in the errors array" in {
-        val rawCustom       = Json.parse("""{"arbitrary": "json"}""")
-        val errorWithCustom = MtdError("SOME_CODE", "some message", Some(rawCustom))
-
-        val wrapper = ErrorWrapper(BadRequestError, Some(Seq(errorWithCustom)))
-        val result  = Json.toJson(wrapper)
-
-        (result \ "errors")(0) shouldBe rawCustom
-      }
-    }
-  }
-}
+    "prefer rawStatus even when the placeholder error has a different status" in:
+      val wrapper = ErrorWrapper(correlationId, DownstreamError, rawBody = Some(Json.obj()), rawStatus = Some(FORBIDDEN))
+      wrapper.statusCode shouldBe FORBIDDEN

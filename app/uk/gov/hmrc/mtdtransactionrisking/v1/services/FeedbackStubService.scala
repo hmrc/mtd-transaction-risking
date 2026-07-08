@@ -16,7 +16,6 @@
 
 package uk.gov.hmrc.mtdtransactionrisking.v1.services
 
-import cats.data.EitherT
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
 import uk.gov.hmrc.mtdtransactionrisking.v1.connectors.FeedbackConnector
@@ -31,5 +30,5 @@ class FeedbackStubService @Inject()(connector: FeedbackConnector):
 
   def requestFeedback(
                        request: InsightsRequest
-                     )(implicit hc: HeaderCarrier, correlationId: CorrelationId): EitherT[Future, (Int, String), FeedbackResponse] =
+                     )(implicit hc: HeaderCarrier, correlationId: CorrelationId): Future[ServiceOutcome[FeedbackResponse]] =
     connector.requestFeedback(request)
