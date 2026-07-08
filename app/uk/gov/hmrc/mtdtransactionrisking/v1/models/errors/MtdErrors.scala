@@ -16,89 +16,70 @@
 
 package uk.gov.hmrc.mtdtransactionrisking.v1.models.errors
 
+import play.api.http.Status.*
 import play.api.libs.functional.syntax.*
-import play.api.libs.json.{JsObject, JsValue, Json, Reads, Writes, OWrites}
+import play.api.libs.json.*
 
-case class MtdError(code: String, message: String, httpStatus: Int = 400, customJson: Option[JsValue] = None) {
-  lazy val toJson: JsValue = Json.obj(
-    "code"    -> this.code,
-    "message" -> this.message
-  )
-}
+case class MtdError(code: String, message: String, httpStatus: Int, path: Option[String] = None):
+  val asJson: JsObject = Json.toJson(this).as[JsObject]
 
-object MtdError {
-  implicit val writes: Writes[MtdError] = {
-    case o @ MtdError(_, _, _, None) => o.toJson
-    case MtdError("INVALID_REQUEST", _, _, Some(customJson)) =>
-      BadRequestError.toJson.as[JsObject] + ("errors" -> Json.toJson(Seq(customJson)))
-    case MtdError(_, _, _, Some(customJson)) => customJson
-  }
+object MtdError:
 
-  implicit def genericWrites[T <: MtdError]: Writes[T] =
+  given writes: OWrites[MtdError] = (
+    (JsPath \ "code").write[String] and
+      (JsPath \ "message").write[String] and
+      (JsPath \ "path").writeNullable[String]
+    )(e => (e.code, e.message, e.path))
+
+  given genericWrites[T <: MtdError]: OWrites[T] =
     writes.contramap[T](c => c: MtdError)
 
-  implicit val reads: Reads[MtdError] = (
-    (play.api.libs.json.JsPath \ "code").read[String] and
-      (play.api.libs.json.JsPath \ "message").read[String]
-    )((code, message) => MtdError(code, message))
-}
-
-case class MtdErrorWrapper(code: String, message: String, path: Option[String], errors: Option[Seq[MtdErrorWrapper]] = None)
-
-object MtdErrorWrapper {
-  implicit val writes: OWrites[MtdErrorWrapper] = Json.writes[MtdErrorWrapper]
-
-  implicit def genericWrites[T <: MtdErrorWrapper]: OWrites[T] =
-    writes.contramap[T](c => c: MtdErrorWrapper)
-
-  implicit val reads: Reads[MtdErrorWrapper] = Json.reads[MtdErrorWrapper]
-}
-
 // Format Errors
-object VrnFormatError extends MtdError("VRN_INVALID", "The provided VRN is invalid") 
-object PeriodKeyFormatError extends MtdError("PERIOD_KEY_INVALID", "The provided period key is invalid")
+object VrnFormatError extends MtdError("VRN_INVALID", "The provided VRN is invalid", BAD_REQUEST)
+
+object PeriodKeyFormatError extends MtdError("PERIOD_KEY_INVALID", "The provided period key is invalid", BAD_REQUEST)
 
 // Rule Errors
-object RuleIncorrectOrEmptyBodyError extends MtdError("RULE_INCORRECT_OR_EMPTY_BODY_SUBMITTED", "An empty or non-matching body was submitted")
+object RuleIncorrectOrEmptyBodyError
+  extends MtdError("RULE_INCORRECT_OR_EMPTY_BODY_SUBMITTED", "An empty or non-matching body was submitted", BAD_REQUEST)
 
-object TaxPeriodNotEndedError extends MtdError("TAX_PERIOD_NOT_ENDED", "The remote endpoint has indicated that the submission is for a tax period that has not ended", httpStatus = 403)
+object TaxPeriodNotEndedError
+  extends MtdError("TAX_PERIOD_NOT_ENDED", "The remote endpoint has indicated that the submission is for a tax period that has not ended", FORBIDDEN)
 
-object RuleInsolventTraderError extends MtdError("RULE_INSOLVENT_TRADER", "The remote endpoint has indicated that the Trader is insolvent", httpStatus = 403)
+object RuleInsolventTraderError
+  extends MtdError("RULE_INSOLVENT_TRADER", "The remote endpoint has indicated that the Trader is insolvent", FORBIDDEN)
 
-object RuleIncorrectGovTestScenarioError extends MtdError("RULE_INCORRECT_GOV_TEST_SCENARIO", "The Gov-Test-Scenario was not found")   // 400 default
+object RuleIncorrectGovTestScenarioError
+  extends MtdError("RULE_INCORRECT_GOV_TEST_SCENARIO", "The Gov-Test-Scenario was not found", BAD_REQUEST)
 
 // Standard Errors
-object NotFoundError extends MtdError("MATCHING_RESOURCE_NOT_FOUND", "Matching resource not found", httpStatus = 404)
-object DownstreamError extends MtdError("INTERNAL_SERVER_ERROR", "An internal server error occurred", httpStatus = 500)
-object BadRequestError extends MtdError("INVALID_REQUEST", "Invalid request")
-object ServiceUnavailableError extends MtdError("SERVICE_UNAVAILABLE", "Internal server error", httpStatus = 503)
-object InvalidJson extends MtdError("INVALID_JSON", "Invalid JSON received")
-object UnexpectedFailure {
+object NotFoundError extends MtdError("MATCHING_RESOURCE_NOT_FOUND", "Matching resource not found", NOT_FOUND)
+
+object DownstreamError extends MtdError("INTERNAL_SERVER_ERROR", "An internal server error occurred", INTERNAL_SERVER_ERROR)
+
+object BadRequestError extends MtdError("INVALID_REQUEST", "Invalid request", BAD_REQUEST)
+
+object ServiceUnavailableError extends MtdError("SERVICE_UNAVAILABLE", "Internal server error", SERVICE_UNAVAILABLE)
+
+object InvalidJson extends MtdError("INVALID_JSON", "Invalid JSON received", BAD_REQUEST)
+
+object UnexpectedFailure:
   def mtdError(status: Int, body: String): MtdError =
-    MtdError("UNEXPECTED_FAILURE", s"Unexpected failure. Status $status, body $body", httpStatus = status)
-}
+    MtdError("UNEXPECTED_FAILURE", s"Unexpected failure. Status $status, body $body", status)
 
 // Authorisation Errors
-object UnauthorisedError extends MtdError("CLIENT_OR_AGENT_NOT_AUTHORISED", "The client and/or agent is not authorised", httpStatus = 403)
-object InvalidBearerTokenError extends MtdError("UNAUTHORIZED", "Bearer token is missing or not authorized", httpStatus = 401)
+object UnauthorisedError
+  extends MtdError("CLIENT_OR_AGENT_NOT_AUTHORISED", "The client and/or agent is not authorised", FORBIDDEN)
 
-object ForbiddenDownstreamError extends MtdError(
-  code       = "INTERNAL_SERVER_ERROR",
-  message    = "An internal server error occurred",
-  httpStatus = 500,
-  customJson = Some(
-    Json.parse(
-      """
-        |{
-        |  "code": "INTERNAL_SERVER_ERROR",
-        |  "message": "An internal server error occurred"
-        |}
-      """.stripMargin
-    )
-  )
-)
+object InvalidBearerTokenError
+  extends MtdError("UNAUTHORIZED", "Bearer token is missing or not authorized", UNAUTHORIZED)
 
 // Accept header Errors
-object InvalidAcceptHeaderError extends MtdError("ACCEPT_HEADER_INVALID", "The accept header is missing or invalid")
-object UnsupportedVersionError extends MtdError("NOT_FOUND", "The requested resource could not be found", httpStatus = 404)
-object InvalidBodyTypeError extends MtdError("INVALID_BODY_TYPE", "Expecting text/json or application/json body")
+object InvalidAcceptHeaderError
+  extends MtdError("ACCEPT_HEADER_INVALID", "The accept header is missing or invalid", NOT_ACCEPTABLE)
+
+object UnsupportedVersionError
+  extends MtdError("NOT_FOUND", "The requested resource could not be found", NOT_FOUND)
+
+object InvalidBodyTypeError
+  extends MtdError("INVALID_BODY_TYPE", "Expecting text/json or application/json body", UNSUPPORTED_MEDIA_TYPE)

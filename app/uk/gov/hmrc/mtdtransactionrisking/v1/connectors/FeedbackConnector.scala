@@ -24,7 +24,7 @@ import uk.gov.hmrc.http.client.HttpClientV2
 import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse, StringContextOps}
 import uk.gov.hmrc.mtdtransactionrisking.config.AppConfig
 import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
-import uk.gov.hmrc.mtdtransactionrisking.v1.models.errors.{DownstreamError, ErrorWrapper, MtdError}
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.errors.{DownstreamError, ErrorWrapper}
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.outcomes.ResponseWrapper
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.InsightsRequest
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.FeedbackResponse
@@ -50,15 +50,13 @@ class FeedbackConnector @Inject()(
       "X-Correlation-Id" -> correlationId.value
     ) ++ hc.headers(appConfig.feedbackEnvironmentHeaders.getOrElse(Seq.empty))
 
-  def requestFeedback(
-                       request: InsightsRequest
-                     )(implicit hc: HeaderCarrier, correlationId: CorrelationId): Future[ServiceOutcome[FeedbackResponse]] =
+  def requestFeedback(request: InsightsRequest)(implicit hc: HeaderCarrier, correlationId: CorrelationId): Future[ServiceOutcome[FeedbackResponse]] =
     logger.info(s"${correlationId.value}::[FeedbackConnector][requestFeedback] calling feedback service")
 
     httpClient
       .post(url"${appConfig.feedbackStubBaseUrl.getOrElse("")}")
       .withBody(Json.toJson(request))
-      .setHeader(requiredHeaders(correlationId, appConfig.appName)*)
+      .setHeader(requiredHeaders(correlationId, appConfig.appName) *)
       .execute[HttpResponse]
       .map { response =>
         response.status match
@@ -72,20 +70,10 @@ class FeedbackConnector @Inject()(
                 Left(ErrorWrapper(correlationId, DownstreamError))
           case status =>
             logger.error(s"${correlationId.value}::[FeedbackConnector][requestFeedback] failed $status: ${response.body}")
-            Left(parseError(response.body, status, correlationId))
+            val body = Try(response.json).getOrElse(DownstreamError.asJson)
+            Left(ErrorWrapper(correlationId, DownstreamError, rawBody = Some(body), rawStatus = Some(status)))
       }
       .recover:
         case ex =>
           logger.error(s"${correlationId.value}::[FeedbackConnector][requestFeedback] unexpected exception", ex)
           Left(ErrorWrapper(correlationId, DownstreamError))
-
-  private def parseError(body: String, status: Int, correlationId: CorrelationId): ErrorWrapper =
-    Try(Json.parse(body)).toOption
-      .flatMap { js =>
-        (js \ "code").asOpt[String].map { code =>
-          val message   = (js \ "message").asOpt[String].getOrElse("")
-          val subErrors = (js \ "errors").asOpt[Seq[MtdError]]
-          ErrorWrapper(correlationId, MtdError(code, message, status), subErrors)
-        }
-      }
-      .getOrElse(ErrorWrapper(correlationId, DownstreamError))
