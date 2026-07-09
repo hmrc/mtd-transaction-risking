@@ -369,11 +369,11 @@ paths:
                   summary: Invalid VRN
                   value:
                     code: 'FORMAT_VRN'
-                    message: 'The provided Vrn is invalid.'
-                FORMAT_RECEIPT_ID:
+                    message: 'The provided VRN is invalid.'
+                FORMAT_REPORT_ID:
                   summary: Invalid Report ID
                   value:
-                    code: 'FORMAT_RECEIPT_ID'
+                    code: 'FORMAT_REPORT_ID'
                     message: 'The provided Report ID is invalid.'
                 FORMAT_DATETIME:
                   summary: Invalid presentedDateTime
