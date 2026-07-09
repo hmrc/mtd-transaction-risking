@@ -26,6 +26,8 @@
 
     <logger name="uk.gov" level="INFO"/>
 
+    <logger name="uk.gov.hmrc.mtdtransactionrisking" level="DEBUG"/>
+
     <logger name="application" level="DEBUG"/>
 
     <logger name="connector" level="TRACE">
