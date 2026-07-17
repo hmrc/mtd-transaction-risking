@@ -16,6 +16,7 @@
 
 package uk.gov.hmrc.mtdtransactionrisking.v1.controllers
 
+import play.api.libs.json.JsValue
 import play.api.mvc.*
 import uk.gov.hmrc.mtdtransactionrisking.config.AppConfig
 import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator
@@ -23,26 +24,38 @@ import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
 import uk.gov.hmrc.mtdtransactionrisking.v1.controllers.auth.VATAuthAction
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.InsightsRequest
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.{FeedbackResponse, InsightsResponse, ResponseHandler}
-import uk.gov.hmrc.mtdtransactionrisking.v1.services.{FeedbackStubService, InsightsService}
+import uk.gov.hmrc.mtdtransactionrisking.v1.services.{FeedbackStubService, InsightsService, VatApiService}
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
 
 import javax.inject.{Inject, Singleton}
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class GenerateFeedbackController @Inject()(cc: ControllerComponents,
                                            insightsService: InsightsService,
+                                           vatApiService: VatApiService,
                                            feedbackStubService: FeedbackStubService,
                                            authAction: VATAuthAction,
                                            appConfig: AppConfig)(implicit ec: ExecutionContext)
   extends BackendController(cc), ResponseHandler:
 
-  def generateFeedback(vrn: String): Action[AnyContent] = authAction.authorisedFor(vrn).async:
-    request =>
-      given Request[AnyContent] = request
+  def generateFeedback(vrn: String): Action[JsValue] =
+    authAction.authorisedFor(vrn).async(parse.json): request =>
+
+      given Request[JsValue] = request
       given correlationId: CorrelationId = IdGenerator.generateId()
+
+      val body: JsValue = request.body
 
       appConfig.feedbackStubBaseUrl match
         // Feedback stub path used in external test while the real downstream is built
-        case Some(_) => feedbackStubService.requestFeedback(InsightsRequest(vrn)).map(handleOutcome)
-        case None => insightsService.assess(InsightsRequest(vrn)).map(handleOutcome)
+        case Some(_) =>
+          feedbackStubService.requestFeedback(InsightsRequest(vrn)).map(handleOutcome)
+
+        case None =>
+          vatApiService.validate(vrn, body).flatMap {
+            case Left(errorWrapper) =>
+              Future.successful(handleOutcomeUnit(Left(errorWrapper)))
+            case Right(_) =>
+              insightsService.assess(InsightsRequest(vrn)).map(handleOutcome)
+          }

@@ -21,11 +21,11 @@ import org.scalatestplus.mockito.MockitoSugar
 import play.api.Configuration
 import uk.gov.hmrc.mtdtransactionrisking.config.AppConfig
 
-trait MockAppConfig extends MockitoSugar {
+trait MockAppConfig extends MockitoSugar:
 
   val mockAppConfig: AppConfig = mock[AppConfig]
 
-  object MockedAppConfig {
+  object MockedAppConfig:
 
     def featureSwitch(returns: Option[Configuration]): Unit =
       when(mockAppConfig.featureSwitch).thenReturn(returns)
@@ -39,10 +39,11 @@ trait MockAppConfig extends MockitoSugar {
     def endpointsEnabled(version: String)(returns: Boolean): Unit =
       when(mockAppConfig.endpointsEnabled(version)).thenReturn(returns)
 
-    def cipRiskServiceBaseUrl(returns: String): Unit =
+    def insightsProxyServiceBaseUrl(returns: String): Unit =
       when(mockAppConfig.insightsProxyServiceBaseUrl).thenReturn(returns)
 
     def appName(returns: String): Unit =
       when(mockAppConfig.appName).thenReturn(returns)
-  }
-}
+
+    def vatApiBaseUrl(returns: String): Unit =
+      when(mockAppConfig.vatApiBaseUrl).thenReturn(returns)
