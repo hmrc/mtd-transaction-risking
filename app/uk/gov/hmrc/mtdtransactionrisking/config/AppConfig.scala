@@ -32,6 +32,13 @@ class AppConfig @Inject() (config: ServicesConfig, configuration: Configuration)
   def apiStatus(version: String): String = config.getString(s"api.$version.status")
   def endpointsEnabled(version: String): Boolean = config.getBoolean(s"feature-switch.version-$version.enabled")
 
+  // AppConfig.scala
+  private val obligationsServiceConfig = configuration.get[Configuration]("microservice.services.obligation")
+  private val obligationsPathTemplate = obligationsServiceConfig.get[String]("submit-url")
+
+  def obligationsServiceUrl(vrn: String): String =
+    s"${config.baseUrl("obligation")}${obligationsPathTemplate.replace("{vrn}", vrn)}"
+
   // feedback stub for external test
   val feedbackStubBaseUrl: Option[String] =
     configuration
