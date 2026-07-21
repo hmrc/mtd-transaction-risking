@@ -39,11 +39,14 @@ trait IntegrationBaseSpec
   val mockPort: Int = WireMockHelper.wireMockPort
 
   def servicesConfig: Map[String, Any] = Map(
-    "microservice.services.insights-proxy.host"    -> mockHost,
-    "microservice.services.insights-proxy.port"    -> mockPort,
-    "microservice.services.auth.host"              -> mockHost,
-    "microservice.services.auth.port"              -> mockPort,
-    "feature-switch.version-1.enabled"             -> true
+    "microservice.services.insights-proxy.host" -> mockHost,
+    "microservice.services.insights-proxy.port" -> mockPort,
+    "microservice.services.vat-api.host"        -> mockHost,
+    "microservice.services.vat-api.port"        -> mockPort,
+    "microservice.services.vat-api.submit-url"  -> "/internal",
+    "microservice.services.auth.host"           -> mockHost,
+    "microservice.services.auth.port"           -> mockPort,
+    "feature-switch.version-1.enabled"          -> true
   )
 
   override implicit lazy val app: Application =

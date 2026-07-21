@@ -18,38 +18,33 @@ package uk.gov.hmrc.mtdtransactionrisking.config
 
 import play.api.Configuration
 
-case class FeatureSwitch(value: Option[Configuration]) {
+case class FeatureSwitch(value: Option[Configuration]):
 
   private val versionRegex = """(\d)\.\d""".r
 
-  def isVersionEnabled(version: String): Boolean = {
+  def isVersionEnabled(version: String): Boolean =
     val versionNoIfPresent: Option[String] =
-      version match {
+      version match
         case versionRegex(v) => Some(v)
         case _               => None
-      }
 
-    val enabled = for {
+    val enabled = for
       versionNo <- versionNoIfPresent
-      config    <- value
-      enabled   <- config.getOptional[Boolean](s"version-$versionNo.enabled")
-    } yield enabled
+      config <- value
+      enabled <- config.getOptional[Boolean](s"version-$versionNo.enabled")
+    yield enabled
 
     enabled.getOrElse(false)
-  }
 
   def isEnabled(feature: Feature): Boolean = isEnabled(feature.name)
 
-  def isEnabled(featureName: String): Boolean = {
+  def isEnabled(featureName: String): Boolean =
 
-    val enabled = for {
-      config  <- value
+    val enabled = for
+      config <- value
       enabled <- config.getOptional[Boolean](s"$featureName.enabled")
-    } yield enabled
+    yield enabled
 
     enabled.getOrElse(false)
-  }
 
   val supportingAgentsAccessControlEnabled: Boolean = isEnabled("supporting-agents-access-control")
-
-}

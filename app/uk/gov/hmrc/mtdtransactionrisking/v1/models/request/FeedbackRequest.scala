@@ -21,19 +21,17 @@ import play.api.libs.json.{JsValue, Json, Reads}
 case class FeedbackRawData(vrn: String, body: JsValue)
 
 case class FeedbackRequest(
-                            periodKey: String,
-                            vatDueSales: BigDecimal,
-                            vatDueAcquisitions: BigDecimal,
-                            totalVatDue: BigDecimal,
-                            vatReclaimedCurrPeriod: BigDecimal,
-                            netVatDue: BigDecimal,
-                            totalValueSalesExVAT: BigDecimal,
-                            totalValuePurchasesExVAT: BigDecimal,
-                            totalValueGoodsSuppliedExVAT: BigDecimal,
-                            totalAcquisitionsExVAT: BigDecimal
-                          )
+    periodKey: String,
+    vatDueSales: BigDecimal,
+    vatDueAcquisitions: BigDecimal,
+    totalVatDue: BigDecimal,
+    vatReclaimedCurrPeriod: BigDecimal,
+    netVatDue: BigDecimal,
+    totalValueSalesExVAT: BigDecimal,
+    totalValuePurchasesExVAT: BigDecimal,
+    totalValueGoodsSuppliedExVAT: BigDecimal,
+    totalAcquisitionsExVAT: BigDecimal
+)
 
 object FeedbackRequest:
   given reads: Reads[FeedbackRequest] = Json.reads[FeedbackRequest]
-
-

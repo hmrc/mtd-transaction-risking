@@ -30,5 +30,3 @@ object Insights:
 case class StrategicRisk(riskCorrelationId: CorrelationId, riskScore: Double)
 object StrategicRisk:
   given format: OFormat[StrategicRisk] = Json.format[StrategicRisk]
-
-

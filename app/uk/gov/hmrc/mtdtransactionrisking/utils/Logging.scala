@@ -18,6 +18,5 @@ package uk.gov.hmrc.mtdtransactionrisking.utils
 
 import play.api.Logger
 
-trait Logging {
+trait Logging:
   lazy val logger: Logger = Logger(this.getClass)
-}

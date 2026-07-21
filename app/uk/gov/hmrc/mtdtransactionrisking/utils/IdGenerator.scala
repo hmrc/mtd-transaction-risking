@@ -24,9 +24,11 @@ object IdGenerator:
 
   case class CorrelationId(value: String)
   given Format[CorrelationId] = new Format[CorrelationId]:
-      override def writes(id: CorrelationId): JsValue = JsString(id.value)
-      override def reads(json: JsValue): JsResult[CorrelationId] =
-        json.validate[String].map:
-          id => CorrelationId(id)
+    override def writes(id: CorrelationId): JsValue = JsString(id.value)
+    override def reads(json: JsValue): JsResult[CorrelationId] =
+      json
+        .validate[String]
+        .map: id =>
+          CorrelationId(id)
 
   def generateId(): CorrelationId = CorrelationId(UUID.randomUUID().toString)

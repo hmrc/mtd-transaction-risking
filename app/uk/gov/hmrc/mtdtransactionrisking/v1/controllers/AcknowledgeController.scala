@@ -29,19 +29,23 @@ import javax.inject.{Inject, Singleton}
 import scala.concurrent.ExecutionContext
 
 @Singleton
-class AcknowledgeController @Inject()(
-                                       cc:                 ControllerComponents,
-                                       acknowledgeService: AcknowledgeStubService,
-                                       authAction:         VATAuthAction
-                                     )(implicit ec: ExecutionContext) extends BackendController(cc), ResponseHandler:
+class AcknowledgeController @Inject() (
+    cc: ControllerComponents,
+    acknowledgeService: AcknowledgeStubService,
+    authAction: VATAuthAction
+)(implicit ec: ExecutionContext)
+    extends BackendController(cc),
+      ResponseHandler:
 
   def acknowledgeReport(vrn: String, reportId: String, correlationId: String): Action[AnyContent] =
-    authAction.authorisedFor(vrn).async: request =>
-      given Request[AnyContent] = request
-      given genCorrelationId: CorrelationId = IdGenerator.generateId()
+    authAction
+      .authorisedFor(vrn)
+      .async: request =>
+        given Request[AnyContent] = request
+        given genCorrelationId: CorrelationId = IdGenerator.generateId()
 
-      val presentedDateTime = request.getQueryString("presentedDateTime").getOrElse("")
+        val presentedDateTime = request.getQueryString("presentedDateTime").getOrElse("")
 
-      acknowledgeService
-        .acknowledge(AcknowledgeRequest(vrn, reportId, correlationId, presentedDateTime))
-        .map(handleOutcomeUnit)
+        acknowledgeService
+          .acknowledge(AcknowledgeRequest(vrn, reportId, correlationId, presentedDateTime))
+          .map(handleOutcomeUnit)

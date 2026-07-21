@@ -19,9 +19,10 @@ package uk.gov.hmrc.mtdtransactionrisking.utils
 import play.api.libs.json.{Format, Json, JsError, JsString, JsSuccess}
 import uk.gov.hmrc.mtdtransactionrisking.support.UnitSpec
 
-class EnumsSpec extends UnitSpec {
+class EnumsSpec extends UnitSpec:
 
-  enum Colour { case Red, Green, Blue }
+  enum Colour:
+    case Red, Green, Blue
 
   given format: Format[Colour] = Enums.format(Colour.values)
 
@@ -42,9 +43,9 @@ class EnumsSpec extends UnitSpec {
 
     "writing an enum value" should {
       "serialise to the correct string" in {
-        Json.toJson(Colour.Red)   shouldBe JsString("Red")
+        Json.toJson(Colour.Red) shouldBe JsString("Red")
         Json.toJson(Colour.Green) shouldBe JsString("Green")
-        Json.toJson(Colour.Blue)  shouldBe JsString("Blue")
+        Json.toJson(Colour.Blue) shouldBe JsString("Blue")
       }
     }
   }
@@ -53,8 +54,8 @@ class EnumsSpec extends UnitSpec {
     "given a known value" should {
       "return the matching enum member" in {
         val parser = Enums.parser(Colour.values)
-        parser.lift("Red")    shouldBe Some(Colour.Red)
-        parser.lift("Green")  shouldBe Some(Colour.Green)
+        parser.lift("Red") shouldBe Some(Colour.Red)
+        parser.lift("Green") shouldBe Some(Colour.Green)
         parser.lift("Purple") shouldBe None
       }
     }
@@ -89,7 +90,7 @@ class EnumsSpec extends UnitSpec {
     "given a value in the restricted set" should {
       "deserialise successfully" in {
         val reads = Enums.readsRestricted(Colour.Red, Colour.Blue)
-        JsString("Red").validate(reads)  shouldBe JsSuccess(Colour.Red)
+        JsString("Red").validate(reads) shouldBe JsSuccess(Colour.Red)
         JsString("Blue").validate(reads) shouldBe JsSuccess(Colour.Blue)
       }
     }
@@ -110,4 +111,3 @@ class EnumsSpec extends UnitSpec {
       }
     }
   }
-}

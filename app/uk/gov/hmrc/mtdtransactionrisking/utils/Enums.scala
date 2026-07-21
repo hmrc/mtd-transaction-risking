@@ -21,11 +21,10 @@ import play.api.libs.json.*
 
 import scala.reflect.ClassTag
 
-object Shows {
+object Shows:
   given toStringShow[E]: Show[E] = Show.show(_.toString)
-}
 
-object Enums {
+object Enums:
 
   implicit def typeName[E: ClassTag]: String = implicitly[ClassTag[E]].runtimeClass.getSimpleName
 
@@ -41,12 +40,9 @@ object Enums {
   def readsRestricted[E: Reads: ClassTag](es: E*): Reads[E] =
     summon[Reads[E]].filter(readsError)(es.contains)
 
-  def writes[E](using ev: Show[E] = Shows.toStringShow[E]): Writes[E] = { e =>
+  def writes[E](using ev: Show[E] = Shows.toStringShow[E]): Writes[E] = e =>
     Json.toJson(ev.show(e))
-  }
 
   def format[E: ClassTag](values: Array[E])(using ev: Show[E] = Shows.toStringShow[E]): Format[E] = Format(reads(values), writes)
 
   private def readsError[E: ClassTag] = JsonValidationError(s"error.expected.$typeName")
-
-}

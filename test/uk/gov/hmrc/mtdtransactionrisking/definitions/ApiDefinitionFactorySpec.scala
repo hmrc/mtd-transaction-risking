@@ -20,7 +20,7 @@ import uk.gov.hmrc.mtdtransactionrisking.definitions.APIStatus.{ALPHA, BETA}
 import uk.gov.hmrc.mtdtransactionrisking.definitions.Versions.VERSION_1
 import uk.gov.hmrc.mtdtransactionrisking.support.{MockAppConfig, UnitSpec}
 
-class ApiDefinitionFactorySpec extends UnitSpec with MockAppConfig {
+class ApiDefinitionFactorySpec extends UnitSpec with MockAppConfig:
 
   "buildAPIStatus" when {
     "the configured status is valid" should {
@@ -63,4 +63,3 @@ class ApiDefinitionFactorySpec extends UnitSpec with MockAppConfig {
       result.api.versions.head.endpointsEnabled shouldBe true
     }
   }
-}

@@ -37,7 +37,7 @@ class ErrorWrapperSpec extends UnitSpec:
 
       "serialise a structured error that carries a path" in:
         val errorWithPath = MtdError("PERIOD_KEY_INVALID", "period key should be a 4 character string", BAD_REQUEST, Some("/periodKey"))
-        val wrapper       = ErrorWrapper(correlationId, errorWithPath)
+        val wrapper = ErrorWrapper(correlationId, errorWithPath)
         Json.toJson(wrapper) shouldBe Json.parse(
           """{"code": "PERIOD_KEY_INVALID", "message": "period key should be a 4 character string", "path": "/periodKey"}"""
         )

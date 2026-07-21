@@ -17,7 +17,7 @@
 package uk.gov.hmrc.mtdtransactionrisking.controllers
 
 import com.github.tomakehurst.wiremock.stubbing.StubMapping
-import play.api.libs.json.{JsArray, Json}
+import play.api.libs.json.{JsArray, JsValue, Json}
 import play.api.mvc.Result
 import play.api.test.FakeRequest
 import play.api.test.Helpers.*
@@ -39,7 +39,7 @@ class GenerateFeedbackControllerStubPathISpec extends IntegrationBaseSpec:
 
   "GenerateFeedbackController feedback path" when:
 
-    "POST /feedback/:vrn with feedback-stub configured" should:
+    "POST /assist/:vrn with feedback-stub configured" should:
 
       // --- Success scenarios ---
 
@@ -143,7 +143,7 @@ class GenerateFeedbackControllerStubPathISpec extends IntegrationBaseSpec:
 
     def setupStubs(): StubMapping
 
-    private val validBody = Json.obj(
+    private val validBody: JsValue = Json.obj(
       "periodKey"                    -> "18AD",
       "vatDueSales"                  -> 100.00,
       "vatDueAcquisitions"           -> 100.00,
@@ -159,12 +159,12 @@ class GenerateFeedbackControllerStubPathISpec extends IntegrationBaseSpec:
     def request(vrn: String): Future[Result] =
       setupStubs()
       app.injector.instanceOf[GenerateFeedbackController].generateFeedback(vrn)(
-        FakeRequest("POST", s"/feedback/$vrn")
+        FakeRequest("POST", s"/assist/$vrn")
           .withSession(authToken -> vrn)
           .withHeaders(
             "Authorization" -> "Bearer abc123",
             "Accept"        -> "application/vnd.hmrc.1.0+json",
             "Content-Type"  -> "application/json"
           )
-          .withJsonBody(validBody)
+          .withBody(validBody)
       )

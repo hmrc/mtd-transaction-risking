@@ -18,6 +18,8 @@ package uk.gov.hmrc.mtdtransactionrisking.v1.connectors
 
 import play.api.Logging
 import play.api.http.Status.NO_CONTENT
+import play.api.libs.json.JsValue
+import play.api.libs.ws.writeableOf_JsValue
 import uk.gov.hmrc.http.HttpReads.Implicits.*
 import uk.gov.hmrc.http.client.HttpClientV2
 import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse, StringContextOps}
@@ -25,7 +27,6 @@ import uk.gov.hmrc.mtdtransactionrisking.config.AppConfig
 import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.errors.{DownstreamError, ErrorWrapper}
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.outcomes.ResponseWrapper
-import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.AcknowledgeRequest
 import uk.gov.hmrc.mtdtransactionrisking.v1.services.ServiceOutcome
 
 import javax.inject.{Inject, Singleton}
@@ -33,38 +34,39 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Try
 
 @Singleton
-class AcknowledgeConnector @Inject() (
-    httpClient: HttpClientV2,
-    appConfig: AppConfig
-)(implicit ec: ExecutionContext)
-    extends Logging:
+class VatApiConnector @Inject() (httpClient: HttpClientV2, appConfig: AppConfig)(implicit ec: ExecutionContext) extends Logging:
 
-  def acknowledge(request: AcknowledgeRequest)(implicit hc: HeaderCarrier, correlationId: CorrelationId): Future[ServiceOutcome[Unit]] =
-    logger.info(s"${correlationId.value}::[AcknowledgeConnector][acknowledge] calling acknowledge stub service")
+  def validate(vrn: String, body: JsValue)(implicit hc: HeaderCarrier, correlationId: CorrelationId): Future[ServiceOutcome[Unit]] =
 
-    val url = s"${appConfig.acknowledgeStubBaseUrl}"
+    logger.info(s"${correlationId.value}::[VatApiConnector][validate] validating VAT return for VRN $vrn")
+
+    val url = s"${appConfig.vatApiBaseUrl}/validate/$vrn"
 
     httpClient
       .post(url"$url")
+      .withBody(body)
       .setHeader(buildHeaders(correlationId, appConfig.appName)*)
       .execute[HttpResponse]
       .map { response =>
         response.status match
           case NO_CONTENT =>
-            logger.info(s"${correlationId.value}::[AcknowledgeConnector][acknowledge] success")
+            logger.info(s"${correlationId.value}::[VatApiConnector][validate] validation passed")
             Right(ResponseWrapper(correlationId, ()))
+
           case status =>
-            logger.error(s"${correlationId.value}::[AcknowledgeConnector][acknowledge] failed $status: ${response.body}")
-            val body = Try(response.json).getOrElse(DownstreamError.asJson)
-            Left(ErrorWrapper(correlationId, DownstreamError, rawBody = Some(body), rawStatus = Some(status)))
+            logger.warn(s"${correlationId.value}::[VatApiConnector][validate] validation failed $status: ${response.body}")
+            val relayBody = Try(response.json).getOrElse(DownstreamError.asJson)
+            Left(ErrorWrapper(correlationId, DownstreamError, rawBody = Some(relayBody), rawStatus = Some(status)))
       }
       .recover:
-        case ex =>
-          logger.error(s"${correlationId.value}::[AcknowledgeConnector][acknowledge] unexpected exception", ex)
+        case e =>
+          logger.error(s"${correlationId.value}::[VatApiConnector][validate] unexpected exception", e)
           Left(ErrorWrapper(correlationId, DownstreamError))
 
   private def buildHeaders(correlationId: CorrelationId, appName: String)(implicit hc: HeaderCarrier): Seq[(String, String)] =
     Seq(
       "User-Agent" -> appName,
+      "Content-Type" -> "application/json",
+      "Accept" -> "application/vnd.hmrc.1.0+json",
       "X-CorrelationId" -> correlationId.value
-    ) ++ hc.headers(appConfig.acknowledgeEnvironmentHeaders.getOrElse(Seq.empty))
+    ) ++ hc.authorization.map(a => "Authorization" -> a.value).toSeq

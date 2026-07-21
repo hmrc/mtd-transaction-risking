@@ -25,16 +25,15 @@ import uk.gov.hmrc.mtdtransactionrisking.utils.Logging
 import javax.inject.Inject
 
 @ImplementedBy(classOf[VersionRoutingMapImpl])
-trait VersionRoutingMap extends Logging {
+trait VersionRoutingMap extends Logging:
 
   val defaultRouter: Router
 
   val map: Map[String, Router]
 
   final def versionRouter(version: String): Option[Router] = map.get(version)
-}
 
-case class VersionRoutingMapImpl @Inject() (appConfig: AppConfig, defaultRouter: Router, v1Router: v1.Routes) extends VersionRoutingMap {
+case class VersionRoutingMapImpl @Inject() (appConfig: AppConfig, defaultRouter: Router, v1Router: v1.Routes) extends VersionRoutingMap:
 
   val featureSwitch: FeatureSwitch = FeatureSwitch(appConfig.featureSwitch)
 
@@ -47,5 +46,3 @@ case class VersionRoutingMapImpl @Inject() (appConfig: AppConfig, defaultRouter:
       v1Router
     }
   )
-
-}

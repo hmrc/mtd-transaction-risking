@@ -20,32 +20,32 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import play.api.libs.json.{JsObject, JsSuccess, Json}
 
-class FeedbackRequestSpec extends AnyWordSpec with Matchers {
+class FeedbackRequestSpec extends AnyWordSpec with Matchers:
 
   val validJson: JsObject = Json.obj(
-    "periodKey"                    -> "18AD",
-    "vatDueSales"                  -> 100.00,
-    "vatDueAcquisitions"           -> 100.00,
-    "totalVatDue"                  -> 200.00,
-    "vatReclaimedCurrPeriod"       -> 100.00,
-    "netVatDue"                    -> 100.00,
-    "totalValueSalesExVAT"         -> 1000,
-    "totalValuePurchasesExVAT"     -> 1000,
+    "periodKey" -> "18AD",
+    "vatDueSales" -> 100.00,
+    "vatDueAcquisitions" -> 100.00,
+    "totalVatDue" -> 200.00,
+    "vatReclaimedCurrPeriod" -> 100.00,
+    "netVatDue" -> 100.00,
+    "totalValueSalesExVAT" -> 1000,
+    "totalValuePurchasesExVAT" -> 1000,
     "totalValueGoodsSuppliedExVAT" -> 1000,
-    "totalAcquisitionsExVAT"       -> 1000
+    "totalAcquisitionsExVAT" -> 1000
   )
 
   val expectedModel = FeedbackRequest(
-    periodKey                    = "18AD",
-    vatDueSales                  = 100.00,
-    vatDueAcquisitions           = 100.00,
-    totalVatDue                  = 200.00,
-    vatReclaimedCurrPeriod       = 100.00,
-    netVatDue                    = 100.00,
-    totalValueSalesExVAT         = 1000,
-    totalValuePurchasesExVAT     = 1000,
+    periodKey = "18AD",
+    vatDueSales = 100.00,
+    vatDueAcquisitions = 100.00,
+    totalVatDue = 200.00,
+    vatReclaimedCurrPeriod = 100.00,
+    netVatDue = 100.00,
+    totalValueSalesExVAT = 1000,
+    totalValuePurchasesExVAT = 1000,
     totalValueGoodsSuppliedExVAT = 1000,
-    totalAcquisitionsExVAT       = 1000
+    totalAcquisitionsExVAT = 1000
   )
 
   "FeedbackRequest" when {
@@ -58,7 +58,7 @@ class FeedbackRequestSpec extends AnyWordSpec with Matchers {
 
     "reading from JSON with a missing field" should {
       "return a JsError" in {
-        val json   = validJson.as[play.api.libs.json.JsObject] - "periodKey"
+        val json = validJson.as[play.api.libs.json.JsObject] - "periodKey"
         val result = json.validate[FeedbackRequest]
         result.isError shouldBe true
       }
@@ -73,4 +73,3 @@ class FeedbackRequestSpec extends AnyWordSpec with Matchers {
       }
     }
   }
-}

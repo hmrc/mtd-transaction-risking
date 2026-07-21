@@ -25,7 +25,7 @@ import javax.inject.{Inject, Singleton}
 import scala.concurrent.Future
 
 @Singleton
-class AcknowledgeStubService @Inject()(connector: AcknowledgeConnector):
+class AcknowledgeStubService @Inject() (connector: AcknowledgeConnector):
 
   def acknowledge(request: AcknowledgeRequest)(implicit hc: HeaderCarrier, correlationId: CorrelationId): Future[ServiceOutcome[Unit]] =
     connector.acknowledge(request)

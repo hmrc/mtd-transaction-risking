@@ -57,9 +57,9 @@ class InsightsServiceSpec extends AnyWordSpec with Matchers with MockitoSugar:
     val mockConnector: InsightsConnector = mock[InsightsConnector]
     val service = new InsightsService(mockConnector)
 
-  "InsightsService" when :
+  "InsightsService" when:
 
-    "assess is called with a valid VAT number" must :
+    "assess is called with a valid VAT number" must:
       "return the risk response" in new Test:
         when(mockConnector.getRiskInsights(eqTo(insightsRequest))(any(), any()))
           .thenReturn(Future.successful(Right(ResponseWrapper(correlationId, insightsResponse))))
@@ -67,7 +67,7 @@ class InsightsServiceSpec extends AnyWordSpec with Matchers with MockitoSugar:
         val result: ServiceOutcome[InsightsResponse] = await(service.assess(insightsRequest))
         result shouldBe Right(ResponseWrapper(correlationId, insightsResponse))
 
-    "assess is called and the connector returns a JSON validation error" must :
+    "assess is called and the connector returns a JSON validation error" must:
       "return a Left with the ErrorWrapper" in new Test:
         when(mockConnector.getRiskInsights(eqTo(insightsRequest))(any(), any()))
           .thenReturn(Future.successful(Left(ErrorWrapper(correlationId, DownstreamError))))

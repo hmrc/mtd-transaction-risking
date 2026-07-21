@@ -14,10 +14,18 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.mtdtransactionrisking.config
+package uk.gov.hmrc.mtdtransactionrisking.v1.services
 
-sealed trait Feature:
-  val name: String
+import play.api.libs.json.JsValue
+import uk.gov.hmrc.http.HeaderCarrier
+import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
+import uk.gov.hmrc.mtdtransactionrisking.v1.connectors.VatApiConnector
 
-case object AuthFeature extends Feature:
-  override val name: String = "auth"
+import javax.inject.{Inject, Singleton}
+import scala.concurrent.Future
+
+@Singleton
+class VatApiService @Inject() (connector: VatApiConnector):
+
+  def validate(vrn: String, body: JsValue)(implicit hc: HeaderCarrier, correlationId: CorrelationId): Future[ServiceOutcome[Unit]] =
+    connector.validate(vrn, body)

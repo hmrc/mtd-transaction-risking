@@ -22,19 +22,15 @@ import uk.gov.hmrc.play.bootstrap.config.ServicesConfig
 import javax.inject.{Inject, Singleton}
 
 @Singleton
-class AppConfig @Inject()(config: ServicesConfig, configuration: Configuration):
+class AppConfig @Inject() (config: ServicesConfig, configuration: Configuration):
 
   val appName: String = config.getString("appName")
 
   def featureSwitch: Option[Configuration] = configuration.getOptional[Configuration](s"feature-switch")
 
-  val apiGatewayContext: String                    = config.getString("api.gateway.context")
-  def apiStatus(version: String): String           = config.getString(s"api.$version.status")
-  def endpointsEnabled(version: String): Boolean   = config.getBoolean(s"feature-switch.version-$version.enabled")
-
-  // insights-proxy
-  private val insightsProxyConfig = configuration.get[Configuration]("microservice.services.insights-proxy")
-  val insightsProxyServiceBaseUrl: String = config.baseUrl("insights-proxy") + insightsProxyConfig.get[String]("submit-url")
+  val apiGatewayContext: String = config.getString("api.gateway.context")
+  def apiStatus(version: String): String = config.getString(s"api.$version.status")
+  def endpointsEnabled(version: String): Boolean = config.getBoolean(s"feature-switch.version-$version.enabled")
 
   // feedback stub for external test
   val feedbackStubBaseUrl: Option[String] =
@@ -46,6 +42,14 @@ class AppConfig @Inject()(config: ServicesConfig, configuration: Configuration):
     configuration.getOptional[Seq[String]](
       "microservice.services.feedback-stub.environmentHeaders"
     )
+
+  // vat-api validation
+  private val vatApiConfig = configuration.get[Configuration]("microservice.services.vat-api")
+  val vatApiBaseUrl: String = config.baseUrl("vat-api") + vatApiConfig.get[String]("submit-url")
+
+  // insights-proxy
+  private val insightsProxyConfig = configuration.get[Configuration]("microservice.services.insights-proxy")
+  val insightsProxyServiceBaseUrl: String = config.baseUrl("insights-proxy") + insightsProxyConfig.get[String]("submit-url")
 
   // acknowledge stub endpoint for external test
   private val acknowledgeStubConfig = configuration.get[Configuration]("microservice.services.acknowledge-stub")

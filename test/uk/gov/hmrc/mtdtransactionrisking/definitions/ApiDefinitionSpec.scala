@@ -21,13 +21,20 @@ import uk.gov.hmrc.mtdtransactionrisking.support.UnitSpec
 import uk.gov.hmrc.mtdtransactionrisking.definitions.APIStatus.ALPHA
 import uk.gov.hmrc.mtdtransactionrisking.definitions.Versions.VERSION_1
 
-class ApiDefinitionSpec extends UnitSpec {
+class ApiDefinitionSpec extends UnitSpec:
 
   val apiVersion: APIVersion =
     APIVersion(VERSION_1, ALPHA, endpointsEnabled = false)
 
   val apiDefinition: APIDefinition =
-    APIDefinition("VAT Assist (MTD)", "A service that identifies potential inaccuracies in returns before submission.", "context", Seq("VAT_MTD"), Seq(apiVersion), requiresTrust = Some(false))
+    APIDefinition(
+      "VAT Assist (MTD)",
+      "A service that identifies potential inaccuracies in returns before submission.",
+      "context",
+      Seq("VAT_MTD"),
+      Seq(apiVersion),
+      requiresTrust = Some(false)
+    )
 
   private val apiVersionJson = Json.parse(
     """
@@ -148,4 +155,3 @@ class ApiDefinitionSpec extends UnitSpec {
       Json.toJson(definition) shouldBe definitionJson
     }
   }
-}

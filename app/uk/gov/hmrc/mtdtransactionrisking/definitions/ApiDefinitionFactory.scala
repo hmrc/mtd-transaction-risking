@@ -23,9 +23,9 @@ import uk.gov.hmrc.mtdtransactionrisking.utils.Logging
 import javax.inject.{Inject, Singleton}
 
 @Singleton
-class ApiDefinitionFactory @Inject()(appConfig: AppConfig) extends Logging {
+class ApiDefinitionFactory @Inject() (appConfig: AppConfig) extends Logging:
 
-  val definition: Definition = {
+  val definition: Definition =
     Definition(
       api = APIDefinition(
         name = "VAT Assist (MTD)",
@@ -42,9 +42,8 @@ class ApiDefinitionFactory @Inject()(appConfig: AppConfig) extends Logging {
         requiresTrust = None
       )
     )
-  }
 
-  def buildAPIStatus(version: String): APIStatus = {
+  def buildAPIStatus(version: String): APIStatus =
     lazy val apiStatus = appConfig.apiStatus(version)
     APIStatus.parser
       .lift(apiStatus)
@@ -53,6 +52,3 @@ class ApiDefinitionFactory @Inject()(appConfig: AppConfig) extends Logging {
         logger.error(s"[ApiDefinition][buildApiStatus] no API Status found in config.  Reverting to Alpha")
         APIStatus.ALPHA
       }
-  }
-
-}

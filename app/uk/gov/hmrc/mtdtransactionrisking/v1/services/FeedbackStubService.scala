@@ -26,9 +26,9 @@ import javax.inject.{Inject, Singleton}
 import scala.concurrent.Future
 
 @Singleton
-class FeedbackStubService @Inject()(connector: FeedbackConnector):
+class FeedbackStubService @Inject() (connector: FeedbackConnector):
 
   def requestFeedback(
-                       request: InsightsRequest
-                     )(implicit hc: HeaderCarrier, correlationId: CorrelationId): Future[ServiceOutcome[FeedbackResponse]] =
+      request: InsightsRequest
+  )(implicit hc: HeaderCarrier, correlationId: CorrelationId): Future[ServiceOutcome[FeedbackResponse]] =
     connector.requestFeedback(request)

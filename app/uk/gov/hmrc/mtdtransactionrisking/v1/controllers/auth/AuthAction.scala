@@ -33,14 +33,12 @@ import uk.gov.hmrc.play.http.HeaderCarrierConverter
 import javax.inject.Inject
 import scala.concurrent.{ExecutionContext, Future}
 
+case class AuthenticatedVATRequest[A](request: Request[A], internalId: String, vrn: String) extends WrappedRequest[A](request)
 
-case class AuthenticatedVATRequest[A](request: Request[A],
-                                      internalId: String,
-                                      vrn: String) extends WrappedRequest[A](request)
-
-class VATAuthAction @Inject()(override val authConnector: AuthConnector, configuration: Configuration,
-                              bodyParser: BodyParsers.Default)(using ec: ExecutionContext)
-  extends AuthorisedFunctions with Logging:
+class VATAuthAction @Inject() (override val authConnector: AuthConnector, configuration: Configuration, bodyParser: BodyParsers.Default)(using
+    ec: ExecutionContext)
+    extends AuthorisedFunctions
+    with Logging:
 
   private val authEnabled: Boolean =
     configuration
@@ -61,8 +59,7 @@ class VATAuthAction @Inject()(override val authConnector: AuthConnector, configu
 
       override def parser: BodyParser[AnyContent] = bodyParser
 
-      override def invokeBlock[A](request: Request[A],
-                                  block: AuthenticatedVATRequest[A] => Future[Result]): Future[Result] =
+      override def invokeBlock[A](request: Request[A], block: AuthenticatedVATRequest[A] => Future[Result]): Future[Result] =
         given hc: HeaderCarrier = HeaderCarrierConverter.fromRequest(request)
 
         val correlationId: CorrelationId = IdGenerator.generateId()
@@ -70,14 +67,12 @@ class VATAuthAction @Inject()(override val authConnector: AuthConnector, configu
         if !authEnabled then
           logger.warn("[VATAuthAction] Auth disabled via feature switch — bypassing authorisation")
           block(AuthenticatedVATRequest(request, "local-test-user", requestedVRN))
-
         else if !requestedVRN.matches(vrnRegex) then
           logger.warn(s"VRN format invalid: $requestedVRN")
           Future.successful(
             BadRequest(Json.toJson(ErrorWrapper(correlationId, VrnFormatError)))
               .withHeaders("X-CorrelationId" -> correlationId.value)
           )
-
         else
           authorised(predicate(requestedVRN))
             .retrieve(internalId and allEnrolments) {
@@ -103,9 +98,8 @@ class VATAuthAction @Inject()(override val authConnector: AuthConnector, configu
                 logger.warn("Unable to retrieve required auth values")
                 Future.successful(Unauthorized("Unable to retrieve required auth values"))
             }
-            .recover {
-              case e: AuthorisationException =>
-                val error = s"Failed to authorise request $e"
-                logger.warn(error)
-                Unauthorized(error)
+            .recover { case e: AuthorisationException =>
+              val error = s"Failed to authorise request $e"
+              logger.warn(error)
+              Unauthorized(error)
             }

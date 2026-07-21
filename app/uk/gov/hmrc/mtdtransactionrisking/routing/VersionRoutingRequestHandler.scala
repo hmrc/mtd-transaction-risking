@@ -43,41 +43,36 @@ class VersionRoutingRequestHandler @Inject() (versionRoutingMap: VersionRoutingM
       configuration = httpConfiguration,
       filters = filters.filters
     )
-    with Logging {
+    with Logging:
 
-  private val featureSwitch            = FeatureSwitch(config.featureSwitch)
+  private val featureSwitch = FeatureSwitch(config.featureSwitch)
   private val unsupportedVersionAction = action(Results.NotFound(Json.toJson(UnsupportedVersionError)))
   private val invalidAcceptHeaderError = action(Results.NotAcceptable(Json.toJson(InvalidAcceptHeaderError)))
 
-  override def routeRequest(request: RequestHeader): Option[Handler] = {
+  override def routeRequest(request: RequestHeader): Option[Handler] =
 
     def documentHandler: Option[Handler] = routeWith(versionRoutingMap.defaultRouter)(request)
 
-    def apiHandler: Option[Handler] = Versions.getFromRequest(request) match {
+    def apiHandler: Option[Handler] = Versions.getFromRequest(request) match
       case Some(version) =>
-        versionRoutingMap.versionRouter(version) match {
+        versionRoutingMap.versionRouter(version) match
           case Some(versionRouter) if featureSwitch.isVersionEnabled(version) =>
             routeWith(versionRouter)(request)
           case Some(_) => Some(unsupportedVersionAction)
           case None    => Some(invalidAcceptHeaderError)
-        }
       case None =>
         logger.warn(s"\n$request\n")
         Some(invalidAcceptHeaderError)
-    }
 
     documentHandler orElse apiHandler
-  }
 
   private def routeWith(router: Router)(request: RequestHeader): Option[Handler] =
     router
       .handlerFor(request)
       .orElse {
-        if (request.path.endsWith("/")) {
-          val pathWithoutSlash        = request.path.dropRight(1)
+        if request.path.endsWith("/") then
+          val pathWithoutSlash = request.path.dropRight(1)
           val requestWithModifiedPath = request.withTarget(request.target.withPath(pathWithoutSlash))
           router.handlerFor(requestWithModifiedPath)
-        } else None
+        else None
       }
-
-}
