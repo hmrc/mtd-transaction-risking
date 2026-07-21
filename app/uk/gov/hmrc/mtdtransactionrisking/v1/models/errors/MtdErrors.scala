@@ -29,7 +29,7 @@ object MtdError:
     (JsPath \ "code").write[String] and
       (JsPath \ "message").write[String] and
       (JsPath \ "path").writeNullable[String]
-    )(e => (e.code, e.message, e.path))
+  )(e => (e.code, e.message, e.path))
 
   given genericWrites[T <: MtdError]: OWrites[T] =
     writes.contramap[T](c => c: MtdError)
@@ -41,16 +41,17 @@ object PeriodKeyFormatError extends MtdError("PERIOD_KEY_INVALID", "The provided
 
 // Rule Errors
 object RuleIncorrectOrEmptyBodyError
-  extends MtdError("RULE_INCORRECT_OR_EMPTY_BODY_SUBMITTED", "An empty or non-matching body was submitted", BAD_REQUEST)
+    extends MtdError("RULE_INCORRECT_OR_EMPTY_BODY_SUBMITTED", "An empty or non-matching body was submitted", BAD_REQUEST)
 
 object TaxPeriodNotEndedError
-  extends MtdError("TAX_PERIOD_NOT_ENDED", "The remote endpoint has indicated that the submission is for a tax period that has not ended", FORBIDDEN)
+    extends MtdError(
+      "TAX_PERIOD_NOT_ENDED",
+      "The remote endpoint has indicated that the submission is for a tax period that has not ended",
+      FORBIDDEN)
 
-object RuleInsolventTraderError
-  extends MtdError("RULE_INSOLVENT_TRADER", "The remote endpoint has indicated that the Trader is insolvent", FORBIDDEN)
+object RuleInsolventTraderError extends MtdError("RULE_INSOLVENT_TRADER", "The remote endpoint has indicated that the Trader is insolvent", FORBIDDEN)
 
-object RuleIncorrectGovTestScenarioError
-  extends MtdError("RULE_INCORRECT_GOV_TEST_SCENARIO", "The Gov-Test-Scenario was not found", BAD_REQUEST)
+object RuleIncorrectGovTestScenarioError extends MtdError("RULE_INCORRECT_GOV_TEST_SCENARIO", "The Gov-Test-Scenario was not found", BAD_REQUEST)
 
 // Standard Errors
 object NotFoundError extends MtdError("MATCHING_RESOURCE_NOT_FOUND", "Matching resource not found", NOT_FOUND)
@@ -68,18 +69,13 @@ object UnexpectedFailure:
     MtdError("UNEXPECTED_FAILURE", s"Unexpected failure. Status $status, body $body", status)
 
 // Authorisation Errors
-object UnauthorisedError
-  extends MtdError("CLIENT_OR_AGENT_NOT_AUTHORISED", "The client and/or agent is not authorised", FORBIDDEN)
+object UnauthorisedError extends MtdError("CLIENT_OR_AGENT_NOT_AUTHORISED", "The client and/or agent is not authorised", FORBIDDEN)
 
-object InvalidBearerTokenError
-  extends MtdError("UNAUTHORIZED", "Bearer token is missing or not authorized", UNAUTHORIZED)
+object InvalidBearerTokenError extends MtdError("UNAUTHORIZED", "Bearer token is missing or not authorized", UNAUTHORIZED)
 
 // Accept header Errors
-object InvalidAcceptHeaderError
-  extends MtdError("ACCEPT_HEADER_INVALID", "The accept header is missing or invalid", NOT_ACCEPTABLE)
+object InvalidAcceptHeaderError extends MtdError("ACCEPT_HEADER_INVALID", "The accept header is missing or invalid", NOT_ACCEPTABLE)
 
-object UnsupportedVersionError
-  extends MtdError("NOT_FOUND", "The requested resource could not be found", NOT_FOUND)
+object UnsupportedVersionError extends MtdError("NOT_FOUND", "The requested resource could not be found", NOT_FOUND)
 
-object InvalidBodyTypeError
-  extends MtdError("INVALID_BODY_TYPE", "Expecting text/json or application/json body", UNSUPPORTED_MEDIA_TYPE)
+object InvalidBodyTypeError extends MtdError("INVALID_BODY_TYPE", "Expecting text/json or application/json body", UNSUPPORTED_MEDIA_TYPE)

@@ -25,8 +25,7 @@ import javax.inject.{Inject, Singleton}
 import scala.concurrent.Future
 
 @Singleton
-class VatApiService @Inject()(connector: VatApiConnector):
+class VatApiService @Inject() (connector: VatApiConnector):
 
-  def validate(vrn: String, body: JsValue)
-              (implicit hc: HeaderCarrier, correlationId: CorrelationId): Future[ServiceOutcome[Unit]] =
+  def validate(vrn: String, body: JsValue)(implicit hc: HeaderCarrier, correlationId: CorrelationId): Future[ServiceOutcome[Unit]] =
     connector.validate(vrn, body)

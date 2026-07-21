@@ -31,8 +31,8 @@ import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
 
 class ResponseHandlerSpec extends UnitSpec:
 
-  private given system: ActorSystem  = ActorSystem("test")
-  private given mat:    Materializer = Materializer(system)
+  private given system: ActorSystem = ActorSystem("test")
+  private given mat: Materializer = Materializer(system)
 
   private val correlationId = CorrelationId("test-correlation-id")
 
@@ -46,7 +46,7 @@ class ResponseHandlerSpec extends UnitSpec:
 
     "return 200 with the payload and correlation header on Right" in:
       val outcome = Right(ResponseWrapper(correlationId, Payload("hello")))
-      val result  = handler.handleOutcome(outcome)
+      val result = handler.handleOutcome(outcome)
 
       status(result) shouldBe OK
       contentAsJson(result) shouldBe Json.obj("value" -> "hello")
@@ -54,7 +54,7 @@ class ResponseHandlerSpec extends UnitSpec:
 
     "return the error status and body with correlation header on Left" in:
       val outcome = Left(ErrorWrapper(correlationId, VrnFormatError))
-      val result  = handler.handleOutcome[Payload](outcome)
+      val result = handler.handleOutcome[Payload](outcome)
 
       status(result) shouldBe BAD_REQUEST
       (contentAsJson(result) \ "code").as[String] shouldBe "VRN_INVALID"
@@ -62,12 +62,12 @@ class ResponseHandlerSpec extends UnitSpec:
 
     "relay a raw error body verbatim with its status" in:
       val rawBody = Json.obj(
-        "code"    -> "INVALID_REQUEST",
+        "code" -> "INVALID_REQUEST",
         "message" -> "Invalid request",
-        "errors"  -> Json.arr(Json.obj("code" -> "PERIOD_KEY_INVALID", "message" -> "bad", "path" -> "/periodKey"))
+        "errors" -> Json.arr(Json.obj("code" -> "PERIOD_KEY_INVALID", "message" -> "bad", "path" -> "/periodKey"))
       )
       val outcome = Left(ErrorWrapper(correlationId, DownstreamError, rawBody = Some(rawBody), rawStatus = Some(BAD_REQUEST)))
-      val result  = handler.handleOutcome[Payload](outcome)
+      val result = handler.handleOutcome[Payload](outcome)
 
       status(result) shouldBe BAD_REQUEST
       contentAsJson(result) shouldBe rawBody
@@ -76,14 +76,14 @@ class ResponseHandlerSpec extends UnitSpec:
 
     "return 204 with correlation header on Right" in:
       val outcome = Right(ResponseWrapper(correlationId, ()))
-      val result  = handler.handleOutcomeUnit(outcome)
+      val result = handler.handleOutcomeUnit(outcome)
 
       status(result) shouldBe NO_CONTENT
       header("X-CorrelationId", result) shouldBe Some("test-correlation-id")
 
     "return the error status and body with correlation header on Left" in:
       val outcome = Left(ErrorWrapper(correlationId, DownstreamError))
-      val result  = handler.handleOutcomeUnit(outcome)
+      val result = handler.handleOutcomeUnit(outcome)
 
       status(result) shouldBe INTERNAL_SERVER_ERROR
       (contentAsJson(result) \ "code").as[String] shouldBe "INTERNAL_SERVER_ERROR"

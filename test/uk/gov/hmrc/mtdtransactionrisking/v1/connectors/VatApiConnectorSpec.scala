@@ -35,7 +35,7 @@ class VatApiConnectorSpec extends ConnectorSpec, BeforeAndAfterAll, Injecting, M
 
   val httpClient: HttpClientV2 = app.injector.instanceOf[HttpClientV2]
 
-  private val vrn        = "123456789"
+  private val vrn = "123456789"
   private val urlPattern = urlPathMatching("/internal/validate/.*")
 
   private val validBody: JsValue = Json.parse(
@@ -88,16 +88,16 @@ class VatApiConnectorSpec extends ConnectorSpec, BeforeAndAfterAll, Injecting, M
       wireMockServer.stubFor(post(urlPattern).willReturn(aResponse().withFault(Fault.CONNECTION_RESET_BY_PEER)))
 
   override def beforeAll(): Unit = wireMockServer.start()
-  override def afterAll(): Unit  = wireMockServer.stop()
+  override def afterAll(): Unit = wireMockServer.stop()
 
-  "VatApiConnector.validate" when :
+  "VatApiConnector.validate" when:
 
-    "the return is valid" must :
+    "the return is valid" must:
       "return Right(()) on 204" in new Test:
         stubValidate(None, NO_CONTENT)
         await(connector.validate(vrn, validBody)) shouldBe Right(ResponseWrapper(correlationId, ()))
 
-    "the return fails validation" must :
+    "the return fails validation" must:
       "relay the error body and status on 400" in new Test:
         stubValidate(Some(validationErrorBody.toString), BAD_REQUEST)
 
@@ -106,7 +106,7 @@ class VatApiConnectorSpec extends ConnectorSpec, BeforeAndAfterAll, Injecting, M
         result.left.value.statusCode shouldBe BAD_REQUEST
         result.left.value.rawBody shouldBe Some(validationErrorBody)
 
-    "the downstream returns an error status" must :
+    "the downstream returns an error status" must:
       "relay a 500" in new Test:
         val body: JsObject = Json.obj("code" -> "INTERNAL_SERVER_ERROR", "message" -> "broken")
 
@@ -135,20 +135,20 @@ class VatApiConnectorSpec extends ConnectorSpec, BeforeAndAfterAll, Injecting, M
         result.left.value.statusCode shouldBe BAD_REQUEST
         result.left.value.rawBody shouldBe Some(DownstreamError.asJson)
 
-    "the connection faults" must :
+    "the connection faults" must:
       "return a DownstreamError via recover" in new Test:
         stubFault()
 
         await(connector.validate(vrn, validBody)) shouldBe Left(ErrorWrapper(correlationId, DownstreamError))
 
-    "called with a bearer token" must :
+    "called with a bearer token" must:
       "forward the Authorization header to vat-api" in new Test:
         stubValidate(None, NO_CONTENT)
 
         await(connector.validate(vrn, validBody)(using headerCarrier, correlationId))
         wireMockServer.verify(postRequestedFor(urlPattern).withHeader("Authorization", equalTo("Bearer vendor-token")))
 
-    "post" must :
+    "post" must:
       "send the VAT return body as JSON" in new Test:
         stubValidate(None, NO_CONTENT)
 

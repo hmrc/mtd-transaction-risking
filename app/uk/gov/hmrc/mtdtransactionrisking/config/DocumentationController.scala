@@ -24,9 +24,9 @@ import javax.inject.{Inject, Singleton}
 
 @Singleton
 class DocumentationController @Inject() (
-                                          assets: Assets,
-                                          cc: ControllerComponents
-                                        ) extends BackendController(cc):
+    assets: Assets,
+    cc: ControllerComponents
+) extends BackendController(cc):
 
   def definition(): Action[AnyContent] =
     assets.at("/public/api", "definition.json")

@@ -33,16 +33,11 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Try
 
 @Singleton
-class AcknowledgeConnector @Inject()(
-                                      httpClient: HttpClientV2,
-                                      appConfig:  AppConfig
-                                    )(implicit ec: ExecutionContext) extends Logging:
-
-  private def requiredHeaders(correlationId: CorrelationId, appName: String)(implicit hc: HeaderCarrier): Seq[(String, String)] =
-    Seq(
-      "User-Agent"       -> appName,
-      "X-Correlation-Id" -> correlationId.value
-    ) ++ hc.headers(appConfig.acknowledgeEnvironmentHeaders.getOrElse(Seq.empty))
+class AcknowledgeConnector @Inject() (
+    httpClient: HttpClientV2,
+    appConfig: AppConfig
+)(implicit ec: ExecutionContext)
+    extends Logging:
 
   def acknowledge(request: AcknowledgeRequest)(implicit hc: HeaderCarrier, correlationId: CorrelationId): Future[ServiceOutcome[Unit]] =
     logger.info(s"${correlationId.value}::[AcknowledgeConnector][acknowledge] calling acknowledge stub service")
@@ -51,7 +46,7 @@ class AcknowledgeConnector @Inject()(
 
     httpClient
       .post(url"$url")
-      .setHeader(requiredHeaders(correlationId, appConfig.appName)*)
+      .setHeader(buildHeaders(correlationId, appConfig.appName)*)
       .execute[HttpResponse]
       .map { response =>
         response.status match
@@ -67,3 +62,9 @@ class AcknowledgeConnector @Inject()(
         case ex =>
           logger.error(s"${correlationId.value}::[AcknowledgeConnector][acknowledge] unexpected exception", ex)
           Left(ErrorWrapper(correlationId, DownstreamError))
+
+  private def buildHeaders(correlationId: CorrelationId, appName: String)(implicit hc: HeaderCarrier): Seq[(String, String)] =
+    Seq(
+      "User-Agent" -> appName,
+      "X-CorrelationId" -> correlationId.value
+    ) ++ hc.headers(appConfig.acknowledgeEnvironmentHeaders.getOrElse(Seq.empty))

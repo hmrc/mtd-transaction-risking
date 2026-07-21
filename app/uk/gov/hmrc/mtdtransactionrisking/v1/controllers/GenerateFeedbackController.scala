@@ -31,31 +31,34 @@ import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
-class GenerateFeedbackController @Inject()(cc: ControllerComponents,
-                                           insightsService: InsightsService,
-                                           vatApiService: VatApiService,
-                                           feedbackStubService: FeedbackStubService,
-                                           authAction: VATAuthAction,
-                                           appConfig: AppConfig)(implicit ec: ExecutionContext)
-  extends BackendController(cc), ResponseHandler:
+class GenerateFeedbackController @Inject() (cc: ControllerComponents,
+                                            insightsService: InsightsService,
+                                            vatApiService: VatApiService,
+                                            feedbackStubService: FeedbackStubService,
+                                            authAction: VATAuthAction,
+                                            appConfig: AppConfig)(implicit ec: ExecutionContext)
+    extends BackendController(cc),
+      ResponseHandler:
 
   def generateFeedback(vrn: String): Action[JsValue] =
-    authAction.authorisedFor(vrn).async(parse.json): request =>
+    authAction
+      .authorisedFor(vrn)
+      .async(parse.json): request =>
 
-      given Request[JsValue] = request
-      given correlationId: CorrelationId = IdGenerator.generateId()
+        given Request[JsValue] = request
+        given correlationId: CorrelationId = IdGenerator.generateId()
 
-      val body: JsValue = request.body
+        val body: JsValue = request.body
 
-      appConfig.feedbackStubBaseUrl match
-        // Feedback stub path used in external test while the real downstream is built
-        case Some(_) =>
-          feedbackStubService.requestFeedback(InsightsRequest(vrn)).map(handleOutcome)
+        appConfig.feedbackStubBaseUrl match
+          // Feedback stub path used in external test while the real downstream is built
+          case Some(_) =>
+            feedbackStubService.requestFeedback(InsightsRequest(vrn)).map(handleOutcome)
 
-        case None =>
-          vatApiService.validate(vrn, body).flatMap {
-            case Left(errorWrapper) =>
-              Future.successful(handleOutcomeUnit(Left(errorWrapper)))
-            case Right(_) =>
-              insightsService.assess(InsightsRequest(vrn)).map(handleOutcome)
-          }
+          case None =>
+            vatApiService.validate(vrn, body).flatMap {
+              case Left(errorWrapper) =>
+                Future.successful(handleOutcomeUnit(Left(errorWrapper)))
+              case Right(_) =>
+                insightsService.assess(InsightsRequest(vrn)).map(handleOutcome)
+            }

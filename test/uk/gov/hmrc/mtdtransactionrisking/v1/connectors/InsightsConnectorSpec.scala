@@ -36,7 +36,7 @@ class InsightsConnectorSpec extends ConnectorSpec, BeforeAndAfterAll, Injecting,
 
   val httpClient: HttpClientV2 = app.injector.instanceOf[HttpClientV2]
 
-  private val vrn        = "123456789"
+  private val vrn = "123456789"
   private val urlPattern = urlPathMatching("/check/insights")
 
   private val request = InsightsRequest(vrn)
@@ -58,7 +58,7 @@ class InsightsConnectorSpec extends ConnectorSpec, BeforeAndAfterAll, Injecting,
     InsightsResponse(
       Insights(
         StrategicRisk(
-          riskScore         = 12.33,
+          riskScore = 12.33,
           riskCorrelationId = CorrelationId("123e4567-e89b-12d3-a456-426614174000")
         )
       )
@@ -82,27 +82,27 @@ class InsightsConnectorSpec extends ConnectorSpec, BeforeAndAfterAll, Injecting,
       wireMockServer.stubFor(post(urlPattern).willReturn(aResponse().withFault(Fault.CONNECTION_RESET_BY_PEER)))
 
   override def beforeAll(): Unit = wireMockServer.start()
-  override def afterAll(): Unit  = wireMockServer.stop()
+  override def afterAll(): Unit = wireMockServer.stop()
 
-  "InsightsConnector.getRiskInsights" when :
+  "InsightsConnector.getRiskInsights" when:
 
-    "the proxy responds 200 with a valid body" must :
+    "the proxy responds 200 with a valid body" must:
       "return Right with the parsed insights response" in new Test:
         stubInsights(Some(successResponseJson.toString), OK)
         await(connector.getRiskInsights(request)) shouldBe Right(ResponseWrapper(correlationId, expectedResponse))
 
-    "the proxy responds 200 with a malformed body" must :
+    "the proxy responds 200 with a malformed body" must:
       "return Left(DownstreamError)" in new Test:
         stubInsights(Some(malformedResponseJson.toString), OK)
         await(connector.getRiskInsights(request)) shouldBe Left(ErrorWrapper(correlationId, DownstreamError))
 
-    "the proxy responds with an error status" must :
+    "the proxy responds with an error status" must:
       Seq(BAD_REQUEST, NOT_FOUND, INTERNAL_SERVER_ERROR, SERVICE_UNAVAILABLE).foreach: status =>
         s"return Left(DownstreamError) on $status" in new Test:
           stubInsights(None, status)
           await(connector.getRiskInsights(request)) shouldBe Left(ErrorWrapper(correlationId, DownstreamError))
 
-    "the connection faults" must :
+    "the connection faults" must:
       "return Left(DownstreamError) via recover" in new Test:
         stubFault()
         await(connector.getRiskInsights(request)) shouldBe Left(ErrorWrapper(correlationId, DownstreamError))

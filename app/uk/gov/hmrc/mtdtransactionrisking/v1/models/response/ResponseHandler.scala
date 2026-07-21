@@ -40,4 +40,3 @@ trait ResponseHandler:
       case Left(errorWrapper) =>
         Status(errorWrapper.statusCode)(Json.toJson(errorWrapper))
           .withHeaders("X-CorrelationId" -> errorWrapper.correlationId.value)
-

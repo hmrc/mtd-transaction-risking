@@ -24,9 +24,9 @@ import java.time.Clock
 class Module extends AppModule:
 
   override def bindings(
-                         environment: Environment,
-                         configuration: Configuration
-                       ): Seq[Binding[_]] =
+      environment: Environment,
+      configuration: Configuration
+  ): Seq[Binding[_]] =
     bind[Clock].toInstance(
       Clock.systemDefaultZone
     ) ::

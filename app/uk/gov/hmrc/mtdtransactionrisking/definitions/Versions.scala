@@ -19,18 +19,15 @@ package uk.gov.hmrc.mtdtransactionrisking.definitions
 import play.api.http.HeaderNames.ACCEPT
 import play.api.mvc.RequestHeader
 
-object Versions {
+object Versions:
   val VERSION_1 = "1.0"
 
   private val versionRegex = """application/vnd\.hmrc\.(\d+\.\d+)[+]json""".r
 
-  def getFromRequest(request: RequestHeader): Option[String] = {
+  def getFromRequest(request: RequestHeader): Option[String] =
     val headers = request.headers.headers
     val result = getFrom(headers)
     result
-  }
 
   private def getFrom(headers: Seq[(String, String)]): Option[String] =
     headers.collectFirst { case (ACCEPT, versionRegex(ver)) => ver }
-
-}

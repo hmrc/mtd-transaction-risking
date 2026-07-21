@@ -34,27 +34,19 @@ import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
-class InsightsConnector @Inject()(
-                                   val httpClient: HttpClientV2,
-                                   appConfig: AppConfig
-                                 )(implicit val ec: ExecutionContext) extends Logging:
+class InsightsConnector @Inject() (
+    val httpClient: HttpClientV2,
+    appConfig: AppConfig
+)(implicit val ec: ExecutionContext)
+    extends Logging:
 
-  private[connectors] def requiredHeaders(correlationId: CorrelationId, appName: String)
-                                         (implicit hc: HeaderCarrier): Seq[(String, String)] =
-    Seq(
-      "User-Agent"       -> appName,
-      "Content-Type"     -> "application/json",
-      "X-Correlation-Id" -> correlationId.value
-    ) 
-
-  def getRiskInsights(request: InsightsRequest)
-                     (implicit hc: HeaderCarrier, correlationId: CorrelationId): Future[ServiceOutcome[InsightsResponse]] =
+  def getRiskInsights(request: InsightsRequest)(implicit hc: HeaderCarrier, correlationId: CorrelationId): Future[ServiceOutcome[InsightsResponse]] =
     logger.debug(s"${correlationId.value}::[InsightsConnector:getRiskInsights] calling insights API")
 
     httpClient
       .post(url"${appConfig.insightsProxyServiceBaseUrl}")
       .withBody(Json.toJson(request))
-      .setHeader(requiredHeaders(correlationId, appConfig.appName)*)
+      .setHeader(buildHeaders(correlationId, appConfig.appName)*)
       .execute[HttpResponse]
       .map { response =>
         response.status match
@@ -74,3 +66,10 @@ class InsightsConnector @Inject()(
         case ex =>
           logger.error(s"${correlationId.value}::[InsightsConnector:getRiskInsights] unexpected exception", ex)
           Left(ErrorWrapper(correlationId, DownstreamError))
+
+  private def buildHeaders(correlationId: CorrelationId, appName: String): Seq[(String, String)] =
+    Seq(
+      "User-Agent" -> appName,
+      "Content-Type" -> "application/json",
+      "X-CorrelationId" -> correlationId.value
+    )

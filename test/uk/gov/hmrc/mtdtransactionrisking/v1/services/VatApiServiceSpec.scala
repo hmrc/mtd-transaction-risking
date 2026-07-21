@@ -33,7 +33,7 @@ import scala.concurrent.{Await, Future}
 
 class VatApiServiceSpec extends AnyWordSpec, Matchers, MockitoSugar:
 
-  implicit val hc: HeaderCarrier            = HeaderCarrier()
+  implicit val hc: HeaderCarrier = HeaderCarrier()
   implicit val correlationId: CorrelationId = CorrelationId("test-correlation-id")
 
   private val vrn: String = "123456789"
@@ -73,9 +73,9 @@ class VatApiServiceSpec extends AnyWordSpec, Matchers, MockitoSugar:
     val mockConnector: VatApiConnector = mock[VatApiConnector]
     val service = new VatApiService(mockConnector)
 
-  "VatApiService" when :
+  "VatApiService" when:
 
-    "validate is called and the return is valid" must :
+    "validate is called and the return is valid" must:
       "return Right(()) — validation passed" in new Test:
         when(mockConnector.validate(eqTo(vrn), eqTo(validReturnBody))(any(), any()))
           .thenReturn(Future.successful(Right(ResponseWrapper(correlationId, ()))))
@@ -83,7 +83,7 @@ class VatApiServiceSpec extends AnyWordSpec, Matchers, MockitoSugar:
         val result: ServiceOutcome[Unit] = await(service.validate(vrn, validReturnBody))
         result shouldBe Right(ResponseWrapper(correlationId, ()))
 
-    "validate is called and the return fails validation" must :
+    "validate is called and the return fails validation" must:
       "return Left with the relayed error wrapper" in new Test:
         val errorWrapper = ErrorWrapper(correlationId, BadRequestError, rawBody = Some(validationErrorBody), rawStatus = Some(400))
 

@@ -34,11 +34,9 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Try
 
 @Singleton
-class VatApiConnector @Inject()(httpClient: HttpClientV2, appConfig: AppConfig)(implicit ec: ExecutionContext)
-  extends Logging:
+class VatApiConnector @Inject() (httpClient: HttpClientV2, appConfig: AppConfig)(implicit ec: ExecutionContext) extends Logging:
 
-  def validate(vrn: String, body: JsValue)
-              (implicit hc: HeaderCarrier, correlationId: CorrelationId): Future[ServiceOutcome[Unit]] =
+  def validate(vrn: String, body: JsValue)(implicit hc: HeaderCarrier, correlationId: CorrelationId): Future[ServiceOutcome[Unit]] =
 
     logger.info(s"${correlationId.value}::[VatApiConnector][validate] validating VAT return for VRN $vrn")
 
@@ -47,14 +45,14 @@ class VatApiConnector @Inject()(httpClient: HttpClientV2, appConfig: AppConfig)(
     httpClient
       .post(url"$url")
       .withBody(body)
-      .setHeader(requiredHeaders(correlationId, appConfig.appName)*)
+      .setHeader(buildHeaders(correlationId, appConfig.appName)*)
       .execute[HttpResponse]
       .map { response =>
         response.status match
           case NO_CONTENT =>
             logger.info(s"${correlationId.value}::[VatApiConnector][validate] validation passed")
             Right(ResponseWrapper(correlationId, ()))
-            
+
           case status =>
             logger.warn(s"${correlationId.value}::[VatApiConnector][validate] validation failed $status: ${response.body}")
             val relayBody = Try(response.json).getOrElse(DownstreamError.asJson)
@@ -65,12 +63,10 @@ class VatApiConnector @Inject()(httpClient: HttpClientV2, appConfig: AppConfig)(
           logger.error(s"${correlationId.value}::[VatApiConnector][validate] unexpected exception", e)
           Left(ErrorWrapper(correlationId, DownstreamError))
 
-  private def requiredHeaders(correlationId: CorrelationId, appName: String)
-                             (implicit hc: HeaderCarrier): Seq[(String, String)] =
+  private def buildHeaders(correlationId: CorrelationId, appName: String)(implicit hc: HeaderCarrier): Seq[(String, String)] =
     Seq(
-      "User-Agent"       -> appName,
-      "Content-Type"     -> "application/json",
-      "Accept"           -> "application/vnd.hmrc.1.0+json",
-      "X-Correlation-Id" -> correlationId.value
-    ) ++
-      hc.authorization.map(a => "Authorization" -> a.value).toSeq 
+      "User-Agent" -> appName,
+      "Content-Type" -> "application/json",
+      "Accept" -> "application/vnd.hmrc.1.0+json",
+      "X-CorrelationId" -> correlationId.value
+    ) ++ hc.authorization.map(a => "Authorization" -> a.value).toSeq

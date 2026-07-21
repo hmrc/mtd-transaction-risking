@@ -16,10 +16,8 @@
 
 package uk.gov.hmrc.mtdtransactionrisking.config
 
-sealed trait Feature {
+sealed trait Feature:
   val name: String
-}
 
-case object AuthFeature extends Feature {
+case object AuthFeature extends Feature:
   override val name: String = "auth"
-}

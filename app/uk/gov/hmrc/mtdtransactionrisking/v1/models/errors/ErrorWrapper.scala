@@ -36,13 +36,12 @@ import play.api.libs.json.{JsValue, Writes}
 import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
 
 case class ErrorWrapper(
-                         correlationId: CorrelationId,
-                         error:         MtdError,
-                         rawBody:       Option[JsValue] = None,
-                         rawStatus:     Option[Int]     = None
-                       ):
+    correlationId: CorrelationId,
+    error: MtdError,
+    rawBody: Option[JsValue] = None,
+    rawStatus: Option[Int] = None
+):
   def statusCode: Int = rawStatus.getOrElse(error.httpStatus)
 
 object ErrorWrapper:
-  given writes: Writes[ErrorWrapper] = (wrapper: ErrorWrapper) =>
-    wrapper.rawBody.getOrElse(wrapper.error.asJson)
+  given writes: Writes[ErrorWrapper] = (wrapper: ErrorWrapper) => wrapper.rawBody.getOrElse(wrapper.error.asJson)

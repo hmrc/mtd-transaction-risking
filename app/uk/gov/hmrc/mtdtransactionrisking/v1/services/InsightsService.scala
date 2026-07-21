@@ -26,9 +26,9 @@ import javax.inject.{Inject, Singleton}
 import scala.concurrent.Future
 
 @Singleton
-class InsightsService @Inject()(connector: InsightsConnector):
+class InsightsService @Inject() (connector: InsightsConnector):
 
   def assess(
-              request: InsightsRequest
-            )(implicit hc: HeaderCarrier, correlationId: CorrelationId): Future[ServiceOutcome[InsightsResponse]] =
+      request: InsightsRequest
+  )(implicit hc: HeaderCarrier, correlationId: CorrelationId): Future[ServiceOutcome[InsightsResponse]] =
     connector.getRiskInsights(request)

@@ -19,32 +19,28 @@ package uk.gov.hmrc.mtdtransactionrisking.definitions
 import play.api.libs.json.*
 import uk.gov.hmrc.mtdtransactionrisking.utils.Enums
 
-enum APIStatus {
+enum APIStatus:
   case ALPHA, BETA, STABLE, DEPRECATED, RETIRED
-}
 
-object APIStatus {
+object APIStatus:
 
   given Format[APIStatus] = Enums.format(values)
 
   val parser: PartialFunction[String, APIStatus] = Enums.parser(values)
-}
 
-case class APIVersion(version: String, status: APIStatus, endpointsEnabled: Boolean) {
+case class APIVersion(version: String, status: APIStatus, endpointsEnabled: Boolean):
 
   require(version.nonEmpty, "version is required")
-}
 
-object APIVersion {
+object APIVersion:
   implicit val formatAPIVersion: OFormat[APIVersion] = Json.format[APIVersion]
-}
 
 case class APIDefinition(name: String,
                          description: String,
                          context: String,
                          categories: Seq[String],
                          versions: Seq[APIVersion],
-                         requiresTrust: Option[Boolean]) {
+                         requiresTrust: Option[Boolean]):
 
   require(name.nonEmpty, "name is required")
   require(context.nonEmpty, "context is required")
@@ -53,18 +49,13 @@ case class APIDefinition(name: String,
   require(versions.nonEmpty, "at least one version is required")
   require(uniqueVersions, "version numbers must be unique")
 
-  private def uniqueVersions: Boolean = {
+  private def uniqueVersions: Boolean =
     !versions.map(_.version).groupBy(identity).exists(x => x._2.size > 1)
-  }
 
-}
-
-object APIDefinition {
+object APIDefinition:
   implicit val formatAPIDefinition: OFormat[APIDefinition] = Json.format[APIDefinition]
-}
 
 case class Definition(api: APIDefinition)
 
-object Definition {
+object Definition:
   implicit val formatDefinition: OFormat[Definition] = Json.format[Definition]
-}

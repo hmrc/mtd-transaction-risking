@@ -26,13 +26,7 @@ import scala.concurrent.duration.*
 import scala.concurrent.{Await, Future}
 import scala.language.{implicitConversions, postfixOps}
 
-trait UnitSpec
-  extends AnyWordSpecLike,
-    MockFactory,
-    EitherValues,
-    Matchers,
-    FutureAwaits,
-    DefaultAwaitTimeout:
+trait UnitSpec extends AnyWordSpecLike, MockFactory, EitherValues, Matchers, FutureAwaits, DefaultAwaitTimeout:
 
   implicit val defaultTimeout: FiniteDuration = 5.seconds
 

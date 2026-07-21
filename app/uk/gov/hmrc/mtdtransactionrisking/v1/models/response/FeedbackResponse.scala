@@ -19,32 +19,31 @@ package uk.gov.hmrc.mtdtransactionrisking.v1.models.response
 import play.api.libs.json.{Json, OFormat}
 
 case class FeedbackResponse(
-                             reportId: String,
-                             englishFeedback: List[FeedbackMessage],
-                             welshFeedback: List[FeedbackMessage],
-                             correlationId: String
-                           )
+    reportId: String,
+    englishFeedback: List[FeedbackMessage],
+    welshFeedback: List[FeedbackMessage],
+    correlationId: String
+)
 
 object FeedbackResponse:
   given format: OFormat[FeedbackResponse] = Json.format[FeedbackResponse]
 
 case class FeedbackMessage(
-                            itemNumber: String,
-                            title: String,
-                            body: String,
-                            action: Option[String],
-                            links: Option[List[FeedbackLink]],
-                            path: String
-                          )
+    itemNumber: String,
+    title: String,
+    body: String,
+    action: Option[String],
+    links: Option[List[FeedbackLink]],
+    path: String
+)
 
 object FeedbackMessage:
   given format: OFormat[FeedbackMessage] = Json.format[FeedbackMessage]
 
 case class FeedbackLink(
-                         title: String,
-                         url: String
-                       )
+    title: String,
+    url: String
+)
 
 object FeedbackLink:
   given format: OFormat[FeedbackLink] = Json.format[FeedbackLink]
-
