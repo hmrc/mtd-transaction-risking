@@ -23,16 +23,6 @@ case class ObligationsResponse(obligations: Seq[Obligation]):
       case None =>
         Right(None)
 
-//  def findOpenObligationPeriod(periodKey: String): Option[ObligationPeriod] =
-//    obligations
-//      .iterator
-//      .flatMap(_.obligationDetails.iterator)
-////
-//      .find(detail => detail.periodKey == periodKey & (detail.inboundCorrespondenceToDate).
-//      //InboundCourrespondenceT
-//      oDate (needs to return an error if today is =< InboundCourrespondenceToDate then error 400: TAX_PERIOD_NOT_ENDED)
-//      .map(detail => ObligationPeriod(detail.inboundCorrespondenceFromDate, detail.inboundCorrespondenceToDate))
-
 object ObligationsResponse:
   given format: OFormat[ObligationsResponse] = Json.format[ObligationsResponse]
 
