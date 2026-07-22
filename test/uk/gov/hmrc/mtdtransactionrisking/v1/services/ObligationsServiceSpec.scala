@@ -34,11 +34,11 @@ import scala.concurrent.Future
 
 class ObligationsServiceSpec extends UnitSpec, MockitoSugar:
 
-  private implicit val hc: HeaderCarrier            = HeaderCarrier()
-  private implicit val correlationId: CorrelationId = CorrelationId("test-correlation-id")
+  implicit private val hc: HeaderCarrier = HeaderCarrier()
+  implicit private val correlationId: CorrelationId = CorrelationId("test-correlation-id")
 
-  private val vrn       = "123456789"
-  private val body      = Json.obj("periodKey" -> "24AA")
+  private val vrn = "123456789"
+  private val body = Json.obj("periodKey" -> "24AA")
 
   private val obligation = ObligationsResponse(
     Seq(

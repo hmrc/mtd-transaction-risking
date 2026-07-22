@@ -12,19 +12,16 @@ case class ObligationsResponse(obligations: Seq[Obligation]):
   private val dateFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
 
   def findOpenObligationPeriod(periodKey: String): Either[TaxPeriodNotEndedError.type, Option[ObligationPeriod]] =
-    obligations
-      .iterator
+    obligations.iterator
       .flatMap(_.obligationDetails.iterator)
       .find(_.periodKey == periodKey) match
       case Some(detail) =>
         val toDate = LocalDate.parse(detail.inboundCorrespondenceToDate, dateFormatter)
         if LocalDate.now().isAfter(toDate) then
           Right(Some(ObligationPeriod(detail.inboundCorrespondenceFromDate, detail.inboundCorrespondenceToDate)))
-        else
-          Left(TaxPeriodNotEndedError)
+        else Left(TaxPeriodNotEndedError)
       case None =>
         Right(None)
-
 
 //  def findOpenObligationPeriod(periodKey: String): Option[ObligationPeriod] =
 //    obligations
@@ -44,20 +41,18 @@ object Obligation:
   given format: OFormat[Obligation] = Json.format[Obligation]
 
 case class Identification(
-                           referenceNumber: String,
-                           referenceType: String
-                         )
+    referenceNumber: String,
+    referenceType: String
+)
 object Identification:
   given format: OFormat[Identification] = Json.format[Identification]
 
 case class ObligationDetail(
-                             inboundCorrespondenceFromDate: String,
-                             inboundCorrespondenceToDate: String,
-                             periodKey: String
-                           )
+    inboundCorrespondenceFromDate: String,
+    inboundCorrespondenceToDate: String,
+    periodKey: String
+)
 object ObligationDetail:
   given format: OFormat[ObligationDetail] = Json.format[ObligationDetail]
 
 case class ObligationPeriod(startDate: String, endDate: String)
-
-

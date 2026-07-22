@@ -8,14 +8,14 @@ class ObligationsResponseSpec extends UnitSpec:
 
   private val pastDetail = ObligationDetail(
     inboundCorrespondenceFromDate = "2000-01-01",
-    inboundCorrespondenceToDate   = "2000-01-31",
-    periodKey                     = "24AA"
+    inboundCorrespondenceToDate = "2000-01-31",
+    periodKey = "24AA"
   )
 
   private val futureDetail = ObligationDetail(
     inboundCorrespondenceFromDate = "2999-01-01",
-    inboundCorrespondenceToDate   = "2999-01-31",
-    periodKey                     = "24AB"
+    inboundCorrespondenceToDate = "2999-01-31",
+    periodKey = "24AB"
   )
 
   "ObligationsResponse" when:
@@ -25,7 +25,7 @@ class ObligationsResponseSpec extends UnitSpec:
         val model = ObligationsResponse(
           obligations = Seq(
             Obligation(
-              identification   = Some(Identification("AB123", "MTDBIS")),
+              identification = Some(Identification("AB123", "MTDBIS")),
               obligationDetails = Seq(pastDetail)
             )
           )

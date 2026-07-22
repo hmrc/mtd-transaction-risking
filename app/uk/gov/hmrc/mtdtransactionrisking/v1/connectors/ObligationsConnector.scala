@@ -15,28 +15,26 @@ import uk.gov.hmrc.mtdtransactionrisking.v1.services.ServiceOutcome
 import javax.inject.Inject
 import scala.concurrent.{ExecutionContext, Future}
 
-
-class ObligationsConnector @Inject()(
-                                      val httpClient: HttpClientV2,
-                                      appConfig: AppConfig
-                                    )(implicit val ec: ExecutionContext) extends Logging:
+class ObligationsConnector @Inject() (
+    val httpClient: HttpClientV2,
+    appConfig: AppConfig
+)(implicit val ec: ExecutionContext)
+    extends Logging:
 
   private def requiredHeaders(correlationId: CorrelationId, appName: String)(implicit hc: HeaderCarrier): Seq[(String, String)] =
     Seq(
-      "User-Agent"       -> appName,
-      "Content-Type"     -> "application/json",
+      "User-Agent" -> appName,
+      "Content-Type" -> "application/json",
       "X-Correlation-Id" -> correlationId.value
     )
 
-
-  def getObligations(request: ObligationsRequest)
-                    (implicit hc: HeaderCarrier, correlationId: CorrelationId): Future[ServiceOutcome[ObligationsResponse]] =
+  def getObligations(
+      request: ObligationsRequest)(implicit hc: HeaderCarrier, correlationId: CorrelationId): Future[ServiceOutcome[ObligationsResponse]] =
     logger.debug(s"${correlationId.value}::[ObligationsConnector:getObligations] calling obligations API")
-
 
     httpClient
       .post(url"${appConfig.obligationsServiceUrl(request.VRN)}")
-      .setHeader(requiredHeaders(correlationId, appConfig.appName) *)
+      .setHeader(requiredHeaders(correlationId, appConfig.appName)*)
       .execute[HttpResponse]
       .map { response =>
         response.status match
@@ -63,4 +61,3 @@ class ObligationsConnector @Inject()(
         case ex =>
           logger.error(s"${correlationId.value}::[ObligationsConnector:getObligations] unexpected exception", ex)
           Left(ErrorWrapper(correlationId, DownstreamError))
-
