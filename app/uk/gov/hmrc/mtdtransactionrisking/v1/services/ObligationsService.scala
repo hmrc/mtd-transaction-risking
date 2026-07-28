@@ -19,16 +19,47 @@ package uk.gov.hmrc.mtdtransactionrisking.v1.services
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
 import uk.gov.hmrc.mtdtransactionrisking.v1.connectors.ObligationsConnector
-import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.ObligationsRequest
-import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.ObligationsResponse
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.errors.{DownstreamError, ErrorWrapper, TaxPeriodNotEndedError}
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.outcomes.ResponseWrapper
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.{ObligationPeriod, ObligationsResponse}
+import uk.gov.hmrc.mtdtransactionrisking.v1.services.ServiceOutcome
 
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 import javax.inject.{Inject, Singleton}
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
-class ObligationsService @Inject() (connector: ObligationsConnector):
+class ObligationsService @Inject() (connector: ObligationsConnector)(implicit ec: ExecutionContext):
 
-  def getObligations(
-      request: ObligationsRequest
-  )(implicit hc: HeaderCarrier, correlationId: CorrelationId): Future[ServiceOutcome[ObligationsResponse]] =
-    connector.getObligations(request)
+  private val dateFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
+
+  def getObligations(periodKey: String, VRN: String)(implicit
+      hc: HeaderCarrier,
+      correlationId: CorrelationId): Future[ServiceOutcome[ObligationPeriod]] =
+    connector.getObligations(VRN).map {
+      case Right(ResponseWrapper(corrId, obligationsResponse)) =>
+        findOpenObligationPeriod(obligationsResponse, periodKey) match
+          case Left(TaxPeriodNotEndedError) =>
+            Left(ErrorWrapper(corrId, TaxPeriodNotEndedError))
+          case Right(Some(obligationPeriod)) =>
+            Right(ResponseWrapper(corrId, obligationPeriod))
+          case Right(None) =>
+            Left(ErrorWrapper(corrId, DownstreamError))
+
+      case Left(errorWrapper) =>
+        Left(errorWrapper)
+    }
+
+  private def findOpenObligationPeriod(response: ObligationsResponse,
+                                       periodKey: String): Either[TaxPeriodNotEndedError.type, Option[ObligationPeriod]] =
+    response.obligations.iterator
+      .flatMap(_.obligationDetails.iterator)
+      .find(_.periodKey == periodKey) match
+      case Some(detail) =>
+        val toDate = LocalDate.parse(detail.inboundCorrespondenceToDate, dateFormatter)
+        if LocalDate.now().isAfter(toDate) then
+          Right(Some(ObligationPeriod(detail.inboundCorrespondenceFromDate, detail.inboundCorrespondenceToDate)))
+        else Left(TaxPeriodNotEndedError)
+      case None =>
+        Right(None)

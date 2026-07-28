@@ -22,9 +22,8 @@ import uk.gov.hmrc.http.client.HttpClientV2
 import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse, StringContextOps}
 import uk.gov.hmrc.mtdtransactionrisking.config.AppConfig
 import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
-import uk.gov.hmrc.mtdtransactionrisking.v1.models.errors.{DownstreamError, ErrorWrapper, TaxPeriodNotEndedError}
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.errors.{DownstreamError, ErrorWrapper}
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.outcomes.ResponseWrapper
-import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.ObligationsRequest
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.ObligationsResponse
 import uk.gov.hmrc.mtdtransactionrisking.v1.services.ServiceOutcome
 
@@ -37,33 +36,27 @@ class ObligationsConnector @Inject() (
 )(implicit val ec: ExecutionContext)
     extends Logging:
 
-  private def requiredHeaders(correlationId: CorrelationId, appName: String)(implicit hc: HeaderCarrier): Seq[(String, String)] =
+  private def buildHeaders(correlationId: CorrelationId)(implicit hc: HeaderCarrier): Seq[(String, String)] =
     Seq(
-      "User-Agent" -> appName,
-      "Content-Type" -> "application/json",
+      "Environment" -> appConfig.obligationEnv,
+      "Authorization" -> appConfig.obligationAuthToken,
       "X-CorrelationId" -> correlationId.value
     )
 
-  def getObligations(
-      request: ObligationsRequest)(implicit hc: HeaderCarrier, correlationId: CorrelationId): Future[ServiceOutcome[ObligationsResponse]] =
+  def getObligations(VRN: String)(implicit hc: HeaderCarrier, correlationId: CorrelationId): Future[ServiceOutcome[ObligationsResponse]] =
     logger.debug(s"${correlationId.value}::[ObligationsConnector:getObligations] calling obligations API")
 
     httpClient
-      .post(url"${appConfig.obligationsServiceBaseUrl}/${request.VRN}/VATC?status=O")
-      .setHeader(requiredHeaders(correlationId, appConfig.appName)*)
+      .get(url"${appConfig.obligationsServiceBaseUrl}/$VRN/VATC?status=O")
+      .setHeader(buildHeaders(correlationId)*)
       .execute[HttpResponse]
       .map { response =>
         response.status match
           case 200 =>
             response.json.asOpt[ObligationsResponse] match
               case Some(obligations) =>
-                obligations.findOpenObligationPeriod(request.periodKey) match
-                  case Left(_) =>
-                    logger.debug(s"${correlationId.value}::[ObligationsConnector:getObligations] tax period not ended")
-                    Left(ErrorWrapper(correlationId, TaxPeriodNotEndedError))
-                  case Right(_) =>
-                    logger.debug(s"${correlationId.value}::[ObligationsConnector:getObligations] success")
-                    Right(ResponseWrapper(correlationId, obligations))
+                logger.debug(s"${correlationId.value}::[ObligationsConnector:getObligations] success fetching raw obligations")
+                Right(ResponseWrapper(correlationId, obligations))
 
               case None =>
                 logger.error(s"${correlationId.value}::[ObligationsConnector:getObligations] malformed response")

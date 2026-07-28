@@ -16,61 +16,118 @@
 
 package uk.gov.hmrc.mtdtransactionrisking.v1.services
 
-import org.mockito.ArgumentMatchers.{any, eq as eqTo}
+import controllers.Execution.trampoline
+import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito.when
+import org.scalactic.Prettifier.default
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 import org.scalatestplus.mockito.MockitoSugar
-import play.api.http.Status.*
-import play.api.libs.json.Json
 import uk.gov.hmrc.http.HeaderCarrier
-import uk.gov.hmrc.mtdtransactionrisking.support.UnitSpec
 import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
 import uk.gov.hmrc.mtdtransactionrisking.v1.connectors.ObligationsConnector
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.errors.{DownstreamError, ErrorWrapper, TaxPeriodNotEndedError}
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.outcomes.ResponseWrapper
-import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.ObligationsRequest
-import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.{Obligation, ObligationDetail, ObligationsResponse}
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.{Obligation, ObligationDetail, ObligationPeriod, ObligationsResponse}
 
+import java.time.LocalDate
 import scala.concurrent.Future
+class ObligationsServiceSpec extends AnyWordSpec with Matchers with MockitoSugar {
 
-class ObligationsServiceSpec extends UnitSpec, MockitoSugar:
 
-  implicit private val hc: HeaderCarrier = HeaderCarrier()
-  implicit private val correlationId: CorrelationId = CorrelationId("test-correlation-id")
+  val mockConnector: ObligationsConnector = mock[ObligationsConnector]
+  val service = new ObligationsService(mockConnector)
 
-  private val vrn = "123456789"
-  private val body = Json.obj("periodKey" -> "24AA")
+  implicit val hc: HeaderCarrier = HeaderCarrier()
+  implicit val correlationId: CorrelationId = CorrelationId("test-correlation-id")
 
-  private val obligation = ObligationsResponse(
-    Seq(
-      Obligation(
-        None,
-        Seq(ObligationDetail("2000-01-01", "2000-01-31", "24AA"))
+  val periodKey = "18A"
+  val vrn = "123456789"
+
+
+  val today: LocalDate = LocalDate.now()
+  val pastDate: String = today.minusDays(5).toString
+  val futureDate: String = today.plusDays(5).toString
+
+
+  def createObligationsResponse(toDate: String): ObligationsResponse = {
+    ObligationsResponse(
+      obligations = Seq(
+        Obligation(
+          obligationDetails = Seq(
+            ObligationDetail(
+              inboundCorrespondenceFromDate = "2026-01-01",
+              inboundCorrespondenceToDate = toDate,
+              periodKey = periodKey
+            )
+          )
+        )
       )
     )
-  )
+  }
 
-  private trait Test:
-    val connector: ObligationsConnector = mock[ObligationsConnector]
-    val service = new ObligationsService(connector)
 
-  "validate" should:
+  "getObligations" should {
 
-    "return Right(Unit) when the connector returns a successful obligation period" in new Test:
-      when(connector.getObligations(eqTo(ObligationsRequest(vrn, "24AA")))(any(), any()))
-        .thenReturn(Future.successful(Right(ResponseWrapper(correlationId, obligation))))
+    "return a successful ResponseWrapper with ObligationPeriod when the period end date is in the past" in {
+      val rawResponse = createObligationsResponse(toDate = pastDate)
+      when(mockConnector.getObligations(any())(any(), any()))
+        .thenReturn(Future.successful(Right(ResponseWrapper(correlationId, rawResponse))))
 
-      await(service.getObligations(ObligationsRequest(vrn, "24AA"))) shouldBe Right(ResponseWrapper(correlationId, obligation))
+      val result = service.getObligations(periodKey, vrn)
 
-    "return Left(ErrorWrapper) when the period has not ended" in new Test:
-      val errorWrapper = ErrorWrapper(correlationId, TaxPeriodNotEndedError)
-      when(connector.getObligations(eqTo(ObligationsRequest(vrn, "24AA")))(any(), any()))
-        .thenReturn(Future.successful(Left(errorWrapper)))
+      result.map { outcome =>
+        outcome shouldBe Right(ResponseWrapper(correlationId, ObligationPeriod("2026-01-01", pastDate)))
+      }
+    }
 
-      await(service.getObligations(ObligationsRequest(vrn, "24AA"))) shouldBe Left(errorWrapper)
+    "return an ErrorWrapper with TaxPeriodNotEndedError when the period end date is in the future" in {
+      val rawResponse = createObligationsResponse(toDate = futureDate)
+      when(mockConnector.getObligations(any())(any(), any()))
+        .thenReturn(Future.successful(Right(ResponseWrapper(correlationId, rawResponse))))
 
-    "return Left(ErrorWrapper) when the connector returns a downstream error" in new Test:
-      val errorWrapper = ErrorWrapper(correlationId, DownstreamError, rawStatus = Some(BAD_REQUEST))
-      when(connector.getObligations(eqTo(ObligationsRequest(vrn, "24AA")))(any(), any()))
-        .thenReturn(Future.successful(Left(errorWrapper)))
+      val result = service.getObligations(periodKey, vrn)
 
-      await(service.getObligations(ObligationsRequest(vrn, "24AA"))) shouldBe Left(errorWrapper)
+      result.map { outcome =>
+        outcome shouldBe Left(ErrorWrapper(correlationId, TaxPeriodNotEndedError))
+      }
+    }
+
+    "return an ErrorWrapper with TaxPeriodNotEndedError when the period end date is exactly today" in {
+      val rawResponse = createObligationsResponse(toDate = today.toString)
+      when(mockConnector.getObligations(any())(any(), any()))
+        .thenReturn(Future.successful(Right(ResponseWrapper(correlationId, rawResponse))))
+
+      val result = service.getObligations(periodKey, vrn)
+
+      result.map { outcome =>
+        outcome shouldBe Left(ErrorWrapper(correlationId, TaxPeriodNotEndedError))
+      }
+    }
+
+    "return an ErrorWrapper with DownstreamError when the requested periodKey does not exist in the response data" in {
+      val rawResponse = createObligationsResponse(toDate = pastDate)
+      when(mockConnector.getObligations(any())(any(), any()))
+        .thenReturn(Future.successful(Right(ResponseWrapper(correlationId, rawResponse))))
+
+
+      val result = service.getObligations("99X", vrn)
+
+      result.map { outcome =>
+        outcome shouldBe Left(ErrorWrapper(correlationId, DownstreamError))
+      }
+    }
+
+    "pass through the upstream ErrorWrapper cleanly when the connector fails" in {
+      val upstreamError = ErrorWrapper(correlationId, DownstreamError)
+      when(mockConnector.getObligations(any())(any(), any()))
+        .thenReturn(Future.successful(Left(upstreamError)))
+
+      val result = service.getObligations(periodKey, vrn)
+
+      result.map { outcome =>
+        outcome shouldBe Left(upstreamError)
+      }
+    }
+  }
+}

@@ -36,6 +36,8 @@ class AppConfig @Inject() (config: ServicesConfig, configuration: Configuration)
   private val obligationsPath = obligationsServiceConfig.get[String]("submit-url")
 
   val obligationsServiceBaseUrl: String = s"${config.baseUrl("obligation")}$obligationsPath"
+  val obligationEnv: String = config.getString("microservice.services.obligation.environment")
+  val obligationAuthToken: String = s"Bearer ${config.getString("microservice.services.obligation.authorization-token")}"
 
   // feedback stub for external test
   val feedbackStubBaseUrl: Option[String] =

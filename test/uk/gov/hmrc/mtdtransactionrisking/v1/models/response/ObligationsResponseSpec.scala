@@ -1,59 +1,131 @@
+/*
+ * Copyright 2026 HM Revenue & Customs
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package uk.gov.hmrc.mtdtransactionrisking.v1.models.response
 
-import play.api.libs.json.Json
-import uk.gov.hmrc.mtdtransactionrisking.support.UnitSpec
-import uk.gov.hmrc.mtdtransactionrisking.v1.models.errors.TaxPeriodNotEndedError
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
+import play.api.libs.json.{JsValue, Json}
 
-class ObligationsResponseSpec extends UnitSpec:
+class ObligationsResponseSpec extends AnyWordSpec with Matchers {
 
-  private val pastDetail = ObligationDetail(
-    inboundCorrespondenceFromDate = "2000-01-01",
-    inboundCorrespondenceToDate = "2000-01-31",
-    periodKey = "24AA"
+
+  val obligationDetailModel: ObligationDetail = ObligationDetail(
+    inboundCorrespondenceFromDate = "2026-01-01",
+    inboundCorrespondenceToDate = "2026-03-31",
+    periodKey = "18A"
   )
 
-  private val futureDetail = ObligationDetail(
-    inboundCorrespondenceFromDate = "2999-01-01",
-    inboundCorrespondenceToDate = "2999-01-31",
-    periodKey = "24AB"
+  val obligationModel: Obligation = Obligation(
+    obligationDetails = Seq(obligationDetailModel)
   )
 
-  "ObligationsResponse" when:
-
-    "written to JSON and read back" should:
-      "round-trip correctly" in:
-        val model = ObligationsResponse(
-          obligations = Seq(
-            Obligation(
-              identification = Some(Identification("AB123", "MTDBIS")),
-              obligationDetails = Seq(pastDetail)
+  val obligationsResponseModel: ObligationsResponse =
+    ObligationsResponse(
+      obligations = Seq(
+        Obligation(
+          obligationDetails = Seq(
+            ObligationDetail(
+              inboundCorrespondenceFromDate = "2026-01-01",
+              inboundCorrespondenceToDate = "2026-03-31",
+              periodKey = "18A"
             )
           )
         )
+      )
+    )
 
-        Json.toJson(model).as[ObligationsResponse] shouldBe model
+  // Matches ObligationsStub payload shape (extra fields included)
+  val stubLikeObligationsResponseJson: JsValue = Json.parse(
+    """|{
+       |  "obligations": [
+       |    {
+       |      "identification": {
+       |        "referenceNumber": "AB123",
+       |        "referenceType": "MTDBIS",
+       |        "incomeSourceType": "ITSA"
+       |      },
+       |      "obligationDetails": [
+       |        {
+       |          "status": "O",
+       |          "inboundCorrespondenceFromDate": "2026-01-01",
+       |          "inboundCorrespondenceToDate": "2026-03-31",
+       |          "inboundCorrespondenceDueDate": "2026-03-31",
+       |          "inboundCorrespondenceDateReceived": "2026-01-01",
+       |          "periodKey": "18A"
+       |        }
+       |      ]
+       |    }
+       |  ]
+       |}""".stripMargin
+  )
 
-    "finding an obligation period where the end date is in the past" should:
-      "return Right(Some(ObligationPeriod))" in:
-        val response = ObligationsResponse(
-          obligations = Seq(Obligation(None, Seq(pastDetail)))
-        )
 
-        response.findOpenObligationPeriod("24AA") shouldBe
-          Right(Some(ObligationPeriod("2000-01-01", "2000-01-31")))
+  val obligationDetailJson: JsValue = Json.parse(
+    """|{
+       |  "inboundCorrespondenceFromDate": "2026-01-01",
+       |  "inboundCorrespondenceToDate": "2026-03-31",
+       |  "periodKey": "18A"
+       |}""".stripMargin
+  )
 
-    "finding an obligation period where the end date is not yet passed" should:
-      "return Left(TaxPeriodNotEndedError)" in:
-        val response = ObligationsResponse(
-          obligations = Seq(Obligation(None, Seq(futureDetail)))
-        )
+  val obligationJson: JsValue = Json.parse(
+    s"""|{
+        |  "obligationDetails": [$obligationDetailJson]
+        |}""".stripMargin
+  )
 
-        response.findOpenObligationPeriod("24AB") shouldBe Left(TaxPeriodNotEndedError)
+  val obligationsResponseJson: JsValue = Json.parse(
+    s"""|{
+        |  "obligations": [$obligationJson]
+        |}""".stripMargin
+  )
 
-    "finding an unknown period key" should:
-      "return Right(None)" in:
-        val response = ObligationsResponse(
-          obligations = Seq(Obligation(None, Seq(pastDetail)))
-        )
 
-        response.findOpenObligationPeriod("ZZZZ") shouldBe Right(None)
+  "ObligationsResponse" should {
+    "serialize to JSON correctly (Writes)" in {
+      Json.toJson(obligationsResponseModel) shouldBe obligationsResponseJson
+    }
+
+    "deserialize from stub-shaped JSON correctly (Reads)" in {
+      stubLikeObligationsResponseJson.as[ObligationsResponse] shouldBe obligationsResponseModel
+    }
+
+    "deserialize from JSON correctly (Reads)" in {
+      obligationsResponseJson.as[ObligationsResponse] shouldBe obligationsResponseModel
+    }
+  }
+
+  "Obligation" should {
+    "serialize to JSON correctly" in {
+      Json.toJson(obligationModel) shouldBe obligationJson
+    }
+
+    "deserialize from JSON correctly" in {
+      obligationJson.as[Obligation] shouldBe obligationModel
+    }
+  }
+
+  "ObligationDetail" should {
+    "serialize to JSON correctly" in {
+      Json.toJson(obligationDetailModel) shouldBe obligationDetailJson
+    }
+
+    "deserialize from JSON correctly" in {
+      obligationDetailJson.as[ObligationDetail] shouldBe obligationDetailModel
+    }
+  }
+}
