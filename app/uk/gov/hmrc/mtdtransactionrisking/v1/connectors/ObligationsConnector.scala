@@ -49,7 +49,7 @@ class ObligationsConnector @Inject() (
     logger.debug(s"${correlationId.value}::[ObligationsConnector:getObligations] calling obligations API")
 
     httpClient
-      .post(url"${appConfig.obligationsServiceUrl(request.VRN)}")
+      .post(url"${appConfig.obligationsServiceBaseUrl}/${request.VRN}/VATC?status=O")
       .setHeader(requiredHeaders(correlationId, appConfig.appName)*)
       .execute[HttpResponse]
       .map { response =>
