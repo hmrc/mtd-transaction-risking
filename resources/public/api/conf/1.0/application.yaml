@@ -7,7 +7,7 @@ info:
     You must follow a two-step process:
     1. Send draft return data.
     2. Use the relevant acknowledgement endpoint to confirm that your software has presented the HMRC Assist feedback messages to the user.
-
+    Because this process operates on draft, unfinalised data, requesting feedback carries no declaration.
   contact: {}
   version: '1.0'
 servers:
@@ -92,6 +92,8 @@ paths:
           schema:
             type: string
             example: '-'
+        - $ref: '#/components/parameters/acceptHeader'
+        - $ref: '#/components/parameters/authorizationWriteScopeHeader'
       requestBody:
         required: true
         content:
@@ -126,14 +128,14 @@ paths:
               schema:
                 $ref: '#/components/schemas/VATAssistResponse'
               examples:
-                "Example 1":
+                "Example 1 (single feedback message)":
                   description: |
                     The scenario where there is one HMRC Assist feedback message.
 
                     Note that the feedback message in this example is for illustration purposes only. Actual feedback messages may differ.
                   value:
                     reportId: 'f2fb30e5-4ab6-4a29-b3c1-c00000000001'
-                    correlationId: 'c75f40a6-a3df-4429-a697-471eeec46435'
+                    correlationId: 'E9F65715BBC9222477B27074804BBDD5C73CDE62F84D8B00CFD05B883534AF3D'
                     englishFeedback:
                       - itemNumber: '001'
                         title: 'VAT due on sales appears low'
@@ -152,6 +154,48 @@ paths:
                           - title: 'Hysbysiad TAW 700'
                             url: 'https://www.gov.uk/guidance/vat-notice-700-the-vat-guide'
                         path: 'vatDueSales'
+                "Example 2 (multiple feedback messages)":
+                  description: |
+                    The scenario where there are multiple HMRC Assist feedback messages.
+
+                    Note that the feedback messages in this example are for illustration purposes only. Actual feedback messages may differ.
+                  value:
+                    reportId: 'f2fb30e5-4ab6-4a29-b3c1-c00000000001'
+                    correlationId: 'E9F65715BBC9222477B27074804BBDD5C73CDE62F84D8B00CFD05B883534AF3D'
+                    englishFeedback:
+                      - itemNumber: '001'
+                        title: 'VAT due on sales appears low'
+                        body: 'The VAT due on sales figure appears lower than expected based on your total sales value.'
+                        action: 'Please review box 1 and box 6 of your VAT return.'
+                        links:
+                          - title: 'VAT Notice 700'
+                            url: 'https://www.gov.uk/guidance/vat-notice-700-the-vat-guide'
+                        path: 'vatDueSales'
+                      - itemNumber: '002'
+                        title: 'Total value of purchases appears high'
+                        body: 'The total value of purchases appears higher than expected based on your total sales value.'
+                        action: 'Please review box 7 of your VAT return.'
+                        links:
+                          - title: 'VAT Notice 700'
+                            url: 'https://www.gov.uk/guidance/vat-notice-700-the-vat-guide'
+                        path: 'totalValuePurchasesExVAT'
+                    welshFeedback:
+                      - itemNumber: '001'
+                        title: 'Mae TAW sy''n ddyledus ar werthiannau yn ymddangos yn isel'
+                        body: 'Mae''r ffigur TAW sy''n ddyledus ar werthiannau yn ymddangos yn is na''r disgwyl yn seiliedig ar gyfanswm eich gwerthiannau.'
+                        action: 'Adolygwch flwch 1 a blwch 6 eich ffurflen TAW.'
+                        links:
+                          - title: 'Hysbysiad TAW 700'
+                            url: 'https://www.gov.uk/guidance/vat-notice-700-the-vat-guide'
+                        path: 'vatDueSales'
+                      - itemNumber: '002'
+                        title: 'Mae cyfanswm pryniannau''n uchel'
+                        body: 'Mae cyfanswm y pryniannau''n ymddangos yn uwch na''r disgwyl.'
+                        action: 'Adolygwch flwch 7 o''ch ffurflen TAW.'
+                        links:
+                          - title: 'Hysbysiad TAW 700'
+                            url: 'https://www.gov.uk/guidance/vat-notice-700-the-vat-guide'
+                        path: 'totalValuePurchasesExVAT'
         '400':
           description: Bad request. Invalid request body or parameters.
           content:
@@ -327,11 +371,10 @@ paths:
           style: simple
           schema:
             type: string
-            pattern: '^[A-Za-z0-9\-]{36}$'
-            example: 'c75f40a6-a3df-4429-a697-471eeec46435'
+            example: 'E9F65715BBC9222477B27074804BBDD5C73CDE62F84D8B00CFD05B883534AF3D'
         - name: presentedDateTime
           in: query
-          description: The date and time that the feedback was presented verbatim to the user.
+          description: The date and time (in Z/UTC) that the feedback was presented verbatim to the user.
           required: true
           style: form
           explode: true
@@ -346,6 +389,8 @@ paths:
           schema:
             type: string
             example: '-'
+        - $ref: '#/components/parameters/acceptHeader'
+        - $ref: '#/components/parameters/authorizationWriteScopeHeader'
       responses:
         '204':
           description: Acknowledgement recorded successfully. No content returned.
@@ -429,6 +474,26 @@ paths:
             - write:vat
 
 components:
+  parameters:
+    acceptHeader:
+      name: "Accept"
+      in: header
+      description: |
+        Specifies the response format and the version of the API to be used.
+      schema:
+        type: string
+        enum:
+          - "application/vnd.hmrc.1.0+json"
+      required: true
+    authorizationWriteScopeHeader:
+      name: "Authorization"
+      in: header
+      description: |
+        An OAuth 2.0 Bearer Token with the *write:vat* scope.
+      schema:
+        type: string
+        example: Bearer bb7fed3fe10dd235a2ccda3d50fb
+      required: true
   schemas:
     VATAssistRequest:
       title: VATAssistRequest
@@ -499,8 +564,13 @@ components:
           multipleOf: 0.01
           minimum: 0.00
           maximum: 99999999999.99
-          description: >
-            The difference between totalVatDue and vatReclaimedCurrPeriod.
+          description: |
+            The absolute difference between the *totalVatDue* and
+            *vatReclaimedCurrPeriod* values. This should therefore be a positive
+            number, calculated by subtracting the smallest value from the
+            largest. HMRC will automatically determine whether the number
+            represents net VAT that is due or net VAT that can be reclaimed.
+
             This corresponds to box 5 on the VAT Return form.
           example: 52.75
         totalValueSalesExVAT:
@@ -557,7 +627,7 @@ components:
         correlationId:
           type: string
           description: The correlation ID of the report.
-          example: 'c75f40a6-a3df-4429-a697-471eeec46435'
+          example: 'E9F65715BBC9222477B27074804BBDD5C73CDE62F84D8B00CFD05B883534AF3D'
         englishFeedback:
           type: array
           description: An array that contains up to 5 HMRC Assist feedback messages, in English.
