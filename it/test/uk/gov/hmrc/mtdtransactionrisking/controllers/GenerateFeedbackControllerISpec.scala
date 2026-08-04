@@ -23,7 +23,7 @@ import play.api.mvc.Result
 import play.api.test.FakeRequest
 import play.api.test.Helpers.{contentAsJson, contentAsString, defaultAwaitTimeout, headers, status}
 import uk.gov.hmrc.http.SessionKeys.authToken
-import uk.gov.hmrc.mtdtransactionrisking.stubs.{AuthStub, CommonTestData, InsightsRiskStub, VatApiStub}
+import uk.gov.hmrc.mtdtransactionrisking.stubs.{AuthStub, CommonTestData, InsightsRiskStub, ObligationsStub, VatApiStub}
 import uk.gov.hmrc.mtdtransactionrisking.support.IntegrationBaseSpec
 import uk.gov.hmrc.mtdtransactionrisking.v1.controllers.GenerateFeedbackController
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.InsightsResponse
@@ -42,6 +42,7 @@ class GenerateFeedbackControllerISpec extends IntegrationBaseSpec:
           override def setupStubs(): StubMapping = {
             AuthStub.successfulAuthWith(vrn)
             VatApiStub.validationPasses()
+            ObligationsStub.successResponse(vrn, periodKey, fromDate, toDate)
             InsightsRiskStub.successResponse(vrn)
           }
 
@@ -108,11 +109,15 @@ class GenerateFeedbackControllerISpec extends IntegrationBaseSpec:
           status(response) shouldBe FORBIDDEN
           contentAsString(response) shouldBe "User VRN does not match requested VRN"
 
+
+
+
       "return 500" when :
         "validation passes but insights-proxy returns 500" in new Test:
           override def setupStubs(): StubMapping = {
             AuthStub.successfulAuthWith(vrn)
             VatApiStub.validationPasses()
+            ObligationsStub.successResponse(vrn, periodKey, fromDate, toDate)
             InsightsRiskStub.serverErrorResponse()
           }
 
@@ -123,16 +128,31 @@ class GenerateFeedbackControllerISpec extends IntegrationBaseSpec:
           override def setupStubs(): StubMapping = {
             AuthStub.successfulAuthWith(vrn)
             VatApiStub.validationPasses()
+            ObligationsStub.successResponse(vrn, periodKey, fromDate, toDate)
             InsightsRiskStub.serviceUnavailableResponse()
           }
 
           val response: Future[Result] = request(vrn)
           status(response) shouldBe INTERNAL_SERVER_ERROR
 
+
+        "obligations returns TaxPeriodNotEndedError" in new Test:
+          override def setupStubs(): StubMapping = {
+            AuthStub.successfulAuthWith(vrn)
+            VatApiStub.validationPasses()
+            ObligationsStub.successResponse(vrn, periodKey, fromDate, toDate.replace("2020", "2030")) // toDate in future
+            InsightsRiskStub.successResponse(vrn)
+          }
+
+          val response: Future[Result] = request(vrn)
+          status(response) shouldBe FORBIDDEN
+          (contentAsJson(response) \ "code").as[String] shouldBe "TAX_PERIOD_NOT_ENDED"
+
         "validation passes but insights-proxy returns malformed JSON" in new Test:
           override def setupStubs(): StubMapping = {
             AuthStub.successfulAuthWith(vrn)
             VatApiStub.validationPasses()
+            ObligationsStub.successResponse(vrn, periodKey, fromDate, toDate)
             InsightsRiskStub.malformedJsonResponse()
           }
 
@@ -151,6 +171,9 @@ class GenerateFeedbackControllerISpec extends IntegrationBaseSpec:
   private trait Test:
 
     def vrn: String = CommonTestData.simpleVrn
+    val periodKey: String = "AB12"
+    val fromDate: String = "2020-01-01"
+    val toDate: String = "2020-03-31"
 
     val validVatReturnBody: JsValue = Json.parse(
       """

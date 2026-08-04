@@ -27,28 +27,26 @@ import uk.gov.hmrc.mtdtransactionrisking.v1.models.outcomes.ResponseWrapper
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.ObligationsResponse
 import uk.gov.hmrc.mtdtransactionrisking.v1.services.ServiceOutcome
 
-import javax.inject.Inject
+import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
+import scala.util.Try
 
+@Singleton
 class ObligationsConnector @Inject() (
-    val httpClient: HttpClientV2,
-    appConfig: AppConfig
-)(implicit val ec: ExecutionContext)
-    extends Logging:
+                                       httpClient: HttpClientV2,
+                                       appConfig: AppConfig
+                                     )(implicit ec: ExecutionContext)
+  extends Logging:
 
-  private def buildHeaders(correlationId: CorrelationId)(implicit hc: HeaderCarrier): Seq[(String, String)] =
-    Seq(
-      "Environment" -> appConfig.obligationEnv,
-      "Authorization" -> appConfig.obligationAuthToken,
-      "X-CorrelationId" -> correlationId.value
-    )
-
-  def getObligations(VRN: String)(implicit hc: HeaderCarrier, correlationId: CorrelationId): Future[ServiceOutcome[ObligationsResponse]] =
+  def getObligations(vrn: String)(implicit
+                                  hc: HeaderCarrier,
+                                  correlationId: CorrelationId
+  ): Future[ServiceOutcome[ObligationsResponse]] =
     logger.debug(s"${correlationId.value}::[ObligationsConnector:getObligations] calling obligations API")
 
     httpClient
-      .get(url"${appConfig.obligationsServiceBaseUrl}/$VRN/VATC?status=O")
-      .setHeader(buildHeaders(correlationId)*)
+      .get(url"${appConfig.vatApiBaseUrl}/organisations/vat/$vrn/obligations?status=O")
+      .setHeader(buildHeaders(correlationId, appConfig.appName)*)
       .execute[HttpResponse]
       .map { response =>
         response.status match
@@ -60,13 +58,22 @@ class ObligationsConnector @Inject() (
 
               case None =>
                 logger.error(s"${correlationId.value}::[ObligationsConnector:getObligations] malformed response")
-                Left(ErrorWrapper(correlationId, DownstreamError))
+                val body = Try(response.json).getOrElse(DownstreamError.asJson)
+                Left(ErrorWrapper(correlationId, DownstreamError, rawBody = Some(body), rawStatus = Some(response.status)))
 
           case status =>
             logger.error(s"${correlationId.value}::[ObligationsConnector:getObligations] failed status $status: ${response.body}")
-            Left(ErrorWrapper(correlationId, DownstreamError))
+            val body = Try(response.json).getOrElse(DownstreamError.asJson)
+            Left(ErrorWrapper(correlationId, DownstreamError, rawBody = Some(body), rawStatus = Some(status)))
       }
       .recover:
         case ex =>
           logger.error(s"${correlationId.value}::[ObligationsConnector:getObligations] unexpected exception", ex)
           Left(ErrorWrapper(correlationId, DownstreamError))
+
+  private def buildHeaders(correlationId: CorrelationId, appName: String)(implicit hc: HeaderCarrier): Seq[(String, String)] =
+    Seq(
+      "User-Agent"      -> appName,
+      "Accept"          -> "application/vnd.hmrc.1.0+json",
+      "X-CorrelationId" -> correlationId.value
+    ) ++ hc.authorization.toSeq.map(a => "Authorization" -> a.value)

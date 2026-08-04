@@ -17,25 +17,21 @@
 package uk.gov.hmrc.mtdtransactionrisking.v1.models.response
 
 import play.api.libs.json.{Json, OFormat}
-import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.*
 
 case class ObligationsResponse(obligations: Seq[Obligation])
 
 object ObligationsResponse:
   given format: OFormat[ObligationsResponse] = Json.format[ObligationsResponse]
 
-case class Obligation(obligationDetails: Seq[ObligationDetail])
+case class Obligation(
+                       status: String,
+                       start: String,
+                       end: String,
+                       due: String,
+                       periodKey: String
+                     )
 
 object Obligation:
   given format: OFormat[Obligation] = Json.format[Obligation]
-
-case class ObligationDetail(
-    inboundCorrespondenceFromDate: String,
-    inboundCorrespondenceToDate: String,
-    periodKey: String
-)
-
-object ObligationDetail:
-  given format: OFormat[ObligationDetail] = Json.format[ObligationDetail]
 
 case class ObligationPeriod(startDate: String, endDate: String)

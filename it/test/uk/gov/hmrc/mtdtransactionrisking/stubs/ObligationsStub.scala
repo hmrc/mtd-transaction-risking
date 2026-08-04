@@ -24,7 +24,7 @@ import play.api.libs.json.Json
 object ObligationsStub:
 
   private def obligationsUrl(vrn: String) =
-    s"/enterprise/obligation-data/vrn/$vrn/VATC?status=O"
+    s"/internal/organisations/vat/$vrn/obligations?status=O"
 
   def successResponse(vrn: String, periodKey: String, from: String, to: String): StubMapping =
     stubFor(
@@ -37,21 +37,11 @@ object ObligationsStub:
               Json.obj(
                 "obligations" -> Json.arr(
                   Json.obj(
-                    "identification" -> Json.obj(
-                      "referenceNumber" -> "AB123",
-                      "referenceType"   -> "MTDBIS",
-                      "incomeSourceType" -> "ITSA"
-                    ),
-                    "obligationDetails" -> Json.arr(
-                      Json.obj(
-                        "status"                           -> "O",
-                        "inboundCorrespondenceFromDate"    -> from,
-                        "inboundCorrespondenceToDate"      -> to,
-                        "inboundCorrespondenceDueDate"     -> to,
-                        "inboundCorrespondenceDateReceived"-> from,
-                        "periodKey"                        -> periodKey
-                      )
-                    )
+                    "status" -> "O",
+                    "start" -> from,
+                    "end" -> to,
+                    "due" -> to,
+                    "periodKey" -> periodKey
                   )
                 )
               ).toString()

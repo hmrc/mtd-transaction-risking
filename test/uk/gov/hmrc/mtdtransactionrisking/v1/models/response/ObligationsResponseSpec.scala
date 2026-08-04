@@ -22,110 +22,113 @@ import play.api.libs.json.{JsValue, Json}
 
 class ObligationsResponseSpec extends AnyWordSpec with Matchers {
 
-
-  val obligationDetailModel: ObligationDetail = ObligationDetail(
-    inboundCorrespondenceFromDate = "2026-01-01",
-    inboundCorrespondenceToDate = "2026-03-31",
-    periodKey = "18A"
-  )
-
-  val obligationModel: Obligation = Obligation(
-    obligationDetails = Seq(obligationDetailModel)
-  )
-
-  val obligationsResponseModel: ObligationsResponse =
-    ObligationsResponse(
-      obligations = Seq(
-        Obligation(
-          obligationDetails = Seq(
-            ObligationDetail(
-              inboundCorrespondenceFromDate = "2026-01-01",
-              inboundCorrespondenceToDate = "2026-03-31",
-              periodKey = "18A"
-            )
-          )
-        )
-      )
+  private val obligation1: Obligation =
+    Obligation(
+      status = "O",
+      start = "2019-01-01",
+      end = "2019-01-31",
+      due = "2019-03-07",
+      periodKey = "19AA"
     )
 
-  // Matches ObligationsStub payload shape (extra fields included)
-  val stubLikeObligationsResponseJson: JsValue = Json.parse(
+  private val obligation2: Obligation =
+    Obligation(
+      status = "O",
+      start = "2019-02-01",
+      end = "2019-02-28",
+      due = "2019-04-07",
+      periodKey = "19AB"
+    )
+
+  private val obligationsResponseModel: ObligationsResponse =
+    ObligationsResponse(Seq(obligation1, obligation2))
+
+  private val obligationsResponseJson: JsValue = Json.parse(
     """|{
        |  "obligations": [
        |    {
-       |      "identification": {
-       |        "referenceNumber": "AB123",
-       |        "referenceType": "MTDBIS",
-       |        "incomeSourceType": "ITSA"
-       |      },
-       |      "obligationDetails": [
-       |        {
-       |          "status": "O",
-       |          "inboundCorrespondenceFromDate": "2026-01-01",
-       |          "inboundCorrespondenceToDate": "2026-03-31",
-       |          "inboundCorrespondenceDueDate": "2026-03-31",
-       |          "inboundCorrespondenceDateReceived": "2026-01-01",
-       |          "periodKey": "18A"
-       |        }
-       |      ]
+       |      "status": "O",
+       |      "start": "2019-01-01",
+       |      "end": "2019-01-31",
+       |      "due": "2019-03-07",
+       |      "periodKey": "19AA"
+       |    },
+       |    {
+       |      "status": "O",
+       |      "start": "2019-02-01",
+       |      "end": "2019-02-28",
+       |      "due": "2019-04-07",
+       |      "periodKey": "19AB"
        |    }
        |  ]
        |}""".stripMargin
   )
 
-
-  val obligationDetailJson: JsValue = Json.parse(
+  private val obligationsWithExtraFieldsJson: JsValue = Json.parse(
     """|{
-       |  "inboundCorrespondenceFromDate": "2026-01-01",
-       |  "inboundCorrespondenceToDate": "2026-03-31",
-       |  "periodKey": "18A"
+       |  "obligations": [
+       |    {
+       |      "status": "F",
+       |      "start": "2019-01-01",
+       |      "end": "2019-01-31",
+       |      "due": "2019-03-07",
+       |      "periodKey": "19AA",
+       |      "received": "2019-03-06"
+       |    },
+       |    {
+       |      "status": "O",
+       |      "start": "2019-02-01",
+       |      "end": "2019-02-28",
+       |      "due": "2019-04-07",
+       |      "periodKey": "19AB"
+       |    }
+       |  ]
        |}""".stripMargin
   )
 
-  val obligationJson: JsValue = Json.parse(
-    s"""|{
-        |  "obligationDetails": [$obligationDetailJson]
-        |}""".stripMargin
-  )
-
-  val obligationsResponseJson: JsValue = Json.parse(
-    s"""|{
-        |  "obligations": [$obligationJson]
-        |}""".stripMargin
-  )
-
-
   "ObligationsResponse" should {
-    "serialize to JSON correctly (Writes)" in {
+    "serialize to JSON correctly" in {
       Json.toJson(obligationsResponseModel) shouldBe obligationsResponseJson
     }
 
-    "deserialize from stub-shaped JSON correctly (Reads)" in {
-      stubLikeObligationsResponseJson.as[ObligationsResponse] shouldBe obligationsResponseModel
+    "deserialize from JSON correctly" in {
+      obligationsResponseJson.as[ObligationsResponse] shouldBe obligationsResponseModel
     }
 
-    "deserialize from JSON correctly (Reads)" in {
-      obligationsResponseJson.as[ObligationsResponse] shouldBe obligationsResponseModel
+    "ignore unknown fields in obligation items when deserializing" in {
+      obligationsWithExtraFieldsJson.as[ObligationsResponse] shouldBe
+        ObligationsResponse(
+          Seq(
+            Obligation("F", "2019-01-01", "2019-01-31", "2019-03-07", "19AA"),
+            Obligation("O", "2019-02-01", "2019-02-28", "2019-04-07", "19AB")
+          )
+        )
     }
   }
 
   "Obligation" should {
     "serialize to JSON correctly" in {
-      Json.toJson(obligationModel) shouldBe obligationJson
+      Json.toJson(obligation1) shouldBe Json.parse(
+        """|{
+           |  "status": "O",
+           |  "start": "2019-01-01",
+           |  "end": "2019-01-31",
+           |  "due": "2019-03-07",
+           |  "periodKey": "19AA"
+           |}""".stripMargin
+      )
     }
 
     "deserialize from JSON correctly" in {
-      obligationJson.as[Obligation] shouldBe obligationModel
-    }
-  }
-
-  "ObligationDetail" should {
-    "serialize to JSON correctly" in {
-      Json.toJson(obligationDetailModel) shouldBe obligationDetailJson
-    }
-
-    "deserialize from JSON correctly" in {
-      obligationDetailJson.as[ObligationDetail] shouldBe obligationDetailModel
+      Json.parse(
+        """|{
+           |  "status": "O",
+           |  "start": "2019-01-01",
+           |  "end": "2019-01-31",
+           |  "due": "2019-03-07",
+           |  "periodKey": "19AA"
+           |}""".stripMargin
+      ).as[Obligation] shouldBe obligation1
     }
   }
 }

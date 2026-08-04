@@ -32,12 +32,11 @@ class AppConfig @Inject() (config: ServicesConfig, configuration: Configuration)
   def apiStatus(version: String): String = config.getString(s"api.$version.status")
   def endpointsEnabled(version: String): Boolean = config.getBoolean(s"feature-switch.version-$version.enabled")
 
-  private val obligationsServiceConfig = configuration.get[Configuration]("microservice.services.obligation")
-  private val obligationsPath = obligationsServiceConfig.get[String]("submit-url")
-
-  val obligationsServiceBaseUrl: String = s"${config.baseUrl("obligation")}$obligationsPath"
-  val obligationEnv: String = config.getString("microservice.services.obligation.environment")
-  val obligationAuthToken: String = s"Bearer ${config.getString("microservice.services.obligation.authorization-token")}"
+//  private val obligationsServiceConfig = configuration.get[Configuration]("microservice.services.obligation")
+//  val obligationsServiceBaseUrl: String = config.baseUrl("obligation") + obligationsServiceConfig.get[String]("submit-url")
+//  
+//  val obligationEnv: String = config.getString("microservice.services.obligation.environment")
+//  val obligationAuthToken: String = config.getString("microservice.services.obligation.authorization-token")
 
   // feedback stub for external test
   val feedbackStubBaseUrl: Option[String] =

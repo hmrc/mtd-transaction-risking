@@ -28,7 +28,7 @@ import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
 import uk.gov.hmrc.mtdtransactionrisking.v1.connectors.ObligationsConnector
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.errors.{DownstreamError, ErrorWrapper, TaxPeriodNotEndedError}
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.outcomes.ResponseWrapper
-import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.{Obligation, ObligationDetail, ObligationPeriod, ObligationsResponse}
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.{Obligation, ObligationPeriod, ObligationsResponse}
 
 import java.time.LocalDate
 import scala.concurrent.Future
@@ -54,18 +54,16 @@ class ObligationsServiceSpec extends AnyWordSpec with Matchers with MockitoSugar
     ObligationsResponse(
       obligations = Seq(
         Obligation(
-          obligationDetails = Seq(
-            ObligationDetail(
-              inboundCorrespondenceFromDate = "2026-01-01",
-              inboundCorrespondenceToDate = toDate,
-              periodKey = periodKey
-            )
-          )
+          status = "O",
+          start = "2026-01-01",
+          end = toDate,
+          due = "2026-03-07",
+          periodKey = periodKey
         )
       )
     )
   }
-
+  
 
   "getObligations" should {
 

@@ -32,12 +32,12 @@ import scala.concurrent.{ExecutionContext, Future}
 @Singleton
 class ObligationsService @Inject() (connector: ObligationsConnector)(implicit ec: ExecutionContext):
 
-  private val dateFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
+  private val dateFormatter: DateTimeFormatter = DateTimeFormatter.ISO_LOCAL_DATE
 
-  def getObligations(periodKey: String, VRN: String)(implicit
-      hc: HeaderCarrier,
-      correlationId: CorrelationId): Future[ServiceOutcome[ObligationPeriod]] =
-    connector.getObligations(VRN).map {
+  def getObligations(periodKey: String, vrn: String)(implicit
+                                                     hc: HeaderCarrier,
+                                                     correlationId: CorrelationId): Future[ServiceOutcome[ObligationPeriod]] =
+    connector.getObligations(vrn).map {
       case Right(ResponseWrapper(corrId, obligationsResponse)) =>
         findOpenObligationPeriod(obligationsResponse, periodKey) match
           case Left(TaxPeriodNotEndedError) =>
@@ -51,15 +51,16 @@ class ObligationsService @Inject() (connector: ObligationsConnector)(implicit ec
         Left(errorWrapper)
     }
 
-  private def findOpenObligationPeriod(response: ObligationsResponse,
-                                       periodKey: String): Either[TaxPeriodNotEndedError.type, Option[ObligationPeriod]] =
-    response.obligations.iterator
-      .flatMap(_.obligationDetails.iterator)
-      .find(_.periodKey == periodKey) match
-      case Some(detail) =>
-        val toDate = LocalDate.parse(detail.inboundCorrespondenceToDate, dateFormatter)
-        if LocalDate.now().isAfter(toDate) then
-          Right(Some(ObligationPeriod(detail.inboundCorrespondenceFromDate, detail.inboundCorrespondenceToDate)))
+  private def findOpenObligationPeriod(
+                                        response: ObligationsResponse,
+                                        periodKey: String
+                                      ): Either[TaxPeriodNotEndedError.type, Option[ObligationPeriod]] =
+    response.obligations.find(_.periodKey == periodKey) match
+      case Some(obligation) =>
+        val toDate = LocalDate.parse(obligation.end, dateFormatter)
+        val today = LocalDate.now()
+        if today.isAfter(toDate) then
+          Right(Some(ObligationPeriod(obligation.start, obligation.end)))
         else Left(TaxPeriodNotEndedError)
       case None =>
         Right(None)
