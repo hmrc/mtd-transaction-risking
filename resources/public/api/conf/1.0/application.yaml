@@ -7,7 +7,8 @@ info:
     You must follow a two-step process:
     1. Send draft return data.
     2. Use the relevant acknowledgement endpoint to confirm that your software has presented the HMRC Assist feedback messages to the user.
-    Because this process operates on draft, unfinalised data, requesting feedback carries no declaration. Also, the process does not block formal submission via the *returns* endpoint of the VAT (MTD) API. Your software must allow customers to submit their VAT return, irrespective of any HMRC Assist submission feedback.
+
+    Because this process operates on draft, unfinalised data, requesting feedback carries no formal declaration. Also, the process does not block formal declaration submission via the *returns* endpoint of the VAT (MTD) API. Your software must allow customers to submit their VAT return, irrespective of any HMRC Assist submission feedback.
   contact: {}
   version: '1.0'
 servers:
