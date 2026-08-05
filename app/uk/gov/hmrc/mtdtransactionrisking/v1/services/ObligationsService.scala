@@ -34,12 +34,12 @@ class ObligationsService @Inject() (connector: ObligationsConnector)(implicit ec
 
   private val dateFormatter: DateTimeFormatter = DateTimeFormatter.ISO_LOCAL_DATE
 
-  def getObligations(periodKey: String, vrn: String)(implicit
-                                                     hc: HeaderCarrier,
-                                                     correlationId: CorrelationId): Future[ServiceOutcome[ObligationPeriod]] =
+  def getObligations(periodKey: String, vrn: String, today: LocalDate = LocalDate.now())(implicit
+                                                                                          hc: HeaderCarrier,
+                                                                                          correlationId: CorrelationId): Future[ServiceOutcome[ObligationPeriod]] =
     connector.getObligations(vrn).map {
       case Right(ResponseWrapper(corrId, obligationsResponse)) =>
-        findOpenObligationPeriod(obligationsResponse, periodKey) match
+        findOpenObligationPeriod(obligationsResponse, periodKey, today) match
           case Left(TaxPeriodNotEndedError) =>
             Left(ErrorWrapper(corrId, TaxPeriodNotEndedError))
           case Right(Some(obligationPeriod)) =>
@@ -53,12 +53,12 @@ class ObligationsService @Inject() (connector: ObligationsConnector)(implicit ec
 
   private def findOpenObligationPeriod(
                                         response: ObligationsResponse,
-                                        periodKey: String
+                                        periodKey: String,
+                                        today: LocalDate
                                       ): Either[TaxPeriodNotEndedError.type, Option[ObligationPeriod]] =
     response.obligations.find(_.periodKey == periodKey) match
       case Some(obligation) =>
         val toDate = LocalDate.parse(obligation.end, dateFormatter)
-        val today = LocalDate.now()
         if today.isAfter(toDate) then
           Right(Some(ObligationPeriod(obligation.start, obligation.end)))
         else Left(TaxPeriodNotEndedError)

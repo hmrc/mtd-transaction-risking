@@ -19,9 +19,6 @@ package uk.gov.hmrc.mtdtransactionrisking.v1.services
 import controllers.Execution.trampoline
 import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito.when
-import org.scalactic.Prettifier.default
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.wordspec.AnyWordSpec
 import org.scalatestplus.mockito.MockitoSugar
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
@@ -29,10 +26,11 @@ import uk.gov.hmrc.mtdtransactionrisking.v1.connectors.ObligationsConnector
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.errors.{DownstreamError, ErrorWrapper, TaxPeriodNotEndedError}
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.outcomes.ResponseWrapper
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.{Obligation, ObligationPeriod, ObligationsResponse}
+import uk.gov.hmrc.mtdtransactionrisking.support.UnitSpec
 
 import java.time.LocalDate
 import scala.concurrent.Future
-class ObligationsServiceSpec extends AnyWordSpec with Matchers with MockitoSugar {
+class ObligationsServiceSpec extends UnitSpec with MockitoSugar {
 
 
   val mockConnector: ObligationsConnector = mock[ObligationsConnector]
@@ -74,9 +72,7 @@ class ObligationsServiceSpec extends AnyWordSpec with Matchers with MockitoSugar
 
       val result = service.getObligations(periodKey, vrn)
 
-      result.map { outcome =>
-        outcome shouldBe Right(ResponseWrapper(correlationId, ObligationPeriod("2026-01-01", pastDate)))
-      }
+      await(result) shouldBe Right(ResponseWrapper(correlationId, ObligationPeriod("2026-01-01", pastDate)))
     }
 
     "return an ErrorWrapper with TaxPeriodNotEndedError when the period end date is in the future" in {
@@ -86,9 +82,7 @@ class ObligationsServiceSpec extends AnyWordSpec with Matchers with MockitoSugar
 
       val result = service.getObligations(periodKey, vrn)
 
-      result.map { outcome =>
-        outcome shouldBe Left(ErrorWrapper(correlationId, TaxPeriodNotEndedError))
-      }
+      await(result) shouldBe Left(ErrorWrapper(correlationId, TaxPeriodNotEndedError))
     }
 
     "return an ErrorWrapper with TaxPeriodNotEndedError when the period end date is exactly today" in {
@@ -98,9 +92,7 @@ class ObligationsServiceSpec extends AnyWordSpec with Matchers with MockitoSugar
 
       val result = service.getObligations(periodKey, vrn)
 
-      result.map { outcome =>
-        outcome shouldBe Left(ErrorWrapper(correlationId, TaxPeriodNotEndedError))
-      }
+      await(result) shouldBe Left(ErrorWrapper(correlationId, TaxPeriodNotEndedError))
     }
 
     "return an ErrorWrapper with DownstreamError when the requested periodKey does not exist in the response data" in {
@@ -111,9 +103,7 @@ class ObligationsServiceSpec extends AnyWordSpec with Matchers with MockitoSugar
 
       val result = service.getObligations("99X", vrn)
 
-      result.map { outcome =>
-        outcome shouldBe Left(ErrorWrapper(correlationId, DownstreamError))
-      }
+      await(result) shouldBe Left(ErrorWrapper(correlationId, DownstreamError))
     }
 
     "pass through the upstream ErrorWrapper cleanly when the connector fails" in {
@@ -123,9 +113,7 @@ class ObligationsServiceSpec extends AnyWordSpec with Matchers with MockitoSugar
 
       val result = service.getObligations(periodKey, vrn)
 
-      result.map { outcome =>
-        outcome shouldBe Left(upstreamError)
-      }
+      await(result) shouldBe Left(upstreamError)
     }
   }
 }
