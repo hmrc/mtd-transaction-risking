@@ -25,7 +25,7 @@ import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
 import uk.gov.hmrc.mtdtransactionrisking.v1.controllers.auth.VATAuthAction
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.InsightsRequest
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.{FeedbackResponse, InsightsResponse, ResponseHandler}
-import uk.gov.hmrc.mtdtransactionrisking.v1.services.{FeedbackStubService, InsightsService, ObligationsService, VatApiService}
+import uk.gov.hmrc.mtdtransactionrisking.v1.services.{FeedbackStubService, InsightsService, VatApiService}
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
 
 import javax.inject.{Inject, Singleton}
@@ -36,7 +36,6 @@ class GenerateFeedbackController @Inject() (cc: ControllerComponents,
                                             insightsService: InsightsService,
                                             vatApiService: VatApiService,
                                             feedbackStubService: FeedbackStubService,
-                                            obligationsService: ObligationsService,
                                             authAction: VATAuthAction,
                                             appConfig: AppConfig)(implicit ec: ExecutionContext)
     extends BackendController(cc),
@@ -67,12 +66,9 @@ class GenerateFeedbackController @Inject() (cc: ControllerComponents,
                   case Left(errorWrapper) =>
                     Future.successful(handleOutcomeUnit(Left(errorWrapper)))
                   case Right(insightsWrapper) =>
-                    obligationsService.getObligations(periodKey, vrn).map {
+                    vatApiService.getObligationPeriod(periodKey, vrn).map {
                       case Left(errorWrapper) => handleOutcomeUnit(Left(errorWrapper))
                       case Right(_)           => handleOutcome(Right(insightsWrapper))
                     }
                 }
             }
-
-
-

@@ -18,19 +18,38 @@ package uk.gov.hmrc.mtdtransactionrisking.stubs
 
 import com.github.tomakehurst.wiremock.client.WireMock.*
 import com.github.tomakehurst.wiremock.stubbing.StubMapping
+import play.api.http.Status.{BAD_REQUEST, OK, SERVICE_UNAVAILABLE}
+import play.api.libs.json.Json
 
 object VatApiStub:
 
   private val validateUrl = urlPathMatching("/internal/validate/.*")
+  private def obligationsUrl(vrn: String) =
+    s"/internal/organisations/vat/$vrn/obligations?status=O"
 
-  def validationPasses(): StubMapping =
-    stubFor(post(validateUrl).willReturn(aResponse().withStatus(204)))
+  def validationPasses(periodKey: String = "AB12", fromDate: String = "2020-01-01", toDate: String = "2020-03-31"): StubMapping =
+    stubFor(
+      post(validateUrl).willReturn(
+        aResponse()
+          .withStatus(OK)
+          .withHeader("Content-Type", "application/json")
+          .withBody(
+            Json.obj(
+              "status" -> "O",
+              "start" -> fromDate,
+              "end" -> toDate,
+              "due" -> toDate,
+              "periodKey" -> periodKey
+            ).toString()
+          )
+      )
+    )
 
   def validationFails(): StubMapping =
     stubFor(
       post(validateUrl).willReturn(
         aResponse()
-          .withStatus(400)
+          .withStatus(BAD_REQUEST)
           .withHeader("Content-Type", "application/json")
           .withBody(
             """{"code":"INVALID_REQUEST","message":"Invalid request","errors":[{"code":"VAT_TOTAL_VALUE","message":"...","path":"/totalVatDue"}]}"""
@@ -38,5 +57,34 @@ object VatApiStub:
       )
     )
 
-  def validationServerError(): StubMapping =
-    stubFor(post(validateUrl).willReturn(aResponse().withStatus(500)))
+  def validationServiceUnavailable(): StubMapping =
+    stubFor(post(validateUrl).willReturn(aResponse().withStatus(SERVICE_UNAVAILABLE)))
+
+  def obligationsSuccessResponse(vrn: String, periodKey: String, fromDate: String, toDate: String): StubMapping =
+    stubFor(
+      get(urlEqualTo(obligationsUrl(vrn)))
+        .willReturn(
+          aResponse()
+            .withStatus(OK)
+            .withHeader("Content-Type", "application/json")
+            .withBody(
+              Json.obj(
+                "obligations" -> Json.arr(
+                  Json.obj(
+                    "status" -> "O",
+                    "start" -> fromDate,
+                    "end" -> toDate,
+                    "due" -> toDate,
+                    "periodKey" -> periodKey
+                  )
+                )
+              ).toString()
+            )
+        )
+    )
+
+  def obligationsMalformedSuccessResponse(vrn: String): StubMapping =
+    stubFor(get(urlEqualTo(obligationsUrl(vrn))).willReturn(aResponse().withStatus(OK).withHeader("Content-Type", "application/json").withBody("""{"unexpected":"shape"}""")))
+
+  def obligationsServiceUnavailable(vrn: String): StubMapping =
+    stubFor(get(urlEqualTo(obligationsUrl(vrn))).willReturn(aResponse().withStatus(SERVICE_UNAVAILABLE)))

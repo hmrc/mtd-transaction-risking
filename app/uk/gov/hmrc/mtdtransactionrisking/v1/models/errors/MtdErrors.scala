@@ -47,7 +47,7 @@ object TaxPeriodNotEndedError
     extends MtdError(
       "TAX_PERIOD_NOT_ENDED",
       "The remote endpoint has indicated that the submission is for a tax period that has not ended",
-      FORBIDDEN)
+      BAD_REQUEST)
 
 object RuleInsolventTraderError extends MtdError("RULE_INSOLVENT_TRADER", "The remote endpoint has indicated that the Trader is insolvent", FORBIDDEN)
 
@@ -79,4 +79,3 @@ object InvalidAcceptHeaderError extends MtdError("ACCEPT_HEADER_INVALID", "The a
 object UnsupportedVersionError extends MtdError("NOT_FOUND", "The requested resource could not be found", NOT_FOUND)
 
 object InvalidBodyTypeError extends MtdError("INVALID_BODY_TYPE", "Expecting text/json or application/json body", UNSUPPORTED_MEDIA_TYPE)
-

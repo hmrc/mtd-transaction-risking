@@ -24,12 +24,12 @@ object ObligationsResponse:
   given format: OFormat[ObligationsResponse] = Json.format[ObligationsResponse]
 
 case class Obligation(
-                       status: String,
-                       start: String,
-                       end: String,
-                       due: String,
-                       periodKey: String
-                     )
+    status: String,
+    start: String,
+    end: String,
+    due: String,
+    periodKey: String
+)
 
 object Obligation:
   given format: OFormat[Obligation] = Json.format[Obligation]

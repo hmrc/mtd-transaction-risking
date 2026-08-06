@@ -17,13 +17,13 @@
 package uk.gov.hmrc.mtdtransactionrisking.controllers
 
 import com.github.tomakehurst.wiremock.stubbing.StubMapping
-import play.api.http.Status.{BAD_REQUEST, FORBIDDEN, INTERNAL_SERVER_ERROR, OK, UNAUTHORIZED}
+import play.api.http.Status.{BAD_REQUEST, FORBIDDEN, INTERNAL_SERVER_ERROR, OK, SERVICE_UNAVAILABLE, UNAUTHORIZED}
 import play.api.libs.json.{JsValue, Json}
 import play.api.mvc.Result
 import play.api.test.FakeRequest
 import play.api.test.Helpers.{contentAsJson, contentAsString, defaultAwaitTimeout, headers, status}
 import uk.gov.hmrc.http.SessionKeys.authToken
-import uk.gov.hmrc.mtdtransactionrisking.stubs.{AuthStub, CommonTestData, InsightsRiskStub, ObligationsStub, VatApiStub}
+import uk.gov.hmrc.mtdtransactionrisking.stubs.{AuthStub, CommonTestData, InsightsRiskStub, VatApiStub}
 import uk.gov.hmrc.mtdtransactionrisking.support.IntegrationBaseSpec
 import uk.gov.hmrc.mtdtransactionrisking.v1.controllers.GenerateFeedbackController
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.InsightsResponse
@@ -41,10 +41,10 @@ class GenerateFeedbackControllerISpec extends IntegrationBaseSpec:
         "a valid VRN is provided, validation passes and insights-proxy responds successfully" in new Test:
           override def setupStubs(): StubMapping = {
             AuthStub.successfulAuthWith(vrn)
-            VatApiStub.validationPasses()
-            ObligationsStub.successResponse(vrn, periodKey, fromDate, toDate)
+            VatApiStub.validationPasses(periodKey, fromDate, toDate)
+            VatApiStub.obligationsSuccessResponse(vrn, periodKey, fromDate, toDate)
             InsightsRiskStub.successResponse(vrn)
-          }
+          } 
 
           val response: Future[Result] = request(vrn)
           status(response) shouldBe OK
@@ -116,8 +116,8 @@ class GenerateFeedbackControllerISpec extends IntegrationBaseSpec:
         "validation passes but insights-proxy returns 500" in new Test:
           override def setupStubs(): StubMapping = {
             AuthStub.successfulAuthWith(vrn)
-            VatApiStub.validationPasses()
-            ObligationsStub.successResponse(vrn, periodKey, fromDate, toDate)
+            VatApiStub.validationPasses(periodKey, fromDate, toDate)
+            VatApiStub.obligationsSuccessResponse(vrn, periodKey, fromDate, toDate)
             InsightsRiskStub.serverErrorResponse()
           }
 
@@ -127,46 +127,84 @@ class GenerateFeedbackControllerISpec extends IntegrationBaseSpec:
         "validation passes but insights-proxy returns 503" in new Test:
           override def setupStubs(): StubMapping = {
             AuthStub.successfulAuthWith(vrn)
-            VatApiStub.validationPasses()
-            ObligationsStub.successResponse(vrn, periodKey, fromDate, toDate)
+            VatApiStub.validationPasses(periodKey, fromDate, toDate)
+            VatApiStub.obligationsSuccessResponse(vrn, periodKey, fromDate, toDate)
             InsightsRiskStub.serviceUnavailableResponse()
           }
 
           val response: Future[Result] = request(vrn)
           status(response) shouldBe INTERNAL_SERVER_ERROR
 
-
         "obligations returns TaxPeriodNotEndedError" in new Test:
           override def setupStubs(): StubMapping = {
             AuthStub.successfulAuthWith(vrn)
-            VatApiStub.validationPasses()
-            ObligationsStub.successResponse(vrn, periodKey, fromDate, toDate.replace("2020", "2030")) // toDate in future
+            VatApiStub.validationPasses(periodKey, fromDate, toDate)
             InsightsRiskStub.successResponse(vrn)
+            VatApiStub.obligationsSuccessResponse(vrn, periodKey, fromDate, toDate.replace("2020", "2030"))
           }
 
           val response: Future[Result] = request(vrn)
-          status(response) shouldBe FORBIDDEN
+          status(response) shouldBe BAD_REQUEST
+
           (contentAsJson(response) \ "code").as[String] shouldBe "TAX_PERIOD_NOT_ENDED"
+
+        "obligations call failure maps to 503" in new Test:
+          override def setupStubs(): StubMapping = {
+            AuthStub.successfulAuthWith(vrn)
+            VatApiStub.validationPasses(periodKey, fromDate, toDate)
+            InsightsRiskStub.successResponse(vrn)
+            VatApiStub.obligationsServiceUnavailable(vrn)
+          }
+
+          val response: Future[Result] = request(vrn)
+          status(response) shouldBe SERVICE_UNAVAILABLE
+          (contentAsJson(response) \ "code").as[String] shouldBe "SERVICE_UNAVAILABLE"
+
+        "obligations returns malformed 200 body and maps to 503" in new Test:
+          override def setupStubs(): StubMapping = {
+            AuthStub.successfulAuthWith(vrn)
+            VatApiStub.validationPasses(periodKey, fromDate, toDate)
+            InsightsRiskStub.successResponse(vrn)
+            VatApiStub.obligationsMalformedSuccessResponse(vrn)
+          }
+
+          val response: Future[Result] = request(vrn)
+          status(response) shouldBe SERVICE_UNAVAILABLE
+          contentAsJson(response) shouldBe Json.obj(
+            "code" -> "SERVICE_UNAVAILABLE",
+            "message" -> "Internal server error"
+          )
+
+        "obligations returns 200 but no matching periodKey and maps to 500" in new Test:
+          override def setupStubs(): StubMapping = {
+            AuthStub.successfulAuthWith(vrn)
+            VatApiStub.validationPasses(periodKey, fromDate, toDate)
+            InsightsRiskStub.successResponse(vrn)
+            VatApiStub.obligationsSuccessResponse(vrn, periodKey = "ZZ99", fromDate, toDate)
+          }
+
+          val response: Future[Result] = request(vrn)
+          status(response) shouldBe INTERNAL_SERVER_ERROR
+          (contentAsJson(response) \ "code").as[String] shouldBe "INTERNAL_SERVER_ERROR"
 
         "validation passes but insights-proxy returns malformed JSON" in new Test:
           override def setupStubs(): StubMapping = {
             AuthStub.successfulAuthWith(vrn)
-            VatApiStub.validationPasses()
-            ObligationsStub.successResponse(vrn, periodKey, fromDate, toDate)
+            VatApiStub.validationPasses(periodKey, fromDate, toDate)
             InsightsRiskStub.malformedJsonResponse()
           }
 
           val response: Future[Result] = request(vrn)
           status(response) shouldBe INTERNAL_SERVER_ERROR
 
-        "vat-api validation returns an unexpected 500" in new Test:
+        "vat-api validation returns 503" in new Test:
           override def setupStubs(): StubMapping = {
             AuthStub.successfulAuthWith(vrn)
-            VatApiStub.validationServerError()
+            VatApiStub.validationServiceUnavailable()
           }
 
           val response: Future[Result] = request(vrn)
-          status(response) shouldBe INTERNAL_SERVER_ERROR
+          status(response) shouldBe SERVICE_UNAVAILABLE
 
   private trait Test:
 
