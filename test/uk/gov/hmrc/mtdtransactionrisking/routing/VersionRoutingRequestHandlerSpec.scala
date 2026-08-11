@@ -18,10 +18,8 @@ package uk.gov.hmrc.mtdtransactionrisking.routing
 
 import com.typesafe.config.ConfigFactory
 import org.apache.pekko.actor.ActorSystem
-import org.mockito.Mockito.when
 import org.scalatest.Inside
 import org.scalatestplus.play.guice.GuiceOneAppPerSuite
-import play.api.{Application, Configuration}
 import play.api.http.{HttpConfiguration, HttpErrorHandler, HttpFilters}
 import play.api.inject.guice.GuiceApplicationBuilder
 import play.api.libs.json.Json
@@ -29,11 +27,12 @@ import play.api.mvc.*
 import play.api.routing.Router
 import play.api.test.FakeRequest
 import play.api.test.Helpers.*
-import uk.gov.hmrc.mtdtransactionrisking.support.{MockAppConfig, UnitSpec}
+import play.api.{Application, Configuration}
 import uk.gov.hmrc.mongo.play.PlayMongoModule
+import uk.gov.hmrc.mtdtransactionrisking.support.{MockAppConfig, UnitSpec}
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.errors.{InvalidAcceptHeaderError, UnsupportedVersionError}
 
-class VersionRoutingRequestHandlerSpec extends UnitSpec with Inside with MockAppConfig with GuiceOneAppPerSuite:
+class VersionRoutingRequestHandlerSpec extends UnitSpec, Inside, MockAppConfig, GuiceOneAppPerSuite:
   test =>
 
   override def fakeApplication(): Application =
@@ -48,7 +47,7 @@ class VersionRoutingRequestHandlerSpec extends UnitSpec with Inside with MockApp
   import play.api.routing.sird.*
 
   object DefaultHandler extends Handler
-  object V1Handler extends Handler
+  object V1Handler      extends Handler
 
   private val defaultRouter = Router.from { case POST(p"") =>
     DefaultHandler
@@ -59,101 +58,94 @@ class VersionRoutingRequestHandlerSpec extends UnitSpec with Inside with MockApp
   }
 
   private val routingMap = new VersionRoutingMap:
-    override val defaultRouter: Router = test.defaultRouter
+    override val defaultRouter: Router    = test.defaultRouter
     override val map: Map[String, Router] = Map("1.0" -> v1Router)
 
-  private def enabledConfig: Option[Configuration] = Some(
-    Configuration(
-      ConfigFactory.parseString(
-        "version-1.enabled = true"
-      )))
+  private def enabledConfig: Option[Configuration] =
+    Some(Configuration(ConfigFactory.parseString("version-1.enabled = true")))
 
-  private def disabledConfig: Option[Configuration] = Some(
-    Configuration(
-      ConfigFactory.parseString(
-        "version-1.enabled = false"
-      )))
+  private def disabledConfig: Option[Configuration] =
+    Some(Configuration(ConfigFactory.parseString("version-1.enabled = false")))
 
   class Test(featureSwitchConfig: Option[Configuration] = enabledConfig)(implicit acceptHeader: Option[String]):
-    val httpConfiguration: HttpConfiguration = HttpConfiguration("context")
-    private val errorHandler = mock[HttpErrorHandler]
-    private val filters = mock[HttpFilters]
-    when(filters.filters).thenReturn(Nil)
 
-    MockedAppConfig.featureSwitch(featureSwitchConfig)
+    val httpConfiguration: HttpConfiguration = HttpConfiguration("context")
+
+    private val errorHandler = mock[HttpErrorHandler]
+    private val filters      = mock[HttpFilters]
+
+    (() => filters.filters).expects().returns(Nil).anyNumberOfTimes()
+
+    MockedAppConfig.featureSwitch.returns(featureSwitchConfig).anyNumberOfTimes()
 
     val requestHandler: VersionRoutingRequestHandler =
       new VersionRoutingRequestHandler(routingMap, errorHandler, httpConfiguration, mockAppConfig, filters, action)
 
     def buildRequest(path: String): RequestHeader =
-      acceptHeader
-        .foldLeft(FakeRequest("POST", path)) { (req, accept) =>
-          req.withHeaders((ACCEPT, accept))
-        }
+      acceptHeader.foldLeft(FakeRequest("POST", path)) { (req, accept) =>
+        req.withHeaders((ACCEPT, accept))
+      }
 
-  "Routing requests with no Accept header" should {
+  "Routing requests with no Accept header" should:
     implicit val acceptHeader: None.type = None
 
     handleWithDefaultRoutes()
 
     "return 406 for an API path" in new Test:
       val request: RequestHeader = buildRequest("/assist/123456789")
+
       inside(requestHandler.routeRequest(request)) { case Some(b: EssentialAction) =>
         val result = b.apply(request)
         status(result) shouldBe NOT_ACCEPTABLE
         contentAsJson(result) shouldBe Json.toJson(InvalidAcceptHeaderError)
       }
-  }
 
-  "Routing requests with a valid v1 Accept header" should {
+  "Routing requests with a valid v1 Accept header" should:
     implicit val acceptHeader: Some[String] = Some("application/vnd.hmrc.1.0+json")
 
     handleWithDefaultRoutes()
     handleWithVersionRoutes("/assist/123456789", V1Handler)
-  }
 
-  "Routing requests with an unsupported version in the Accept header" should {
+  "Routing requests with an unsupported version in the Accept header" should:
     implicit val acceptHeader: Some[String] = Some("application/vnd.hmrc.9.0+json")
 
     "return 406" in new Test:
       val request: RequestHeader = buildRequest("/assist/123456789")
+
       inside(requestHandler.routeRequest(request)) { case Some(b: EssentialAction) =>
         val result = b.apply(request)
         status(result) shouldBe NOT_ACCEPTABLE
         contentAsJson(result) shouldBe Json.toJson(InvalidAcceptHeaderError)
       }
-  }
 
-  "Routing requests for a known version that is disabled" should {
+  "Routing requests for a known version that is disabled" should:
     implicit val acceptHeader: Some[String] = Some("application/vnd.hmrc.1.0+json")
 
     "return 404 with UnsupportedVersionError" in new Test(disabledConfig):
       val request: RequestHeader = buildRequest("/assist/123456789")
+
       inside(requestHandler.routeRequest(request)) { case Some(b: EssentialAction) =>
         val result = b.apply(request)
         status(result) shouldBe NOT_FOUND
         contentAsJson(result) shouldBe Json.toJson(UnsupportedVersionError)
       }
-  }
 
   private def handleWithDefaultRoutes()(implicit acceptHeader: Option[String]): Unit =
-    "when the path matches the default router" should {
+
+    "when the path matches the default router" should:
       "route to the default handler" in new Test:
         requestHandler.routeRequest(buildRequest("")) shouldBe Some(DefaultHandler)
-    }
 
-    "when the path ends with a trailing slash and matches after stripping it" should {
+    "when the path ends with a trailing slash and matches after stripping it" should:
       "route to the default handler" in new Test:
         requestHandler.routeRequest(buildRequest("/")) shouldBe Some(DefaultHandler)
-    }
 
   private def handleWithVersionRoutes(path: String, handler: Handler)(implicit acceptHeader: Option[String]): Unit =
-    "when the path matches the version router" should {
+
+    "when the path matches the version router" should:
       "route to the correct version handler" in new Test:
         requestHandler.routeRequest(buildRequest(path)) shouldBe Some(handler)
-    }
 
-    "when the path ends with a trailing slash" should {
+    "when the path ends with a trailing slash" should:
       "strip the slash and route to the correct version handler" in new Test:
         requestHandler.routeRequest(buildRequest(s"$path/")) shouldBe Some(handler)
-    }

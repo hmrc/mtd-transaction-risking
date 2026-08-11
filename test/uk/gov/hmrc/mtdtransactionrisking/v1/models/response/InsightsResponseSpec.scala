@@ -19,10 +19,14 @@ package uk.gov.hmrc.mtdtransactionrisking.v1.models.response
 import play.api.libs.json.Json
 import uk.gov.hmrc.mtdtransactionrisking.support.UnitSpec
 import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
-
 class InsightsResponseSpec extends UnitSpec:
 
-  private val strategicRisk = StrategicRisk(riskCorrelationId = CorrelationId("abc-123"), riskScore = 0.75)
+  private val strategicRisk = StrategicRisk(
+    riskCorrelationId = CorrelationId("abc-123"),
+    riskScore = 0.75,
+    reasons = Seq("VRN 'GB123456789' is 1 hops from something risky. The average VRN is 2.51 hops from something risky.")
+  )
+
   private val insights = Insights(strategicRisk = strategicRisk)
   private val fullModel = InsightsResponse(insights = insights)
 
@@ -30,9 +34,12 @@ class InsightsResponseSpec extends UnitSpec:
     """
       |{
       |  "riskCorrelationId": "abc-123",
-      |  "riskScore": 0.75
+      |  "riskScore": 0.75,
+      |  "reasons": [
+      |    "VRN 'GB123456789' is 1 hops from something risky. The average VRN is 2.51 hops from something risky."
+      |  ]
       |}
-    """.stripMargin
+      """.stripMargin
   )
 
   private val insightsJson = Json.parse(
@@ -40,10 +47,13 @@ class InsightsResponseSpec extends UnitSpec:
       |{
       |  "strategicRisk": {
       |    "riskCorrelationId": "abc-123",
-      |    "riskScore": 0.75
+      |    "riskScore": 0.75,
+      |    "reasons": [
+      |      "VRN 'GB123456789' is 1 hops from something risky. The average VRN is 2.51 hops from something risky."
+      |    ]
       |  }
       |}
-    """.stripMargin
+      """.stripMargin
   )
 
   private val fullJson = Json.parse(
@@ -52,51 +62,59 @@ class InsightsResponseSpec extends UnitSpec:
       |  "insights": {
       |    "strategicRisk": {
       |      "riskCorrelationId": "abc-123",
-      |      "riskScore": 0.75
+      |      "riskScore": 0.75,
+      |      "reasons": [
+      |        "VRN 'GB123456789' is 1 hops from something risky. The average VRN is 2.51 hops from something risky."
+      |      ]
       |    }
       |  }
       |}
-    """.stripMargin
+      """.stripMargin
   )
 
-  "StrategicRisk" when {
-    "written to JSON" should {
-      "generate the correct JSON" in {
+  "StrategicRisk" when:
+
+    "written to JSON" should:
+      "generate the correct JSON" in:
         Json.toJson(strategicRisk) shouldBe strategicRiskJson
-      }
-    }
 
-    "read from JSON" should {
-      "deserialise correctly" in {
+    "read from JSON" should:
+      "deserialise correctly" in:
         strategicRiskJson.as[StrategicRisk] shouldBe strategicRisk
-      }
-    }
-  }
 
-  "Insights" when {
-    "written to JSON" should {
-      "generate the correct JSON" in {
+    "read from JSON containing unmapped downstream fields" should:
+      "ignore them" in:
+        val withRiskData = Json.parse(
+          """
+            |{
+            |  "riskCorrelationId": "abc-123",
+            |  "riskScore": 0.75,
+            |  "reasons": [
+            |    "VRN 'GB123456789' is 1 hops from something risky. The average VRN is 2.51 hops from something risky."
+            |  ],
+            |  "riskData": [ { "hops": 1, "avgHops": 2.51 } ]
+            |}
+             """.stripMargin
+        )
+
+        withRiskData.as[StrategicRisk] shouldBe strategicRisk
+
+  "Insights" when:
+
+    "written to JSON" should:
+      "generate the correct JSON" in:
         Json.toJson(insights) shouldBe insightsJson
-      }
-    }
 
-    "read from JSON" should {
-      "deserialise correctly" in {
+    "read from JSON" should:
+      "deserialise correctly" in:
         insightsJson.as[Insights] shouldBe insights
-      }
-    }
-  }
 
-  "InsightsResponse" when {
-    "written to JSON" should {
-      "generate the correct JSON" in {
+  "InsightsResponse" when:
+
+    "written to JSON" should:
+      "generate the correct JSON" in:
         Json.toJson(fullModel) shouldBe fullJson
-      }
-    }
 
-    "read from JSON" should {
-      "deserialise correctly" in {
+    "read from JSON" should:
+      "deserialise correctly" in:
         fullJson.as[InsightsResponse] shouldBe fullModel
-      }
-    }
-  }

@@ -27,6 +27,6 @@ case class Insights(strategicRisk: StrategicRisk)
 object Insights:
   given format: OFormat[Insights] = Json.format[Insights]
 
-case class StrategicRisk(riskCorrelationId: CorrelationId, riskScore: Double)
+case class StrategicRisk(riskCorrelationId: CorrelationId, riskScore: Double, reasons: Seq[String])
 object StrategicRisk:
   given format: OFormat[StrategicRisk] = Json.format[StrategicRisk]

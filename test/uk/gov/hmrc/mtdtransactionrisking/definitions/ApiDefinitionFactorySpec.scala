@@ -20,40 +20,36 @@ import uk.gov.hmrc.mtdtransactionrisking.definitions.APIStatus.{ALPHA, BETA}
 import uk.gov.hmrc.mtdtransactionrisking.definitions.Versions.VERSION_1
 import uk.gov.hmrc.mtdtransactionrisking.support.{MockAppConfig, UnitSpec}
 
-class ApiDefinitionFactorySpec extends UnitSpec with MockAppConfig:
+class ApiDefinitionFactorySpec extends UnitSpec, MockAppConfig:
 
-  "buildAPIStatus" when {
-    "the configured status is valid" should {
-      "return the matching APIStatus" in {
-        MockedAppConfig.apiGatewayContext("misc/transaction-risking")
-        MockedAppConfig.apiStatus(VERSION_1)("BETA")
-        MockedAppConfig.endpointsEnabled("1")(true)
+  "buildAPIStatus" when:
+
+    "the configured status is valid" should:
+      "return the matching APIStatus" in:
+        MockedAppConfig.apiGatewayContext.returns("misc/transaction-risking").anyNumberOfTimes()
+        MockedAppConfig.apiStatus(VERSION_1).returns("BETA").anyNumberOfTimes()
+        MockedAppConfig.endpointsEnabled("1").returns(true).anyNumberOfTimes()
 
         val factory = new ApiDefinitionFactory(mockAppConfig)
         factory.buildAPIStatus(VERSION_1) shouldBe BETA
-      }
-    }
 
-    "the configured status is invalid" should {
-      "default to ALPHA" in {
-        MockedAppConfig.apiGatewayContext("misc/transaction-risking")
-        MockedAppConfig.apiStatus(VERSION_1)("INVALID")
-        MockedAppConfig.endpointsEnabled("1")(true)
+    "the configured status is invalid" should:
+      "default to ALPHA" in:
+        MockedAppConfig.apiGatewayContext.returns("misc/transaction-risking").anyNumberOfTimes()
+        MockedAppConfig.apiStatus(VERSION_1).returns("INVALID").anyNumberOfTimes()
+        MockedAppConfig.endpointsEnabled("1").returns(true).anyNumberOfTimes()
 
         val factory = new ApiDefinitionFactory(mockAppConfig)
         factory.buildAPIStatus(VERSION_1) shouldBe ALPHA
-      }
-    }
-  }
 
-  "definition" should {
-    "return a Definition with the correct API metadata" in {
-      MockedAppConfig.apiGatewayContext("misc/transaction-risking")
-      MockedAppConfig.apiStatus(VERSION_1)("BETA")
-      MockedAppConfig.endpointsEnabled("1")(true)
+  "definition" should:
+    "return a Definition with the correct API metadata" in:
+      MockedAppConfig.apiGatewayContext.returns("misc/transaction-risking").anyNumberOfTimes()
+      MockedAppConfig.apiStatus(VERSION_1).returns("BETA").anyNumberOfTimes()
+      MockedAppConfig.endpointsEnabled("1").returns(true).anyNumberOfTimes()
 
       val factory = new ApiDefinitionFactory(mockAppConfig)
-      val result = factory.definition
+      val result  = factory.definition
 
       result.api.name shouldBe "VAT Assist (MTD)"
       result.api.context shouldBe "misc/transaction-risking"
@@ -61,5 +57,3 @@ class ApiDefinitionFactorySpec extends UnitSpec with MockAppConfig:
       result.api.versions should have size 1
       result.api.versions.head.version shouldBe VERSION_1
       result.api.versions.head.endpointsEnabled shouldBe true
-    }
-  }
