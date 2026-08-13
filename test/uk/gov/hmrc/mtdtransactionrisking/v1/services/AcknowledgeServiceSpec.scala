@@ -36,10 +36,10 @@ class AcknowledgeServiceSpec extends UnitSpec, MockitoSugar:
   implicit private val correlationId: CorrelationId = CorrelationId("test-correlation-id")
 
   private val request = AcknowledgeRequest(
-    "123456789",
-    "f2fb30e5-4ab6-4a29-b3c1-c00000000001",
-    "9EEB55EF4FA9A24954BC982DF1D59B3D02BC097F6B1377B8B335C7583D92B959",
-    "2026-06-09T10:30:00Z")
+    vrn = "123456789",
+    reportId = "f2fb30e5-4ab6-4a29-b3c1-c00000000001",
+    correlationId = "9EEB55EF4FA9A24954BC982DF1D59B3D02BC097F6B1377B8B335C7583D92B959",
+    presentedDateTime = "2026-06-09T10:30:00Z")
 
   private trait Test:
     val connector: AcknowledgeConnector = mock[AcknowledgeConnector]

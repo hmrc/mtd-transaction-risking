@@ -14,21 +14,28 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.mtdtransactionrisking.v1.services
+package uk.gov.hmrc.mtdtransactionrisking.v1.mocks.connectors
 
+import org.scalamock.handlers.CallHandler
+import org.scalamock.scalatest.MockFactory
+import org.scalatest.TestSuite
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
-import uk.gov.hmrc.mtdtransactionrisking.v1.connectors.InsightsConnector
+import uk.gov.hmrc.mtdtransactionrisking.v1.connectors.FeedbackConnector
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.InsightsRequest
-import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.InsightsResponse
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.FeedbackResponse
+import uk.gov.hmrc.mtdtransactionrisking.v1.services.ServiceOutcome
 
-import javax.inject.{Inject, Singleton}
 import scala.concurrent.Future
 
-@Singleton
-class InsightsService @Inject() (connector: InsightsConnector):
+trait MockFeedbackConnector extends MockFactory:
+  this: TestSuite =>
 
-  def assess(
-      request: InsightsRequest
-  )(implicit hc: HeaderCarrier, correlationId: CorrelationId): Future[ServiceOutcome[InsightsResponse]] =
-    connector.getRiskInsights(request)
+  val mockFeedbackConnector: FeedbackConnector = mock[FeedbackConnector]
+
+  object MockFeedbackConnector:
+
+    def requestFeedback(request: InsightsRequest): CallHandler[Future[ServiceOutcome[FeedbackResponse]]] =
+      (mockFeedbackConnector
+        .requestFeedback(_: InsightsRequest)(_: HeaderCarrier, _: CorrelationId))
+        .expects(request, *, *)
