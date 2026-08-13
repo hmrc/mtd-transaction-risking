@@ -26,6 +26,8 @@ paths:
 
         The response will contain feedback messages in English and Welsh, highlighting potential mistakes or discrepancies in the VAT return data.
 
+        **Note:** Before using this endpoint, you must first call the obligations endpoint on the VAT (MTD) API to get the period key.
+        
         ### Test data
         <p>Scenario simulations using Gov-Test-Scenario headers are only available in the sandbox environment.</p>
         <table>
