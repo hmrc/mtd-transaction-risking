@@ -27,7 +27,7 @@ object VatApiStub:
 
   private val validateUrl = urlPathMatching("/internal/validate/.*")
 
-  /** Validation passed and an obligation was matched — 200 with the obligation. */
+  // Validation passed and an obligation was matched — 200 with the obligation.
   def validationPasses(periodKey: String = "AB12", fromDate: String = "2020-01-01", toDate: String = "2020-03-31"): StubMapping =
     stubFor(
       post(validateUrl).willReturn(
@@ -48,7 +48,7 @@ object VatApiStub:
       )
     )
 
-  /** A 200 whose body doesn't parse as an obligation. */
+  // A 200 whose body doesn't parse as an obligation.
   def malformedObligation(): StubMapping =
     stubFor(
       post(validateUrl).willReturn(
@@ -59,7 +59,7 @@ object VatApiStub:
       )
     )
 
-  /** The VAT return failed validation — 400 with the field errors. */
+  // The VAT return failed validation — 400 with the field errors.
   def validationFails(): StubMapping =
     stubFor(
       post(validateUrl).willReturn(
@@ -84,7 +84,7 @@ object VatApiStub:
       )
     )
 
-  /** The period key matched an obligation, but that period has not yet ended — 400. */
+  // The period key matched an obligation, but that period has not yet ended — 400.
   def taxPeriodNotEnded(): StubMapping =
     stubFor(
       post(validateUrl).willReturn(
@@ -102,7 +102,7 @@ object VatApiStub:
       )
     )
 
-  /** vat-api's obligations lookup failed — 503. */
+  // vat-api's obligations lookup failed — 503.
   def serviceUnavailable(): StubMapping =
     stubFor(
       post(validateUrl).willReturn(
