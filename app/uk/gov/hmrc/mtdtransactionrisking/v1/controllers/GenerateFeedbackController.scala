@@ -22,7 +22,7 @@ import uk.gov.hmrc.mtdtransactionrisking.config.AppConfig
 import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
 import uk.gov.hmrc.mtdtransactionrisking.utils.{IdGenerator, Logging}
 import uk.gov.hmrc.mtdtransactionrisking.v1.controllers.auth.VATAuthAction
-import uk.gov.hmrc.mtdtransactionrisking.v1.models.errors.{DownstreamError, ErrorWrapper}
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.errors.ErrorWrapper
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.outcomes.ResponseWrapper
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.InsightsRequest
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.{FeedbackResponse, InsightsResponse, ResponseHandler}
@@ -47,7 +47,7 @@ class GenerateFeedbackController @Inject() (cc: ControllerComponents,
     authAction
       .authorisedFor(vrn)
       .async(parse.json): request =>
-
+        
         given Request[JsValue] = request
         given correlationId: CorrelationId = IdGenerator.generateId()
 

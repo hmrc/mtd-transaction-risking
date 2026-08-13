@@ -16,34 +16,48 @@
 
 package uk.gov.hmrc.mtdtransactionrisking.support
 
-import org.mockito.Mockito.when
-import org.scalatestplus.mockito.MockitoSugar
+import org.scalamock.handlers.CallHandler
+import org.scalamock.scalatest.MockFactory
+import org.scalatest.TestSuite
 import play.api.Configuration
 import uk.gov.hmrc.mtdtransactionrisking.config.AppConfig
 
-trait MockAppConfig extends MockitoSugar:
+trait MockAppConfig extends MockFactory:
+  this: TestSuite =>
 
   val mockAppConfig: AppConfig = mock[AppConfig]
 
   object MockedAppConfig:
 
-    def featureSwitch(returns: Option[Configuration]): Unit =
-      when(mockAppConfig.featureSwitch).thenReturn(returns)
+    def appName: CallHandler[String] =
+      (() => mockAppConfig.appName).expects()
 
-    def apiGatewayContext(returns: String): Unit =
-      when(mockAppConfig.apiGatewayContext).thenReturn(returns)
+    def featureSwitch: CallHandler[Option[Configuration]] =
+      (() => mockAppConfig.featureSwitch).expects()
 
-    def apiStatus(version: String)(returns: String): Unit =
-      when(mockAppConfig.apiStatus(version)).thenReturn(returns)
+    def apiGatewayContext: CallHandler[String] =
+      (() => mockAppConfig.apiGatewayContext).expects()
 
-    def endpointsEnabled(version: String)(returns: Boolean): Unit =
-      when(mockAppConfig.endpointsEnabled(version)).thenReturn(returns)
+    def apiStatus(version: String): CallHandler[String] =
+      (mockAppConfig.apiStatus(_: String)).expects(version)
 
-    def insightsProxyServiceBaseUrl(returns: String): Unit =
-      when(mockAppConfig.insightsProxyServiceBaseUrl).thenReturn(returns)
+    def endpointsEnabled(version: String): CallHandler[Boolean] =
+      (mockAppConfig.endpointsEnabled(_: String)).expects(version)
 
-    def appName(returns: String): Unit =
-      when(mockAppConfig.appName).thenReturn(returns)
+    def feedbackStubBaseUrl: CallHandler[Option[String]] =
+      (() => mockAppConfig.feedbackStubBaseUrl).expects()
 
-    def vatApiBaseUrl(returns: String): Unit =
-      when(mockAppConfig.vatApiBaseUrl).thenReturn(returns)
+    def feedbackEnvironmentHeaders: CallHandler[Option[Seq[String]]] =
+      (() => mockAppConfig.feedbackEnvironmentHeaders).expects()
+
+    def vatApiBaseUrl: CallHandler[String] =
+      (() => mockAppConfig.vatApiBaseUrl).expects()
+
+    def insightsProxyServiceBaseUrl: CallHandler[String] =
+      (() => mockAppConfig.insightsProxyServiceBaseUrl).expects()
+
+    def acknowledgeStubBaseUrl: CallHandler[String] =
+      (() => mockAppConfig.acknowledgeStubBaseUrl).expects()
+
+    def acknowledgeEnvironmentHeaders: CallHandler[Option[Seq[String]]] =
+      (() => mockAppConfig.acknowledgeEnvironmentHeaders).expects()

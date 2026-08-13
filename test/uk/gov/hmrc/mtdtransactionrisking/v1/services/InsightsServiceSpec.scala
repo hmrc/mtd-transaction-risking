@@ -16,61 +16,52 @@
 
 package uk.gov.hmrc.mtdtransactionrisking.v1.services
 
-import org.mockito.ArgumentMatchers.{any, eq as eqTo}
-import org.mockito.Mockito.when
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.wordspec.AnyWordSpec
-import org.scalatestplus.mockito.MockitoSugar
 import uk.gov.hmrc.http.HeaderCarrier
+import uk.gov.hmrc.mtdtransactionrisking.support.UnitSpec
 import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
-import uk.gov.hmrc.mtdtransactionrisking.v1.connectors.InsightsConnector
+import uk.gov.hmrc.mtdtransactionrisking.v1.mocks.connectors.MockInsightsConnector
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.errors.{DownstreamError, ErrorWrapper}
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.outcomes.ResponseWrapper
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.InsightsRequest
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.{Insights, InsightsResponse, StrategicRisk}
 
-import scala.concurrent.duration.*
-import scala.concurrent.{Await, Future}
+import scala.concurrent.Future
 
-class InsightsServiceSpec extends AnyWordSpec with Matchers with MockitoSugar:
+class InsightsServiceSpec extends UnitSpec, MockInsightsConnector:
 
   implicit val hc: HeaderCarrier = HeaderCarrier()
   implicit val correlationId: CorrelationId = CorrelationId("test-correlation-id")
 
-  private val validVatNumber = "GB123456789"
-
-  private val insightsRequest = InsightsRequest(vatRegistrationNumber = validVatNumber)
+  private val insightsRequest = InsightsRequest(vatRegistrationNumber = "123456789")
 
   private val insightsResponse: InsightsResponse =
     InsightsResponse(
       Insights(
         StrategicRisk(
+          riskCorrelationId = CorrelationId("123e4567-e89b-12d3-a456-426614174000"),
           riskScore = 12.46,
-          riskCorrelationId = CorrelationId("123e4567-e89b-12d3-a456-426614174000")
+          reasons = Seq("VRN 'GB123456789' is 1 hops from something risky. The average VRN is 2.51 hops from something risky.")
         )
       )
     )
 
-  private def await[T](f: Future[T]): T = Await.result(f, 5.seconds)
+  trait Test:
+    val service = new InsightsService(mockInsightsConnector)
 
-  class Test:
-    val mockConnector: InsightsConnector = mock[InsightsConnector]
-    val service = new InsightsService(mockConnector)
+  "InsightsService.assess" when:
 
-  "InsightsService" when:
-
-    "assess is called with a valid VAT number" must:
+    "the connector returns a successful response" should:
       "return the risk response" in new Test:
-        when(mockConnector.getRiskInsights(eqTo(insightsRequest))(any(), any()))
-          .thenReturn(Future.successful(Right(ResponseWrapper(correlationId, insightsResponse))))
+        MockInsightsConnector
+          .getRiskInsights(insightsRequest)
+          .returns(Future.successful(Right(ResponseWrapper(correlationId, insightsResponse))))
 
-        val result: ServiceOutcome[InsightsResponse] = await(service.assess(insightsRequest))
-        result shouldBe Right(ResponseWrapper(correlationId, insightsResponse))
+        await(service.assess(insightsRequest)) shouldBe Right(ResponseWrapper(correlationId, insightsResponse))
 
-    "assess is called and the connector returns a JSON validation error" must:
-      "return a Left with the ErrorWrapper" in new Test:
-        when(mockConnector.getRiskInsights(eqTo(insightsRequest))(any(), any()))
-          .thenReturn(Future.successful(Left(ErrorWrapper(correlationId, DownstreamError))))
+    "the connector returns an error" should:
+      "pass the ErrorWrapper through unchanged" in new Test:
+        MockInsightsConnector
+          .getRiskInsights(insightsRequest)
+          .returns(Future.successful(Left(ErrorWrapper(correlationId, DownstreamError))))
 
-        val result: ServiceOutcome[InsightsResponse] = await(service.assess(insightsRequest))
-        result shouldBe Left(ErrorWrapper(correlationId, DownstreamError))
+        await(service.assess(insightsRequest)) shouldBe Left(ErrorWrapper(correlationId, DownstreamError))

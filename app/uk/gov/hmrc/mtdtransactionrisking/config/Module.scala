@@ -27,7 +27,6 @@ class Module extends AppModule:
       environment: Environment,
       configuration: Configuration
   ): Seq[Binding[_]] =
-    bind[Clock].toInstance(
-      Clock.systemDefaultZone
-    ) ::
+    bind[Clock].toInstance(Clock.systemDefaultZone) ::
+      bind[AppConfig].to[AppConfigImpl].eagerly() ::
       Nil
