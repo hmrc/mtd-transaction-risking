@@ -16,31 +16,24 @@
 
 package uk.gov.hmrc.mtdtransactionrisking.v1.services
 
-import controllers.Execution.trampoline
-import org.mockito.ArgumentMatchers.{any, eq as eqTo}
-import org.mockito.Mockito.when
-import org.scalatest.EitherValues.convertLeftProjectionToValuable
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.wordspec.AnyWordSpec
-import org.scalatestplus.mockito.MockitoSugar
-import play.api.libs.json.{JsObject, JsValue, Json}
+import play.api.http.Status.BAD_REQUEST
+import play.api.libs.json.{JsValue, Json}
 import uk.gov.hmrc.http.HeaderCarrier
+import uk.gov.hmrc.mtdtransactionrisking.support.UnitSpec
 import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
-import uk.gov.hmrc.mtdtransactionrisking.v1.connectors.VatApiConnector
-import uk.gov.hmrc.mtdtransactionrisking.v1.models.errors.{BadRequestError, DownstreamError, ErrorWrapper, ServiceUnavailableError, TaxPeriodNotEndedError}
+import uk.gov.hmrc.mtdtransactionrisking.v1.mocks.connectors.MockVatApiConnector
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.errors.{BadRequestError, ErrorWrapper}
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.outcomes.ResponseWrapper
-import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.{Obligation, ObligationPeriod, ObligationsResponse}
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.Obligation
 
-import scala.concurrent.duration.*
-import scala.concurrent.{Await, Future}
-import java.time.LocalDate
-class VatApiServiceSpec extends AnyWordSpec, Matchers, MockitoSugar:
+import scala.concurrent.Future
 
-  implicit val hc: HeaderCarrier = HeaderCarrier()
+class VatApiServiceSpec extends UnitSpec, MockVatApiConnector:
+
+  implicit val hc: HeaderCarrier            = HeaderCarrier()
   implicit val correlationId: CorrelationId = CorrelationId("test-correlation-id")
 
   private val vrn: String = "123456789"
-  private val periodKey: String = "AB12"
 
   private val validReturnBody: JsValue = Json.parse(
     """
@@ -65,77 +58,42 @@ class VatApiServiceSpec extends AnyWordSpec, Matchers, MockitoSugar:
       |  "code": "INVALID_REQUEST",
       |  "message": "Invalid request",
       |  "errors": [
-      |    { "code": "VAT_TOTAL_VALUE", "message": "...", "path": "/totalVatDue" }
+      |    { "code": "VAT_TOTAL_VALUE", "message": "totalVatDue should be equal to vatDueSales + vatDueAcquisitions", "path": "/totalVatDue" }
       |  ]
       |}
       |""".stripMargin
   )
 
-  private val matchedObligation: Obligation =
+  private val obligation: Obligation =
     Obligation(
-      status = "O",
-      start = "2026-01-01",
-      end = "2026-03-31",
-      due = "2026-05-07",
-      periodKey = "AB12"
+      periodKey = "AB12",
+      start     = "2026-01-01",
+      end       = "2026-03-31",
+      due       = "2026-05-07",
+      status    = "O",
+      received  = None
     )
-  private def await[T](f: Future[T]): T = Await.result(f, 5.seconds)
 
-  class Test:
-    val mockConnector: VatApiConnector = mock[VatApiConnector]
-    val service = new VatApiService(mockConnector)
+  trait Test:
+    val service = new VatApiService(mockVatApiConnector)
 
-  "VatApiService" when:
-    "validate is called and the return is valid" must:
-      "relay the connector response" in new Test:
-        when(mockConnector.validate(eqTo(vrn), eqTo(validReturnBody))(any(), any()))
-          .thenReturn(Future.successful(Right(ResponseWrapper(correlationId, matchedObligation))))
+  "VatApiService.validate" when:
 
-        val result: ServiceOutcome[Obligation] = await(service.validate(vrn, validReturnBody))
-        result shouldBe Right(ResponseWrapper(correlationId, matchedObligation))
+    "the connector returns a matched obligation" should:
+      "pass the response through unchanged" in new Test:
+        MockVatApiConnector
+          .validate(vrn, validReturnBody)
+          .returns(Future.successful(Right(ResponseWrapper(correlationId, obligation))))
 
-    "getObligationPeriod is called with matching period key and past end date" must:
-      "return Right(ObligationPeriod)" in new Test:
-        val obligations = ObligationsResponse(Seq(matchedObligation.copy(end = "2020-03-31")))
-        when(mockConnector.getObligations(eqTo(vrn))(any(), any()))
-          .thenReturn(Future.successful(Right(ResponseWrapper(correlationId, obligations))))
+        await(service.validate(vrn, validReturnBody)) shouldBe Right(ResponseWrapper(correlationId, obligation))
 
-        val result: ServiceOutcome[ObligationPeriod] = await(service.getObligationPeriod(periodKey, vrn, today = LocalDate.parse("2020-04-01")))
-        result shouldBe Right(ResponseWrapper(correlationId, ObligationPeriod("2026-01-01", "2020-03-31")))
+    "the connector returns a relayed validation error" should:
+      "pass the ErrorWrapper through unchanged" in new Test:
+        private val errorWrapper =
+          ErrorWrapper(correlationId, BadRequestError, rawBody = Some(validationErrorBody), rawStatus = Some(BAD_REQUEST))
 
-    "getObligationPeriod is called with matching period key and end date today/future" must:
-      "return TAX_PERIOD_NOT_ENDED" in new Test:
-        val obligations = ObligationsResponse(Seq(matchedObligation.copy(end = "2030-03-31")))
-        when(mockConnector.getObligations(eqTo(vrn))(any(), any()))
-          .thenReturn(Future.successful(Right(ResponseWrapper(correlationId, obligations))))
+        MockVatApiConnector
+          .validate(vrn, validReturnBody)
+          .returns(Future.successful(Left(errorWrapper)))
 
-        val result: ServiceOutcome[ObligationPeriod] = await(service.getObligationPeriod(periodKey, vrn, today = LocalDate.parse("2030-03-31")))
-        result shouldBe Left(ErrorWrapper(correlationId, TaxPeriodNotEndedError))
-
-    "getObligationPeriod is called with no matching period key" must:
-      "return DownstreamError" in new Test:
-        val obligations = ObligationsResponse(Seq(matchedObligation.copy(periodKey = "ZZ99")))
-        when(mockConnector.getObligations(eqTo(vrn))(any(), any()))
-          .thenReturn(Future.successful(Right(ResponseWrapper(correlationId, obligations))))
-
-        val result: ServiceOutcome[ObligationPeriod] = await(service.getObligationPeriod(periodKey, vrn, today = LocalDate.parse("2020-04-01")))
-        result shouldBe Left(ErrorWrapper(correlationId, DownstreamError))
-
-    "getObligationPeriod connector error" must:
-      "map to ServiceUnavailableError and preserve raw body" in new Test:
-        val rawBody: JsObject = Json.obj("code" -> "ANY_DOWNSTREAM_ERROR")
-        when(mockConnector.getObligations(eqTo(vrn))(any(), any()))
-          .thenReturn(Future.successful(Left(ErrorWrapper(correlationId, DownstreamError, rawBody = Some(rawBody), rawStatus = Some(400)))))
-
-        val result: ServiceOutcome[ObligationPeriod] = await(service.getObligationPeriod(periodKey, vrn))
-        result shouldBe Left(ErrorWrapper(correlationId, ServiceUnavailableError))
-
-    "validate is called and the return fails validation" must:
-      "return Left with the relayed error wrapper" in new Test:
-        val errorWrapper = ErrorWrapper(correlationId, BadRequestError, rawBody = Some(validationErrorBody), rawStatus = Some(400))
-
-        when(mockConnector.validate(eqTo(vrn), eqTo(validReturnBody))(any(), any()))
-          .thenReturn(Future.successful(Left(errorWrapper)))
-
-        val result: ServiceOutcome[Obligation] = await(service.validate(vrn, validReturnBody))
-        result shouldBe Left(errorWrapper)
+        await(service.validate(vrn, validReturnBody)) shouldBe Left(errorWrapper)

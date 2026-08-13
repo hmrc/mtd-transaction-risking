@@ -27,95 +27,51 @@ import uk.gov.hmrc.mtdtransactionrisking.config.AppConfig
 import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.errors.{DownstreamError, ErrorWrapper}
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.outcomes.ResponseWrapper
-import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.{Obligation, ObligationsResponse}
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.Obligation
 import uk.gov.hmrc.mtdtransactionrisking.v1.services.ServiceOutcome
 
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Try
-import scala.util.control.NonFatal
 
 @Singleton
 class VatApiConnector @Inject() (httpClient: HttpClientV2, appConfig: AppConfig)(implicit ec: ExecutionContext) extends Logging:
 
   def validate(vrn: String, body: JsValue)(implicit hc: HeaderCarrier, correlationId: CorrelationId): Future[ServiceOutcome[Obligation]] =
 
-    logger.info(s"${correlationId.value}::[VatApiConnector:validate] calling vat-api validate for vrn=$vrn")
+    logger.info(s"${correlationId.value}::[VatApiConnector][validate] validating VAT return for VRN $vrn")
 
     val url = s"${appConfig.vatApiBaseUrl}/validate/$vrn"
 
     httpClient
       .post(url"$url")
       .withBody(body)
-      .setHeader(buildHeaders(correlationId, appConfig.appName)*)
+      .setHeader(buildHeaders(correlationId, appConfig.appName) *)
       .execute[HttpResponse]
       .map { response =>
         response.status match
           case OK =>
             response.json.asOpt[Obligation] match
               case Some(obligation) =>
-                logger.info(s"${correlationId.value}::[VatApiConnector:validate] success status=200 periodKey=${obligation.periodKey}")
+                logger.info(
+                  s"${correlationId.value}::[VatApiConnector][validate] validation passed, " +
+                    s"matched obligation for periodKey ${obligation.periodKey}")
                 Right(ResponseWrapper(correlationId, obligation))
 
               case None =>
-                val relayBody = Try(response.json).getOrElse(DownstreamError.asJson)
-                logger.error(
-                  s"${correlationId.value}::[VatApiConnector:validate] malformed success body status=200 body=${response.body}"
-                )
-                Left(ErrorWrapper(correlationId, DownstreamError, rawBody = Some(relayBody), rawStatus = Some(response.status)))
+                logger.error(s"${correlationId.value}::[VatApiConnector][validate] malformed obligation response")
+                Left(ErrorWrapper(correlationId, DownstreamError))
 
           case status =>
+            logger.warn(s"${correlationId.value}::[VatApiConnector][validate] validation failed $status: ${response.body}")
             val relayBody = Try(response.json).getOrElse(DownstreamError.asJson)
-            logger.warn(
-              s"${correlationId.value}::[VatApiConnector:validate] downstream error status=$status body=${response.body}"
-            )
             Left(ErrorWrapper(correlationId, DownstreamError, rawBody = Some(relayBody), rawStatus = Some(status)))
       }
-      .recover { case NonFatal(ex) =>
-        logger.error(
-          s"${correlationId.value}::[VatApiConnector:validate] exception calling vat-api validate for vrn=$vrn",
-          ex
-        )
-        Left(ErrorWrapper(correlationId, DownstreamError))
-      }
-
-  def getObligations(vrn: String)(implicit hc: HeaderCarrier, correlationId: CorrelationId): Future[ServiceOutcome[ObligationsResponse]] =
-    httpClient
-      .get(url"${appConfig.vatApiBaseUrl}/organisations/vat/$vrn/obligations?status=O")
-      .setHeader(buildHeaders(correlationId, appConfig.appName)*)
-      .execute[HttpResponse]
-      .map { response =>
-        logger.debug(s"${correlationId.value}::[VatApiConnector:getObligations] response status=${response.status} for vrn=$vrn")
-        response.status match
-          case OK =>
-            response.json.asOpt[ObligationsResponse] match
-              case Some(obligations) =>
-                logger.info(
-                  s"${correlationId.value}::[VatApiConnector:getObligations] success status=200 obligationCount=${obligations.obligations.size}"
-                )
-                Right(ResponseWrapper(correlationId, obligations))
-              case None =>
-                val relayBody = Try(response.json).getOrElse(DownstreamError.asJson)
-                logger.error(
-                  s"${correlationId.value}::[VatApiConnector:getObligations] malformed success body status=200 body=${response.body}"
-                )
-                Left(ErrorWrapper(correlationId, DownstreamError, rawBody = Some(relayBody), rawStatus = Some(OK)))
-
-          case status =>
-            val relayBody = Try(response.json).getOrElse(DownstreamError.asJson)
-            logger.warn(
-              s"${correlationId.value}::[VatApiConnector:getObligations] downstream error status=$status body=${response.body}"
-            )
-            Left(ErrorWrapper(correlationId, DownstreamError, rawBody = Some(relayBody), rawStatus = Some(status)))
-      }
-      .recover { case NonFatal(ex) =>
-        logger.error(
-          s"${correlationId.value}::[VatApiConnector:getObligations] exception calling vat-api obligations for vrn=$vrn",
-          ex
-        )
-        Left(ErrorWrapper(correlationId, DownstreamError))
-      }
-
+      .recover:
+        case e =>
+          logger.error(s"${correlationId.value}::[VatApiConnector][validate] unexpected exception", e)
+          Left(ErrorWrapper(correlationId, DownstreamError))
+          
   private def buildHeaders(correlationId: CorrelationId, appName: String)(implicit hc: HeaderCarrier): Seq[(String, String)] =
     Seq(
       "User-Agent" -> appName,

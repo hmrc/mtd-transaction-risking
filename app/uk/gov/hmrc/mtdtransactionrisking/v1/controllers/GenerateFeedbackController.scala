@@ -18,14 +18,15 @@ package uk.gov.hmrc.mtdtransactionrisking.v1.controllers
 
 import play.api.libs.json.JsValue
 import play.api.mvc.*
-
 import uk.gov.hmrc.mtdtransactionrisking.config.AppConfig
-import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator
 import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
+import uk.gov.hmrc.mtdtransactionrisking.utils.{IdGenerator, Logging}
 import uk.gov.hmrc.mtdtransactionrisking.v1.controllers.auth.VATAuthAction
-import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.InsightsRequest
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.errors.{DownstreamError, ErrorWrapper}
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.outcomes.ResponseWrapper
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.{InsightsRequest, ReportGenerationRequest}
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.{FeedbackResponse, InsightsResponse, ResponseHandler}
-import uk.gov.hmrc.mtdtransactionrisking.v1.services.{FeedbackStubService, InsightsService, VatApiService}
+import uk.gov.hmrc.mtdtransactionrisking.v1.services.{FeedbackStubService, InsightsService, ReportGenerationService, VatApiService}
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
 
 import javax.inject.{Inject, Singleton}
@@ -39,6 +40,7 @@ class GenerateFeedbackController @Inject() (cc: ControllerComponents,
                                             authAction: VATAuthAction,
                                             appConfig: AppConfig)(implicit ec: ExecutionContext)
     extends BackendController(cc),
+      Logging,
       ResponseHandler:
 
   def generateFeedback(vrn: String): Action[JsValue] =
@@ -59,16 +61,8 @@ class GenerateFeedbackController @Inject() (cc: ControllerComponents,
           case None =>
             vatApiService.validate(vrn, body).flatMap {
               case Left(errorWrapper) =>
-                Future.successful(handleOutcomeUnit(Left(errorWrapper)))
-              case Right(_) =>
-                val periodKey = (body \ "periodKey").as[String]
-                insightsService.assess(InsightsRequest(vrn)).flatMap {
-                  case Left(errorWrapper) =>
-                    Future.successful(handleOutcomeUnit(Left(errorWrapper)))
-                  case Right(insightsWrapper) =>
-                    vatApiService.getObligationPeriod(periodKey, vrn).map {
-                      case Left(errorWrapper) => handleOutcomeUnit(Left(errorWrapper))
-                      case Right(_)           => handleOutcome(Right(insightsWrapper))
-                    }
-                }
+                Future.successful(handleOutcome[FeedbackResponse](Left(errorWrapper)))
+
+              case Right(ResponseWrapper(_, obligation)) =>
+                insightsService.assess(InsightsRequest(vrn)).map(handleOutcome)
             }
