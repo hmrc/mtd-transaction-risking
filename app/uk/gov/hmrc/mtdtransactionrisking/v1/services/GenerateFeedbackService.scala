@@ -30,20 +30,20 @@ import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.{FeedbackResponse, I
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 
-/** Orchestrates feedback generation: validates the VAT return with vat-api, which also returns the
- * open obligation for the period, then asks insights-proxy to assess the risk.
- */
+/** Orchestrates feedback generation: validates the VAT return with vat-api, which also returns the open obligation for the period, then asks
+  * insights-proxy to assess the risk.
+  */
 @Singleton
 class GenerateFeedbackService @Inject() (
-                                          vatApiConnector: VatApiConnector,
-                                          insightsConnector: InsightsConnector,
-                                          feedbackStubConnector: FeedbackConnector
-                                        )(implicit ec: ExecutionContext)
-  extends Logging:
+    vatApiConnector: VatApiConnector,
+    insightsConnector: InsightsConnector,
+    feedbackStubConnector: FeedbackConnector
+)(implicit ec: ExecutionContext)
+    extends Logging:
 
   def generateFeedback(vrn: String, body: JsValue)(implicit
-                                                   hc: HeaderCarrier,
-                                                   correlationId: CorrelationId): Future[ServiceOutcome[InsightsResponse]] =
+      hc: HeaderCarrier,
+      correlationId: CorrelationId): Future[ServiceOutcome[InsightsResponse]] =
 
     val result = for
       obligation <- EitherT(vatApiConnector.validate(vrn, body))
@@ -56,7 +56,5 @@ class GenerateFeedbackService @Inject() (
 
     result.value
 
-  def requestStubFeedback(vrn: String)(implicit
-                                       hc: HeaderCarrier,
-                                       correlationId: CorrelationId): Future[ServiceOutcome[FeedbackResponse]] =
+  def requestStubFeedback(vrn: String)(implicit hc: HeaderCarrier, correlationId: CorrelationId): Future[ServiceOutcome[FeedbackResponse]] =
     feedbackStubConnector.requestFeedback(InsightsRequest(vrn))
