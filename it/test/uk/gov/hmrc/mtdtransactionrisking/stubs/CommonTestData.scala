@@ -26,6 +26,9 @@ object CommonTestData:
   val simpleVrn: String           = "123456789"
   val invalidVrn: String          = "INVALID"
   val setRiskScore: Double        = 12.33
+  val setRiskReasons: Seq[String] = Seq(
+    "VRN 123456789 is 1 hops from something risky. The average VRN is 2.51 hops from something risky."
+  )
 
   val simpleCorrelationId: CorrelationId    = CorrelationId("test-correlation-id")
   val simpleStrRiskRequest: InsightsRequest = InsightsRequest(simpleVrn)
@@ -33,8 +36,9 @@ object CommonTestData:
   val simpleInsightsRiskResponse: InsightsResponse = InsightsResponse(
     Insights(
       StrategicRisk(
-        riskScore         = setRiskScore,
+        riskScore = setRiskScore,
         riskCorrelationId = simpleCorrelationId,
+        reasons = setRiskReasons
       )
     )
   )

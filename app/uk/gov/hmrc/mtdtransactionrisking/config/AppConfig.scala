@@ -36,8 +36,6 @@ trait AppConfig:
 
   def insightsProxyServiceBaseUrl: String
 
-  def reportGenerationBaseUrl: String
-
   def acknowledgeStubBaseUrl: String
   def acknowledgeEnvironmentHeaders: Option[Seq[String]]
 
@@ -68,10 +66,6 @@ class AppConfigImpl @Inject() (config: ServicesConfig, configuration: Configurat
   // insights-proxy
   private val insightsProxyConfig         = configuration.get[Configuration]("microservice.services.insights-proxy")
   val insightsProxyServiceBaseUrl: String = config.baseUrl("insights-proxy") + insightsProxyConfig.get[String]("submit-url")
-
-  // report generation
-  private val reportGenerationConfig  = configuration.get[Configuration]("microservice.services.report-generation")
-  val reportGenerationBaseUrl: String = config.baseUrl("report-generation") + reportGenerationConfig.get[String]("submit-url")
 
   // acknowledge stub endpoint for external test
   private val acknowledgeStubConfig  = configuration.get[Configuration]("microservice.services.acknowledge-stub")

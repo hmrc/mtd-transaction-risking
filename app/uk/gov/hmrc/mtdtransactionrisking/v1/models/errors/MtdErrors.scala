@@ -47,7 +47,7 @@ object TaxPeriodNotEndedError
     extends MtdError(
       "TAX_PERIOD_NOT_ENDED",
       "The remote endpoint has indicated that the submission is for a tax period that has not ended",
-      FORBIDDEN)
+      BAD_REQUEST)
 
 object RuleInsolventTraderError extends MtdError("RULE_INSOLVENT_TRADER", "The remote endpoint has indicated that the Trader is insolvent", FORBIDDEN)
 

@@ -17,7 +17,7 @@
 package uk.gov.hmrc.mtdtransactionrisking.controllers
 
 import com.github.tomakehurst.wiremock.stubbing.StubMapping
-import play.api.http.Status.{BAD_REQUEST, FORBIDDEN, INTERNAL_SERVER_ERROR, OK, UNAUTHORIZED}
+import play.api.http.Status.{BAD_REQUEST, FORBIDDEN, INTERNAL_SERVER_ERROR, OK, SERVICE_UNAVAILABLE, UNAUTHORIZED}
 import play.api.libs.json.{JsValue, Json}
 import play.api.mvc.Result
 import play.api.test.FakeRequest
@@ -30,29 +30,29 @@ import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.InsightsResponse
 
 import scala.concurrent.Future
 
-
 class GenerateFeedbackControllerISpec extends IntegrationBaseSpec:
-  
+
   "GenerateFeedbackController" when :
 
     "POST /assist/:vrn" should :
 
-      "return 200 with risk response and correlation ID header" when :
-        "a valid VRN is provided, validation passes and insights-proxy responds successfully" in new Test:
-          override def setupStubs(): StubMapping = {
+      "return 200" when :
+
+        "vat-api returns an obligation and insights-proxy responds successfully" in new Test:
+          override def setupStubs(): StubMapping =
             AuthStub.successfulAuthWith(vrn)
-            VatApiStub.validationPasses()
+            VatApiStub.validationPasses(periodKey, fromDate, toDate)
             InsightsRiskStub.successResponse(vrn)
-          }
 
           val response: Future[Result] = request(vrn)
+
           status(response) shouldBe OK
           headers(response).get("X-CorrelationId") shouldBe defined
           contentAsJson(response).as[InsightsResponse].insights.strategicRisk.riskScore shouldBe CommonTestData.setRiskScore
 
       "return 400" when :
 
-        "user has an invalid VRN in their request" in new Test:
+        "the VRN in the request is invalid" in new Test:
           override def setupStubs(): StubMapping = InsightsRiskStub.successResponse(vrn)
 
           val response: Future[Result] = request("Bad-vrn-1234")
@@ -61,19 +61,29 @@ class GenerateFeedbackControllerISpec extends IntegrationBaseSpec:
           contentAsString(response) should include("VRN_INVALID")
           contentAsString(response) should include("The provided VRN is invalid")
 
-        "the VAT return fails vat-api validation" in new Test:
-          override def setupStubs(): StubMapping = {
+        "vat-api fails with validation errors the VAT return" in new Test:
+          override def setupStubs(): StubMapping =
             AuthStub.successfulAuthWith(vrn)
             VatApiStub.validationFails()
-          }
 
           val response: Future[Result] = request(vrn)
+
           status(response) shouldBe BAD_REQUEST
           (contentAsJson(response) \ "code").as[String] shouldBe "INVALID_REQUEST"
 
+        "vat-api reports that the tax period has not ended" in new Test:
+          override def setupStubs(): StubMapping =
+            AuthStub.successfulAuthWith(vrn)
+            VatApiStub.taxPeriodNotEnded()
+
+          val response: Future[Result] = request(vrn)
+
+          status(response) shouldBe BAD_REQUEST
+          (contentAsJson(response) \ "code").as[String] shouldBe "TAX_PERIOD_NOT_ENDED"
+
       "return 401" when :
 
-        "user has no authorisation in their request" in new Test:
+        "the request carries no authorisation" in new Test:
           override def setupStubs(): StubMapping = InsightsRiskStub.successResponse(vrn)
 
           val response: Future[Result] = requestWithoutAuth(vrn)
@@ -82,7 +92,7 @@ class GenerateFeedbackControllerISpec extends IntegrationBaseSpec:
           contentAsString(response) should include("Failed to authorise request")
           contentAsString(response) should include("MissingBearerToken")
 
-        "auth response does not contain required information" in new Test:
+        "the auth response is missing required values" in new Test:
           override def setupStubs(): StubMapping = AuthStub.successfulAuthWithNoUserId()
 
           val response: Future[Result] = request(vrn)
@@ -92,7 +102,7 @@ class GenerateFeedbackControllerISpec extends IntegrationBaseSpec:
 
       "return 403" when :
 
-        "user has no VRN" in new Test:
+        "the user has no MTD VAT enrolment" in new Test:
           override def setupStubs(): StubMapping = AuthStub.successfulAuthWithNoEnrolments()
 
           val response: Future[Result] = request(vrn)
@@ -100,7 +110,7 @@ class GenerateFeedbackControllerISpec extends IntegrationBaseSpec:
           status(response) shouldBe FORBIDDEN
           contentAsString(response) shouldBe "User has no MTD VAT enrolment"
 
-        "user's VRN doesn't match request" in new Test:
+        "the user's VRN does not match the one requested" in new Test:
           override def setupStubs(): StubMapping = AuthStub.successfulAuthWith("not-the-vrn")
 
           val response: Future[Result] = request(vrn)
@@ -109,50 +119,65 @@ class GenerateFeedbackControllerISpec extends IntegrationBaseSpec:
           contentAsString(response) shouldBe "User VRN does not match requested VRN"
 
       "return 500" when :
-        "validation passes but insights-proxy returns 500" in new Test:
-          override def setupStubs(): StubMapping = {
+
+        "vat-api returns 200 with a body that is not an obligation" in new Test:
+          override def setupStubs(): StubMapping =
             AuthStub.successfulAuthWith(vrn)
-            VatApiStub.validationPasses()
+            VatApiStub.malformedObligation()
+
+          val response: Future[Result] = request(vrn)
+
+          status(response) shouldBe INTERNAL_SERVER_ERROR
+
+        "insights-proxy returns 500" in new Test:
+          override def setupStubs(): StubMapping =
+            AuthStub.successfulAuthWith(vrn)
+            VatApiStub.validationPasses(periodKey, fromDate, toDate)
             InsightsRiskStub.serverErrorResponse()
-          }
 
           val response: Future[Result] = request(vrn)
+
           status(response) shouldBe INTERNAL_SERVER_ERROR
 
-        "validation passes but insights-proxy returns 503" in new Test:
-          override def setupStubs(): StubMapping = {
+        "insights-proxy returns 503" in new Test:
+          override def setupStubs(): StubMapping =
             AuthStub.successfulAuthWith(vrn)
-            VatApiStub.validationPasses()
+            VatApiStub.validationPasses(periodKey, fromDate, toDate)
             InsightsRiskStub.serviceUnavailableResponse()
-          }
 
           val response: Future[Result] = request(vrn)
+
           status(response) shouldBe INTERNAL_SERVER_ERROR
 
-        "validation passes but insights-proxy returns malformed JSON" in new Test:
-          override def setupStubs(): StubMapping = {
+        "insights-proxy returns malformed JSON" in new Test:
+          override def setupStubs(): StubMapping =
             AuthStub.successfulAuthWith(vrn)
-            VatApiStub.validationPasses()
+            VatApiStub.validationPasses(periodKey, fromDate, toDate)
             InsightsRiskStub.malformedJsonResponse()
-          }
 
           val response: Future[Result] = request(vrn)
+
           status(response) shouldBe INTERNAL_SERVER_ERROR
 
-        "vat-api validation returns an unexpected 500" in new Test:
-          override def setupStubs(): StubMapping = {
+      "return 503" when :
+
+        "vat-api's obligations lookup is unavailable" in new Test:
+          override def setupStubs(): StubMapping =
             AuthStub.successfulAuthWith(vrn)
-            VatApiStub.validationServerError()
-          }
+            VatApiStub.serviceUnavailable()
 
           val response: Future[Result] = request(vrn)
-          status(response) shouldBe INTERNAL_SERVER_ERROR
+
+          status(response) shouldBe SERVICE_UNAVAILABLE
 
   private trait Test:
 
-    def vrn: String = CommonTestData.simpleVrn
+    def vrn: String       = CommonTestData.simpleVrn
+    val periodKey: String = "AB12"
+    val fromDate: String  = "2020-01-01"
+    val toDate: String    = "2020-03-31"
 
-    val validVatReturnBody: JsValue = Json.parse(
+    private val validVatReturnBody: JsValue = Json.parse(
       """
         |{
         |  "periodKey": "AB12",
@@ -173,24 +198,28 @@ class GenerateFeedbackControllerISpec extends IntegrationBaseSpec:
 
     def request(vrn: String): Future[Result] =
       setupStubs()
-      app.injector.instanceOf[GenerateFeedbackController].generateFeedback(vrn)(
-        FakeRequest("POST", s"/assist/$vrn")
-          .withSession(authToken -> vrn)
-          .withHeaders(
-            "Authorization" -> "Bearer abc123",
-            "Accept" -> "application/vnd.hmrc.1.0+json",
-            "Content-Type" -> "application/json"
-          )
-          .withBody(validVatReturnBody)
-      )
+      app.injector
+        .instanceOf[GenerateFeedbackController]
+        .generateFeedback(vrn)(
+          FakeRequest("POST", s"/assist/$vrn")
+            .withSession(authToken -> vrn)
+            .withHeaders(
+              "Authorization" -> "Bearer abc123",
+              "Accept"        -> "application/vnd.hmrc.1.0+json",
+              "Content-Type"  -> "application/json"
+            )
+            .withBody(validVatReturnBody)
+        )
 
     def requestWithoutAuth(vrn: String): Future[Result] =
       setupStubs()
-      app.injector.instanceOf[GenerateFeedbackController].generateFeedback(vrn)(
-        FakeRequest("POST", s"/assist/$vrn")
-          .withHeaders(
-            "Accept" -> "application/vnd.hmrc.1.0+json",
-            "Content-Type" -> "application/json"
-          )
-          .withBody(validVatReturnBody)
-      )
+      app.injector
+        .instanceOf[GenerateFeedbackController]
+        .generateFeedback(vrn)(
+          FakeRequest("POST", s"/assist/$vrn")
+            .withHeaders(
+              "Accept"       -> "application/vnd.hmrc.1.0+json",
+              "Content-Type" -> "application/json"
+            )
+            .withBody(validVatReturnBody)
+        )

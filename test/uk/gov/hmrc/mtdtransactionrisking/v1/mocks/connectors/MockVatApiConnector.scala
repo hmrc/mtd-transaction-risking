@@ -14,18 +14,28 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.mtdtransactionrisking.v1.services
+package uk.gov.hmrc.mtdtransactionrisking.v1.mocks.connectors
 
+import org.scalamock.handlers.CallHandler
+import org.scalamock.scalatest.MockFactory
+import org.scalatest.TestSuite
 import play.api.libs.json.JsValue
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
 import uk.gov.hmrc.mtdtransactionrisking.v1.connectors.VatApiConnector
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.Obligation
+import uk.gov.hmrc.mtdtransactionrisking.v1.services.ServiceOutcome
 
-import javax.inject.{Inject, Singleton}
 import scala.concurrent.Future
 
-@Singleton
-class VatApiService @Inject() (connector: VatApiConnector):
+trait MockVatApiConnector extends MockFactory:
+  this: TestSuite =>
 
-  def validate(vrn: String, body: JsValue)(implicit hc: HeaderCarrier, correlationId: CorrelationId): Future[ServiceOutcome[Unit]] =
-    connector.validate(vrn, body)
+  val mockVatApiConnector: VatApiConnector = mock[VatApiConnector]
+
+  object MockVatApiConnector:
+
+    def validate(vrn: String, body: JsValue): CallHandler[Future[ServiceOutcome[Obligation]]] =
+      (mockVatApiConnector
+        .validate(_: String, _: JsValue)(_: HeaderCarrier, _: CorrelationId))
+        .expects(vrn, body, *, *)
