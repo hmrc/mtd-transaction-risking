@@ -62,7 +62,7 @@ class ErrorWrapperSpec extends UnitSpec:
   "statusCode" should:
 
     "return the error's httpStatus when no rawStatus is set" in:
-      ErrorWrapper(correlationId, TaxPeriodNotEndedError).statusCode shouldBe FORBIDDEN
+      ErrorWrapper(correlationId, TaxPeriodNotEndedError).statusCode shouldBe BAD_REQUEST
 
     "return rawStatus when present, overriding the error's httpStatus" in:
       val wrapper = ErrorWrapper(correlationId, DownstreamError, rawStatus = Some(BAD_REQUEST))

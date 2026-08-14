@@ -17,16 +17,15 @@
 package uk.gov.hmrc.mtdtransactionrisking.v1.models.response
 
 import play.api.libs.json.{Json, OFormat}
-import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.*
 
-case class InsightsResponse(insights: Insights)
-object InsightsResponse:
-  given format: OFormat[InsightsResponse] = Json.format[InsightsResponse]
+case class Obligation(
+                             periodKey: String,
+                             start:     String,
+                             end:       String,
+                             due:       String,
+                             status:    String,
+                             received:  Option[String]
+                           )
 
-case class Insights(strategicRisk: StrategicRisk)
-object Insights:
-  given format: OFormat[Insights] = Json.format[Insights]
-
-case class StrategicRisk(riskCorrelationId: CorrelationId, riskScore: Double, reasons: Seq[String])
-object StrategicRisk:
-  given format: OFormat[StrategicRisk] = Json.format[StrategicRisk]
+object Obligation:
+  given format: OFormat[Obligation] = Json.format[Obligation]

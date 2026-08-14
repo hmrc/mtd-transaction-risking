@@ -40,8 +40,7 @@ object Enums:
   def readsRestricted[E: Reads: ClassTag](es: E*): Reads[E] =
     summon[Reads[E]].filter(readsError)(es.contains)
 
-  def writes[E](using ev: Show[E] = Shows.toStringShow[E]): Writes[E] = e =>
-    Json.toJson(ev.show(e))
+  def writes[E](using ev: Show[E] = Shows.toStringShow[E]): Writes[E] = e => Json.toJson(ev.show(e))
 
   def format[E: ClassTag](values: Array[E])(using ev: Show[E] = Shows.toStringShow[E]): Format[E] = Format(reads(values), writes)
 

@@ -65,7 +65,7 @@ class MtdErrorsSpec extends UnitSpec:
       Json.toJson(TaxPeriodNotEndedError) shouldBe Json.parse(
         """{"code": "TAX_PERIOD_NOT_ENDED", "message": "The remote endpoint has indicated that the submission is for a tax period that has not ended"}"""
       )
-      TaxPeriodNotEndedError.httpStatus shouldBe FORBIDDEN
+      TaxPeriodNotEndedError.httpStatus shouldBe BAD_REQUEST
 
     "generate the correct JSON and status for RuleInsolventTraderError" in:
       Json.toJson(RuleInsolventTraderError) shouldBe Json.parse(

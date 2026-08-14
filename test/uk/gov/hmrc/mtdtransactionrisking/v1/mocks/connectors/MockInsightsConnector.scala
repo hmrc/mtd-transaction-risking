@@ -14,21 +14,28 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.mtdtransactionrisking.v1.services
+package uk.gov.hmrc.mtdtransactionrisking.v1.mocks.connectors
 
+import org.scalamock.handlers.CallHandler
+import org.scalamock.scalatest.MockFactory
+import org.scalatest.TestSuite
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
 import uk.gov.hmrc.mtdtransactionrisking.v1.connectors.InsightsConnector
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.InsightsRequest
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.InsightsResponse
+import uk.gov.hmrc.mtdtransactionrisking.v1.services.ServiceOutcome
 
-import javax.inject.{Inject, Singleton}
 import scala.concurrent.Future
 
-@Singleton
-class InsightsService @Inject() (connector: InsightsConnector):
+trait MockInsightsConnector extends MockFactory:
+  this: TestSuite =>
 
-  def assess(
-      request: InsightsRequest
-  )(implicit hc: HeaderCarrier, correlationId: CorrelationId): Future[ServiceOutcome[InsightsResponse]] =
-    connector.getRiskInsights(request)
+  val mockInsightsConnector: InsightsConnector = mock[InsightsConnector]
+
+  object MockInsightsConnector:
+
+    def getRiskInsights(request: InsightsRequest): CallHandler[Future[ServiceOutcome[InsightsResponse]]] =
+      (mockInsightsConnector
+        .getRiskInsights(_: InsightsRequest)(_: HeaderCarrier, _: CorrelationId))
+        .expects(request, *, *)
