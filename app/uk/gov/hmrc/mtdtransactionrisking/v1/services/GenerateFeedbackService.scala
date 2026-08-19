@@ -22,10 +22,12 @@ import play.api.libs.json.JsValue
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
 import uk.gov.hmrc.mtdtransactionrisking.utils.Logging
-import uk.gov.hmrc.mtdtransactionrisking.v1.connectors.{FeedbackConnector, InsightsConnector, VatApiConnector}
+import uk.gov.hmrc.mtdtransactionrisking.v1.connectors.{FeedbackConnector, InsightsConnector, RdsConnector, VatApiConnector}
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.errors.{DownstreamError, ErrorWrapper}
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.outcomes.ResponseWrapper
-import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.InsightsRequest
-import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.{FeedbackResponse, InsightsResponse}
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.{InsightsRequest, RdsRequest}
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.{FeedbackResponse, InsightsResponse, Obligation}
+import uk.gov.hmrc.mtdtransactionrisking.v1.services.auth.RdsAuthService
 
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
@@ -35,26 +37,62 @@ import scala.concurrent.{ExecutionContext, Future}
   */
 @Singleton
 class GenerateFeedbackService @Inject() (
+    rdsAuthService: RdsAuthService,
     vatApiConnector: VatApiConnector,
     insightsConnector: InsightsConnector,
-    feedbackStubConnector: FeedbackConnector
+    feedbackStubConnector: FeedbackConnector,
+    rdsConnector: RdsConnector
 )(implicit ec: ExecutionContext)
     extends Logging:
 
-  def generateFeedback(vrn: String, body: JsValue)(implicit
+  def requestStubFeedback(vrn: String)(implicit hc: HeaderCarrier, correlationId: CorrelationId): Future[ServiceOutcome[FeedbackResponse]] =
+    feedbackStubConnector.requestFeedback(InsightsRequest(vrn))
+
+  def generateFeedback(vrn: String, body: JsValue, agentReferenceNumber: Option[String], requestHeaders: Seq[(String, String)])(implicit
       hc: HeaderCarrier,
-      correlationId: CorrelationId): Future[ServiceOutcome[InsightsResponse]] =
+      correlationId: CorrelationId): Future[ServiceOutcome[FeedbackResponse]] =
 
     val result = for
       obligation <- EitherT(vatApiConnector.validate(vrn, body))
       _ = logger.info(
         s"${correlationId.value}::[GenerateFeedbackService][generateFeedback] VAT return validated, " +
-          s"matched obligation for periodKey ${obligation.responseData.periodKey}, " +
-          s"period ${obligation.responseData.start} to ${obligation.responseData.end}")
+          s"matched obligation for periodKey ${obligation.responseData.periodKey}")
+
       insights <- EitherT(insightsConnector.getRiskInsights(InsightsRequest(vrn)))
-    yield ResponseWrapper(correlationId, insights.responseData)
+
+      reportRequest <- EitherT.fromOption[Future](
+        buildReportRequest(obligation.responseData, insights.responseData, body, agentReferenceNumber, requestHeaders),
+        reportRequestFailure
+      )
+
+      credentials <- EitherT(rdsAuthService.bearerToken())
+
+      report <- EitherT(rdsConnector.generateReport(vrn, reportRequest, credentials.responseData))
+    yield ResponseWrapper(correlationId, report.responseData)
 
     result.value
 
-  def requestStubFeedback(vrn: String)(implicit hc: HeaderCarrier, correlationId: CorrelationId): Future[ServiceOutcome[FeedbackResponse]] =
-    feedbackStubConnector.requestFeedback(InsightsRequest(vrn))
+  private def buildReportRequest(obligation: Obligation,
+                                 insights: InsightsResponse,
+                                 vendorBody: JsValue,
+                                 agentReferenceNumber: Option[String],
+                                 requestHeaders: Seq[(String, String)])(implicit correlationId: CorrelationId): Option[RdsRequest] =
+
+    val strategicRisk = insights.insights.strategicRisk
+
+    RdsRequest.from(
+      correlationId = correlationId.value,
+      vendorBody = vendorBody,
+      agentReferenceNumber = agentReferenceNumber,
+      periodKey = obligation.periodKey,
+      startDate = obligation.start,
+      endDate = obligation.end,
+      fraudRiskReportScore = strategicRisk.riskScore,
+      fraudRiskReportReasons = strategicRisk.reasons,
+      requestHeaders = requestHeaders
+    )
+
+  private def reportRequestFailure(implicit correlationId: CorrelationId): ErrorWrapper =
+    logger.error(s"${correlationId.value}::[GenerateFeedbackService][generateFeedback] validated body missing mandatory VAT figures")
+    ErrorWrapper(correlationId, DownstreamError)
+

@@ -16,12 +16,14 @@
 
 package uk.gov.hmrc.mtdtransactionrisking.v1.services
 
-import play.api.libs.json.{JsValue, Json}
+import play.api.libs.json.{JsObject, JsValue, Json}
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.mtdtransactionrisking.support.UnitSpec
 import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
-import uk.gov.hmrc.mtdtransactionrisking.v1.mocks.connectors.{MockFeedbackConnector, MockInsightsConnector, MockVatApiConnector}
-import uk.gov.hmrc.mtdtransactionrisking.v1.models.errors.{DownstreamError, ErrorWrapper}
+import uk.gov.hmrc.mtdtransactionrisking.v1.mocks.connectors.{MockFeedbackConnector, MockInsightsConnector, MockRdsConnector, MockVatApiConnector}
+import uk.gov.hmrc.mtdtransactionrisking.v1.mocks.services.MockRdsAuthService
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.auth.RdsAuthCredentials
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.errors.{DownstreamError, ErrorWrapper, ServiceUnavailableError}
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.outcomes.ResponseWrapper
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.InsightsRequest
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.*
@@ -29,13 +31,25 @@ import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.*
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
-class GenerateFeedbackServiceSpec extends UnitSpec, MockVatApiConnector, MockInsightsConnector, MockFeedbackConnector:
-  
-  implicit val hc: HeaderCarrier            = HeaderCarrier()
+class GenerateFeedbackServiceSpec
+    extends UnitSpec,
+      MockVatApiConnector,
+      MockInsightsConnector,
+      MockFeedbackConnector,
+      MockRdsConnector,
+      MockRdsAuthService:
+
+  implicit val hc: HeaderCarrier = HeaderCarrier()
   implicit val correlationId: CorrelationId = CorrelationId("test-correlation-id")
 
-  private val vrn             = "123456789"
+  private val vrn = "123456789"
   private val insightsRequest = InsightsRequest(vrn)
+  private val agentReferenceNumber = Some("LARN0085901")
+
+  private val requestHeaders: Seq[(String, String)] = Seq(
+    "Gov-Client-Timezone" -> "UTC+00:00",
+    "Accept" -> "application/vnd.hmrc.1.0+json"
+  )
 
   private val validReturnBody: JsValue = Json.parse(
     """
@@ -57,11 +71,11 @@ class GenerateFeedbackServiceSpec extends UnitSpec, MockVatApiConnector, MockIns
   private val obligation: Obligation =
     Obligation(
       periodKey = "AB12",
-      start     = "2026-01-01",
-      end       = "2026-03-31",
-      due       = "2026-05-07",
-      status    = "O",
-      received  = None
+      start = "2026-01-01",
+      end = "2026-03-31",
+      due = "2026-05-07",
+      status = "O",
+      received = None
     )
 
   private val insightsResponse: InsightsResponse =
@@ -69,11 +83,13 @@ class GenerateFeedbackServiceSpec extends UnitSpec, MockVatApiConnector, MockIns
       Insights(
         StrategicRisk(
           riskCorrelationId = CorrelationId("123e4567-e89b-12d3-a456-426614174000"),
-          riskScore         = 12.46,
-          reasons           = Seq("VRN '123456789' is 1 hops from something risky. The average VRN is 2.51 hops from something risky.")
+          riskScore = 12.46,
+          reasons = Seq("VRN '123456789' is 1 hops from something risky.")
         )
       )
     )
+
+  private val credentials = RdsAuthCredentials("a-bearer-token", "bearer", 14399)
 
   private val feedbackResponse: FeedbackResponse =
     FeedbackResponse(
@@ -96,50 +112,95 @@ class GenerateFeedbackServiceSpec extends UnitSpec, MockVatApiConnector, MockIns
           links = Some(List(FeedbackLink(title = "TAW", url = "https://www.gov.uk/vat"))),
           path = "/guidance"
         )),
-      correlationId = "a1e8057e-fbbc-47a8-a8b4-78d9f015c253"
+      correlationId = "E9F65715BBC9222477B27074804BBDD5C73CDE62F84D8B00CFD05B883534AF3D"
     )
 
   trait Test:
     val service = new GenerateFeedbackService(
+      mockRdsAuthService,
       mockVatApiConnector,
       mockInsightsConnector,
-      mockFeedbackConnector
+      mockFeedbackConnector,
+      mockRdsConnector
     )
+
+    def vatApiReturnsObligation(): Unit =
+      MockVatApiConnector
+        .validate(vrn, validReturnBody)
+        .returns(Future.successful(Right(ResponseWrapper(correlationId, obligation))))
+
+    def insightsSucceed(): Unit =
+      MockInsightsConnector
+        .getRiskInsights(insightsRequest)
+        .returns(Future.successful(Right(ResponseWrapper(correlationId, insightsResponse))))
+
+    def authSucceeds(): Unit =
+      MockRdsAuthService.bearerToken
+        .returns(Future.successful(Right(ResponseWrapper(correlationId, Some(credentials)))))
+
+    def generate(body: JsValue = validReturnBody): Future[ServiceOutcome[FeedbackResponse]] =
+      service.generateFeedback(vrn, body, agentReferenceNumber, requestHeaders)
 
   "generateFeedback" when:
 
-    "vat-api returns an obligation and insights responds successfully" should:
-      "return the insights response" in new Test:
-        MockVatApiConnector
-          .validate(vrn, validReturnBody)
-          .returns(Future.successful(Right(ResponseWrapper(correlationId, obligation))))
+    "every downstream responds successfully" should:
+      "return the feedback report" in new Test:
+        vatApiReturnsObligation()
+        insightsSucceed()
+        authSucceeds()
 
-        MockInsightsConnector
-          .getRiskInsights(insightsRequest)
-          .returns(Future.successful(Right(ResponseWrapper(correlationId, insightsResponse))))
+        MockRdsConnector.generateReport(vrn).returns(Future.successful(Right(ResponseWrapper(correlationId, feedbackResponse))))
 
-        await(service.generateFeedback(vrn, validReturnBody)) shouldBe Right(ResponseWrapper(correlationId, insightsResponse))
+        await(generate()) shouldBe Right(ResponseWrapper(correlationId, feedbackResponse))
 
     "vat-api returns an error" should:
       "pass the ErrorWrapper through without calling insights" in new Test:
-        // No MockInsightsConnector expectation — insights must not be called
         MockVatApiConnector
           .validate(vrn, validReturnBody)
           .returns(Future.successful(Left(ErrorWrapper(correlationId, DownstreamError))))
 
-        await(service.generateFeedback(vrn, validReturnBody)) shouldBe Left(ErrorWrapper(correlationId, DownstreamError))
+        await(generate()) shouldBe Left(ErrorWrapper(correlationId, DownstreamError))
 
     "insights returns an error" should:
-      "pass the ErrorWrapper through" in new Test:
-        MockVatApiConnector
-          .validate(vrn, validReturnBody)
-          .returns(Future.successful(Right(ResponseWrapper(correlationId, obligation))))
+      "pass the ErrorWrapper through without calling RDS" in new Test:
+        vatApiReturnsObligation()
 
         MockInsightsConnector
           .getRiskInsights(insightsRequest)
           .returns(Future.successful(Left(ErrorWrapper(correlationId, DownstreamError))))
 
-        await(service.generateFeedback(vrn, validReturnBody)) shouldBe Left(ErrorWrapper(correlationId, DownstreamError))
+        await(generate()) shouldBe Left(ErrorWrapper(correlationId, DownstreamError))
+
+    "the validated body is missing a mandatory VAT figure" should:
+      "return DownstreamError without calling RDS" in new Test:
+        val incompleteBody: JsValue = validReturnBody.as[JsObject] - "vatDueSales"
+
+        MockVatApiConnector
+          .validate(vrn, incompleteBody)
+          .returns(Future.successful(Right(ResponseWrapper(correlationId, obligation))))
+
+        insightsSucceed()
+
+        await(generate(incompleteBody)) shouldBe Left(ErrorWrapper(correlationId, DownstreamError))
+
+    "the bearer token cannot be obtained" should:
+      "pass the ErrorWrapper through without calling RDS" in new Test:
+        vatApiReturnsObligation()
+        insightsSucceed()
+
+        MockRdsAuthService.bearerToken.returns(Future.successful(Left(ErrorWrapper(correlationId, DownstreamError))))
+
+        await(generate()) shouldBe Left(ErrorWrapper(correlationId, DownstreamError))
+
+    "RDS returns an error" should:
+      "pass the ErrorWrapper through" in new Test:
+        vatApiReturnsObligation()
+        insightsSucceed()
+        authSucceeds()
+
+        MockRdsConnector.generateReport(vrn).returns(Future.successful(Left(ErrorWrapper(correlationId, ServiceUnavailableError))))
+
+        await(generate()) shouldBe Left(ErrorWrapper(correlationId, ServiceUnavailableError))
 
   "requestStubFeedback" when:
 

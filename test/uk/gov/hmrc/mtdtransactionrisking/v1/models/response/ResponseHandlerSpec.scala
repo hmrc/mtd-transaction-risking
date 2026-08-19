@@ -18,56 +18,62 @@ package uk.gov.hmrc.mtdtransactionrisking.v1.models.response
 
 import org.apache.pekko.actor.ActorSystem
 import org.apache.pekko.stream.Materializer
+import play.api.http.Status.{BAD_REQUEST, INTERNAL_SERVER_ERROR, NO_CONTENT, OK}
 import play.api.libs.json.{Json, OFormat}
-import play.api.mvc.ControllerComponents
-import play.api.http.Status.{BAD_REQUEST, OK, NO_CONTENT, INTERNAL_SERVER_ERROR}
+import play.api.mvc.{ControllerComponents, Result}
 import play.api.test.Helpers
-import play.api.test.Helpers.{status, contentAsJson, header, defaultAwaitTimeout}
+import play.api.test.Helpers.{contentAsJson, defaultAwaitTimeout, header, status}
 import uk.gov.hmrc.mtdtransactionrisking.support.UnitSpec
 import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.errors.{DownstreamError, ErrorWrapper, VrnFormatError}
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.outcomes.ResponseWrapper
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
 
+import scala.concurrent.Future
+
 class ResponseHandlerSpec extends UnitSpec:
 
-  private given system: ActorSystem = ActorSystem("test")
+  private val correlationId = CorrelationId("test-correlation-id")
+  private val handler = new Host(Helpers.stubControllerComponents())
+
   private given mat: Materializer = Materializer(system)
 
-  private val correlationId = CorrelationId("test-correlation-id")
+  private given system: ActorSystem = ActorSystem("test")
 
-  private case class Payload(value: String)
   private given OFormat[Payload] = Json.format[Payload]
 
+  /** The handler returns a plain Result and test helpers expect a Future. */
+  private def resultOf(result: Result): Future[Result] = Future.successful(result)
+
+  private case class Payload(value: String)
+
   private class Host(cc: ControllerComponents) extends BackendController(cc), ResponseHandler
-  private val handler = new Host(Helpers.stubControllerComponents())
 
   "handleOutcome" should:
 
     "return 200 with the payload and correlation header on Right" in:
-      val outcome = Right(ResponseWrapper(correlationId, Payload("hello")))
-      val result = handler.handleOutcome(outcome)
+      val result = resultOf(handler.handleOutcome(Right(ResponseWrapper(correlationId, Payload("hello")))))
 
       status(result) shouldBe OK
       contentAsJson(result) shouldBe Json.obj("value" -> "hello")
       header("X-CorrelationId", result) shouldBe Some("test-correlation-id")
 
     "return the error status and body with correlation header on Left" in:
-      val outcome = Left(ErrorWrapper(correlationId, VrnFormatError))
-      val result = handler.handleOutcome[Payload](outcome)
+      val result = resultOf(handler.handleOutcome[Payload](Left(ErrorWrapper(correlationId, VrnFormatError))))
 
       status(result) shouldBe BAD_REQUEST
       (contentAsJson(result) \ "code").as[String] shouldBe "VRN_INVALID"
       header("X-CorrelationId", result) shouldBe Some("test-correlation-id")
 
-    "relay a raw error body verbatim with its status" in:
+    "relay a raw error body with its status" in:
       val rawBody = Json.obj(
         "code" -> "INVALID_REQUEST",
         "message" -> "Invalid request",
         "errors" -> Json.arr(Json.obj("code" -> "PERIOD_KEY_INVALID", "message" -> "bad", "path" -> "/periodKey"))
       )
+
       val outcome = Left(ErrorWrapper(correlationId, DownstreamError, rawBody = Some(rawBody), rawStatus = Some(BAD_REQUEST)))
-      val result = handler.handleOutcome[Payload](outcome)
+      val result = resultOf(handler.handleOutcome[Payload](outcome))
 
       status(result) shouldBe BAD_REQUEST
       contentAsJson(result) shouldBe rawBody
@@ -75,15 +81,13 @@ class ResponseHandlerSpec extends UnitSpec:
   "handleOutcomeUnit" should:
 
     "return 204 with correlation header on Right" in:
-      val outcome = Right(ResponseWrapper(correlationId, ()))
-      val result = handler.handleOutcomeUnit(outcome)
+      val result = resultOf(handler.handleOutcomeUnit(Right(ResponseWrapper(correlationId, ()))))
 
       status(result) shouldBe NO_CONTENT
       header("X-CorrelationId", result) shouldBe Some("test-correlation-id")
 
     "return the error status and body with correlation header on Left" in:
-      val outcome = Left(ErrorWrapper(correlationId, DownstreamError))
-      val result = handler.handleOutcomeUnit(outcome)
+      val result = resultOf(handler.handleOutcomeUnit(Left(ErrorWrapper(correlationId, DownstreamError))))
 
       status(result) shouldBe INTERNAL_SERVER_ERROR
       (contentAsJson(result) \ "code").as[String] shouldBe "INTERNAL_SERVER_ERROR"

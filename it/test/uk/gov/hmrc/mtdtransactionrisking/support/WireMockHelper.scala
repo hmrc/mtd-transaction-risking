@@ -29,7 +29,7 @@ object WireMockHelper {
 
 trait WireMockHelper extends BeforeAndAfterEach {
   self: Suite =>
-  
+
   val wireMockServer: WireMockServer = new WireMockServer(wireMockConfig().port(wireMockPort))
 
   def startWireMock(): Unit = {

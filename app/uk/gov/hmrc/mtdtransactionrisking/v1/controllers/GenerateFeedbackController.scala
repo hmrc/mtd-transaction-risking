@@ -22,7 +22,7 @@ import uk.gov.hmrc.mtdtransactionrisking.config.AppConfig
 import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
 import uk.gov.hmrc.mtdtransactionrisking.utils.{IdGenerator, Logging}
 import uk.gov.hmrc.mtdtransactionrisking.v1.controllers.auth.VATAuthAction
-import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.{FeedbackResponse, InsightsResponse, ResponseHandler}
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.{FeedbackResponse, ResponseHandler}
 import uk.gov.hmrc.mtdtransactionrisking.v1.services.GenerateFeedbackService
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
 
@@ -45,11 +45,18 @@ class GenerateFeedbackController @Inject() (cc: ControllerComponents,
 
         given Request[JsValue] = request
         given correlationId: CorrelationId = IdGenerator.generateId()
-        
+
         appConfig.feedbackStubBaseUrl match
           // Feedback stub path used in external test while the real downstream is built
           case Some(_) =>
             generateFeedbackService.requestStubFeedback(vrn).map(handleOutcome)
 
           case None =>
-            generateFeedbackService.generateFeedback(vrn, request.body).map(handleOutcome)
+            generateFeedbackService
+              .generateFeedback(
+                vrn = vrn,
+                body = request.body,
+                agentReferenceNumber = request.arn,
+                requestHeaders = request.headers.headers
+              )
+              .map(handleOutcome)
