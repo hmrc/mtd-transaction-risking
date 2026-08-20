@@ -17,7 +17,7 @@
 package uk.gov.hmrc.mtdtransactionrisking.v1.connectors
 
 import play.api.Logging
-import play.api.http.Status.{ACCEPTED, OK}
+import play.api.http.Status.OK
 import play.api.libs.ws.WSBodyWritables.writeableOf_urlEncodedForm
 import uk.gov.hmrc.http.HttpReads.Implicits.*
 import uk.gov.hmrc.http.client.HttpClientV2
@@ -49,7 +49,7 @@ class RdsAuthConnector @Inject() (httpClient: HttpClientV2, appConfig: AppConfig
       .execute[HttpResponse]
       .map { response =>
         response.status match
-          case OK | ACCEPTED =>
+          case OK =>
             response.json.asOpt[RdsAuthCredentials] match
               case Some(credentials) =>
                 logger.info(s"${correlationId.value}::[RdsAuthConnector] token issued, expires in ${credentials.expires_in}s")

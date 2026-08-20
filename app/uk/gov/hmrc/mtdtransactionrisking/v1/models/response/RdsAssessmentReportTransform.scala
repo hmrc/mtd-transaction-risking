@@ -18,15 +18,19 @@ package uk.gov.hmrc.mtdtransactionrisking.v1.models.response
 
 import play.api.libs.json.{JsObject, JsValue}
 
-/** Converts the RDS action into the feedback shape returned to vendors.
+/** Converts RDS action grids into the feedback shape returned to vendors.
  *
  * An action output holds a metadata block naming the columns and a data block of rows, where each
- * row's values line up positionally with those columns. Pairing the two gives a named field for
- * each value.
+ * row's values line up positionally with those columns. More help on RdsAssessmentReport class
  */
 object RdsAssessmentReportTransform:
 
-  private val linksColumn = "links"
+  private val itemNumberColumn = "itemNumber"
+  private val messageColumn    = "message" // becomes FeedbackMessage.body
+  private val actionColumn     = "action"
+  private val titleColumn      = "title"
+  private val pathColumn       = "path"
+  private val linksColumn      = "links"
 
   def toFeedbackResponse(report: RdsAssessmentReport): Option[FeedbackResponse] =
     for
@@ -45,8 +49,8 @@ object RdsAssessmentReportTransform:
 
     rows.map(row => columns.zip(row).toMap).flatMap(toMessage).toList
 
-  /** Each metadata entry is a single-key object naming its column, except the links column which
-   * is an array and so has no name of its own.
+  /** Each metadata entry is a single-key object naming its column, except the links column which is
+   * an array and so has no name of its own.
    */
   private def columnNames(metadata: Seq[JsValue]): Seq[String] =
     metadata.map {
@@ -59,19 +63,20 @@ object RdsAssessmentReportTransform:
     def string(name: String): Option[String] = fields.get(name).flatMap(_.asOpt[String])
 
     for
-      itemNumber <- string("itemNumber")
-      body       <- string("message")
-      title      <- string("title")
-      path       <- string("path")
+      itemNumber <- string(itemNumberColumn)
+      body       <- string(messageColumn)
+      title      <- string(titleColumn)
+      path       <- string(pathColumn)
     yield FeedbackMessage(
       itemNumber = itemNumber,
       title      = title,
       body       = body,
-      action     = string("action"),
+      action     = string(actionColumn),
       links      = fields.get(linksColumn).flatMap(toLinks),
       path       = path
     )
 
+  /** Links arrive as a pair of single-key objects: [{"linkTitle": "..."}, {"linkUrl": "..."}]. */
   private def toLinks(value: JsValue): Option[List[FeedbackLink]] =
     value.asOpt[Seq[JsValue]].flatMap { entries =>
       for

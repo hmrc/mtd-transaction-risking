@@ -89,11 +89,6 @@ class RdsAuthConnectorSpec extends ConnectorSpec, BeforeAndAfterAll, Injecting, 
 
         await(connector.retrieveBearerToken()) shouldBe Right(ResponseWrapper(correlationId, expectedCredentials))
 
-      "return the credentials on 202" in new Test:
-        stubToken(Some(tokenResponseJson.toString), ACCEPTED)
-
-        await(connector.retrieveBearerToken()) shouldBe Right(ResponseWrapper(correlationId, expectedCredentials))
-
       "return DownstreamError when the body is not a token response" in new Test:
         stubToken(Some(malformedResponseJson.toString), OK)
 

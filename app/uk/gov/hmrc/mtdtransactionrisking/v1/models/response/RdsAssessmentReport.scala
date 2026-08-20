@@ -18,8 +18,32 @@ package uk.gov.hmrc.mtdtransactionrisking.v1.models.response
 
 import play.api.libs.json.{JsValue, Json, Reads}
 
-/** RDS Results arrive as a flat list of name/value outputs; the HTTP status only tells us the module
- * executed, while the `responseCode` output carries the decision itself.
+/** The RDS report
+ *
+ * Results are a flat list of name/value outputs rather than a structured object, and the HTTP
+ * status only tells us the module executed. The decision itself is in the `responseCode` output.
+ * Feedback messages arrive as grids: a metadata block naming the columns, then data rows
+ * values line up positionally with them.
+ *
+ * {{{
+ * {
+ *   "outputs": [
+ *     { "name": "correlationId",   "value": "E9F65715BBC922..." },
+ *     { "name": "feedbackId",      "value": "f2fb30e5-4ab6-..." },
+ *     { "name": "responseCode",    "value": "201" },
+ *     { "name": "responseMessage", "value": "Feedback generated successfully" },
+ *     { "name": "englishActions",  "value": [
+ *         { "metadata": [ {"itemNumber": ""}, {"message": ""}, {"action": ""},
+ *                         {"title": ""}, [{"linkTitle": ""}, {"linkUrl": ""}], {"path": ""} ] },
+ *         { "data":     [ [ "1", "Please review your figures.", "Check your records.",
+ *                           "VAT Return Query",
+ *                           [{"linkTitle": "VAT guidance"}, {"linkUrl": "https://..."}],
+ *                           "vatDueSales" ] ] }
+ *     ]},
+ *     { "name": "welshActions", "value": [ ... ] }
+ *   ]
+ * }
+ * }}}
  */
 final case class RdsAssessmentReport(outputs: Seq[RdsOutput]):
 
