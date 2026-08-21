@@ -33,7 +33,12 @@ import uk.gov.hmrc.play.http.HeaderCarrierConverter
 import javax.inject.Inject
 import scala.concurrent.{ExecutionContext, Future}
 
-case class AuthenticatedVATRequest[A](request: Request[A], internalId: String, vrn: String) extends WrappedRequest[A](request)
+case class AuthenticatedVATRequest[A](
+    request: Request[A],
+    internalId: String,
+    vrn: String,
+    arn: Option[String]
+) extends WrappedRequest[A](request)
 
 class VATAuthAction @Inject() (override val authConnector: AuthConnector, configuration: Configuration, bodyParser: BodyParsers.Default)(using
     ec: ExecutionContext)
@@ -46,11 +51,6 @@ class VATAuthAction @Inject() (override val authConnector: AuthConnector, config
       .getOrElse(true)
 
   private val vrnRegex = """^\d{9}$"""
-
-  private def predicate(vrn: String): Predicate =
-    Enrolment("HMRC-MTD-VAT")
-      .withIdentifier("VRN", vrn)
-      .withDelegatedAuthRule("mtd-vat-auth")
 
   def authorisedFor(requestedVRN: String): ActionBuilder[AuthenticatedVATRequest, AnyContent] =
     new ActionBuilder[AuthenticatedVATRequest, AnyContent]:
@@ -66,7 +66,7 @@ class VATAuthAction @Inject() (override val authConnector: AuthConnector, config
 
         if !authEnabled then
           logger.warn("[VATAuthAction] Auth disabled via feature switch — bypassing authorisation")
-          block(AuthenticatedVATRequest(request, "local-test-user", requestedVRN))
+          block(AuthenticatedVATRequest(request, "local-test-user", requestedVRN, None))
         else if !requestedVRN.matches(vrnRegex) then
           logger.warn(s"VRN format invalid: $requestedVRN")
           Future.successful(
@@ -82,6 +82,11 @@ class VATAuthAction @Inject() (override val authConnector: AuthConnector, config
                   .flatMap(_.getIdentifier("VRN"))
                   .map(_.value)
 
+                val arn = userEnrolments
+                  .getEnrolment("HMRC-AS-AGENT")
+                  .flatMap(_.getIdentifier("AgentReferenceNumber"))
+                  .map(_.value)
+
                 maybeVrn match
                   case None =>
                     logger.warn(s"User has no MTD VAT enrolment")
@@ -92,8 +97,8 @@ class VATAuthAction @Inject() (override val authConnector: AuthConnector, config
                     Future.successful(Forbidden(s"User VRN does not match requested VRN"))
 
                   case Some(vrn) =>
-                    block(AuthenticatedVATRequest(request, userId, vrn))
-
+                    block(AuthenticatedVATRequest(request, userId, vrn, arn))
+                    
               case _ =>
                 logger.warn("Unable to retrieve required auth values")
                 Future.successful(Unauthorized("Unable to retrieve required auth values"))
@@ -103,3 +108,8 @@ class VATAuthAction @Inject() (override val authConnector: AuthConnector, config
               logger.warn(error)
               Unauthorized(error)
             }
+
+  private def predicate(vrn: String): Predicate =
+    Enrolment("HMRC-MTD-VAT")
+      .withIdentifier("VRN", vrn)
+      .withDelegatedAuthRule("mtd-vat-auth")

@@ -46,7 +46,12 @@ trait IntegrationBaseSpec
     "microservice.services.vat-api.submit-url"  -> "/internal",
     "microservice.services.auth.host"           -> mockHost,
     "microservice.services.auth.port"           -> mockPort,
-    "feature-switch.version-1.enabled"          -> true
+    "feature-switch.version-1.enabled"          -> true,
+    "microservice.services.rds.host"            -> mockHost,
+    "microservice.services.rds.port"            -> mockPort,
+    "microservice.services.rds.protocol"        -> "http",
+    "microservice.services.rds.submit-url"      -> "/microanalyticScore/modules/HMRC_ASSIST_VAT_FINSUB_FEEDBACK/steps/execute",
+    "microservice.services.rds.RdsAuthRequired" -> false
   )
 
   override implicit lazy val app: Application =

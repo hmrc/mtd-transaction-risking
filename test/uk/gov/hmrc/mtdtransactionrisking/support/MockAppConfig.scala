@@ -21,6 +21,7 @@ import org.scalamock.scalatest.MockFactory
 import org.scalatest.TestSuite
 import play.api.Configuration
 import uk.gov.hmrc.mtdtransactionrisking.config.AppConfig
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.auth.RdsCredentials
 
 trait MockAppConfig extends MockFactory:
   this: TestSuite =>
@@ -61,3 +62,18 @@ trait MockAppConfig extends MockFactory:
 
     def acknowledgeEnvironmentHeaders: CallHandler[Option[Seq[String]]] =
       (() => mockAppConfig.acknowledgeEnvironmentHeaders).expects()
+
+    def rdsSubmitUrl: CallHandler[String] =
+      (() => mockAppConfig.rdsSubmitUrl).expects()
+
+    def rdsAcknowledgeUrl: CallHandler[String] =
+      (() => mockAppConfig.rdsAcknowledgeUrl).expects()
+
+    def rdsAuthRequired: CallHandler[Boolean] =
+      (() => mockAppConfig.rdsAuthRequired).expects()
+
+    def rdsAuthUrl: CallHandler[String] =
+      (() => mockAppConfig.rdsAuthUrl).expects()
+
+    def rdsCredentials: CallHandler[RdsCredentials] =
+      (() => mockAppConfig.rdsCredentials).expects()  

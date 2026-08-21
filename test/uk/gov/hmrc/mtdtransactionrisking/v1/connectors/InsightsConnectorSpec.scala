@@ -37,10 +37,10 @@ class InsightsConnectorSpec extends ConnectorSpec, BeforeAndAfterAll, Injecting,
   override def afterAll(): Unit = wireMockServer.stop()
 
   val httpClient: HttpClientV2 = app.injector.instanceOf[HttpClientV2]
-
+  
   private val vrn = "123456789"
   private val urlPattern = urlPathMatching("/check/insights")
-
+  
   private val request = InsightsRequest(vrn)
   private val successResponseJson: JsValue = Json.parse(
     """

@@ -21,7 +21,6 @@ import com.github.tomakehurst.wiremock.stubbing.StubMapping
 import play.api.http.HeaderNames
 import play.api.http.Status.*
 
-
 object AuthStub:
 
   val headers: (String, String) =

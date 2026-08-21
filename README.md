@@ -9,15 +9,13 @@ submit VAT returns via third-party accounting software (such as Sage, QuickBooks
 software vendors are required to integrate VAT Assist into their products so that users receive
 relevant feedback before submission.
 
-## Nomenclature
+## Keywords
 
 - **TxR** — MTD Transaction Risking, the internal name for this service
 - **VAT Assist** — the public-facing name for the service as seen by vendors and end users
 - **VRN** — VAT Registration Number, a nine-digit identifier for a VAT-registered business
 - **periodKey** — a four-character alphanumeric string identifying the VAT return period,
   obtained from the VAT obligations endpoint on the VAT (MTD) API
-- **Insights proxy** — the CIP (Customer Insight Platform) risk service that returns a risk
-  score and correlation ID for a given VRN; called in production
 - **Feedback stub** — the VAT Assist stub that returns `reportId`, `correlationId`,
   and English and Welsh feedback messages; called in external test when configured
 - **Gov-Test-Scenario** — an HTTP request header used in external test environments to select

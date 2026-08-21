@@ -17,7 +17,7 @@
 package uk.gov.hmrc.mtdtransactionrisking.support
 
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.EitherValues
+import org.scalatest.{EitherValues, OptionValues}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 import play.api.test.{DefaultAwaitTimeout, FutureAwaits}
@@ -26,12 +26,11 @@ import scala.concurrent.duration.*
 import scala.concurrent.{Await, Future}
 import scala.language.{implicitConversions, postfixOps}
 
-trait UnitSpec extends AnyWordSpecLike, MockFactory, EitherValues, Matchers, FutureAwaits, DefaultAwaitTimeout:
-
+trait UnitSpec extends AnyWordSpecLike, MockFactory, EitherValues, OptionValues, Matchers, FutureAwaits, DefaultAwaitTimeout:
+  
   implicit val defaultTimeout: FiniteDuration = 5.seconds
 
   implicit def extractAwait[A](future: Future[A]): A = await[A](future)
 
   def await[A](future: Future[A])(implicit timeout: Duration): A = Await.result(future, timeout)
 
-  implicit def liftFuture[A](v: A): Future[A] = Future.successful(v)
