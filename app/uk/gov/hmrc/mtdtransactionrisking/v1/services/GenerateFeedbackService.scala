@@ -58,11 +58,8 @@ class GenerateFeedbackService @Inject() (
       insights <- EitherT(insightsConnector.getRiskInsights(InsightsRequest(vrn)))
 
       reportRequest <- EitherT.fromOption[Future](
-        buildReportRequest(obligation.responseData, insights.responseData, body, agentReferenceNumber, requestHeaders).orElse {
-          logger.error(s"${correlationId.value}::[GenerateFeedbackService][generateFeedback] validated body missing mandatory VAT figures")
-          None
-        },
-        ErrorWrapper(correlationId, DownstreamError)
+        buildReportRequest(obligation.responseData, insights.responseData, body, agentReferenceNumber, requestHeaders),
+        reportRequestFailure
       )
       
       credentials <- EitherT(rdsAuthService.bearerToken())
@@ -91,3 +88,8 @@ class GenerateFeedbackService @Inject() (
       fraudRiskReportReasons = strategicRisk.reasons,
       requestHeaders = requestHeaders
     )
+    
+  private def reportRequestFailure(implicit correlationId: CorrelationId): ErrorWrapper =
+    logger.error(s"${correlationId.value}::[GenerateFeedbackService][generateFeedback] validated body missing mandatory VAT figures")
+    ErrorWrapper(correlationId, DownstreamError)
+    
