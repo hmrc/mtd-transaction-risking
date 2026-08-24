@@ -25,16 +25,13 @@ import uk.gov.hmrc.mtdtransactionrisking.utils.Logging
 import uk.gov.hmrc.mtdtransactionrisking.v1.connectors.{FeedbackConnector, InsightsConnector, RdsConnector, VatApiConnector}
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.errors.{DownstreamError, ErrorWrapper}
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.outcomes.ResponseWrapper
-import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.{InsightsRequest, RdsRequest}
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.{InsightsRequest, ReportRequest}
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.{FeedbackResponse, InsightsResponse, Obligation}
 import uk.gov.hmrc.mtdtransactionrisking.v1.services.auth.RdsAuthService
 
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 
-/** Orchestrates feedback generation: validates the VAT return with vat-api, which also returns the open obligation for the period, then asks
-  * insights-proxy to assess the risk.
-  */
 @Singleton
 class GenerateFeedbackService @Inject() (
     rdsAuthService: RdsAuthService,
@@ -53,18 +50,21 @@ class GenerateFeedbackService @Inject() (
       correlationId: CorrelationId): Future[ServiceOutcome[FeedbackResponse]] =
 
     val result = for
-      obligation <- EitherT(vatApiConnector.validate(vrn, body))
-      _ = logger.info(
-        s"${correlationId.value}::[GenerateFeedbackService][generateFeedback] VAT return validated, " +
-          s"matched obligation for periodKey ${obligation.responseData.periodKey}")
+      obligation <- EitherT(vatApiConnector.validate(vrn, body)).map { validated =>
+        logger.info(s"${correlationId.value}::[GenerateFeedbackService][generateFeedback] VAT return validated")
+        validated
+      }
 
       insights <- EitherT(insightsConnector.getRiskInsights(InsightsRequest(vrn)))
 
       reportRequest <- EitherT.fromOption[Future](
-        buildReportRequest(obligation.responseData, insights.responseData, body, agentReferenceNumber, requestHeaders),
-        reportRequestFailure
+        buildReportRequest(obligation.responseData, insights.responseData, body, agentReferenceNumber, requestHeaders).orElse {
+          logger.error(s"${correlationId.value}::[GenerateFeedbackService][generateFeedback] validated body missing mandatory VAT figures")
+          None
+        },
+        ErrorWrapper(correlationId, DownstreamError)
       )
-
+      
       credentials <- EitherT(rdsAuthService.bearerToken())
 
       report <- EitherT(rdsConnector.generateReport(vrn, reportRequest, credentials.responseData))
@@ -76,11 +76,11 @@ class GenerateFeedbackService @Inject() (
                                  insights: InsightsResponse,
                                  vendorBody: JsValue,
                                  agentReferenceNumber: Option[String],
-                                 requestHeaders: Seq[(String, String)])(implicit correlationId: CorrelationId): Option[RdsRequest] =
+                                 requestHeaders: Seq[(String, String)])(implicit correlationId: CorrelationId): Option[ReportRequest] =
 
     val strategicRisk = insights.insights.strategicRisk
 
-    RdsRequest.from(
+    ReportRequest.from(
       correlationId = correlationId.value,
       vendorBody = vendorBody,
       agentReferenceNumber = agentReferenceNumber,
@@ -91,8 +91,3 @@ class GenerateFeedbackService @Inject() (
       fraudRiskReportReasons = strategicRisk.reasons,
       requestHeaders = requestHeaders
     )
-
-  private def reportRequestFailure(implicit correlationId: CorrelationId): ErrorWrapper =
-    logger.error(s"${correlationId.value}::[GenerateFeedbackService][generateFeedback] validated body missing mandatory VAT figures")
-    ErrorWrapper(correlationId, DownstreamError)
-

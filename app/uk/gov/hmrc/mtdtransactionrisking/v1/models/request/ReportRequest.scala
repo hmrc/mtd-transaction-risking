@@ -23,13 +23,7 @@ case class FraudPreventionHeader(key: String, value: String)
 object FraudPreventionHeader:
   given writes: OWrites[FraudPreventionHeader] = Json.writes[FraudPreventionHeader]
 
-/** Request payload for the RDS report generation call.
-  *
-  * All fields are mandatory except agentReferenceNumber, which is required only when customerType is "A" (agent). The VAT figures use the
-  * downstream's names, which differ from the vendor's: totalVatDue -> vatDueTotal, netVatDue -> vatDueNet, totalAcquisitionsExVAT ->
-  * totalAllAcquisitionsExVAT.
-  */
-case class RdsRequest(
+case class ReportRequest(
     fixedId: String,
     periodKey: String,
     startDate: String,
@@ -49,18 +43,17 @@ case class RdsRequest(
     totalValueGoodsSuppliedExVAT: BigDecimal,
     totalAllAcquisitionsExVAT: BigDecimal
 )
-object RdsRequest:
+object ReportRequest:
 
   private val agent = "A"
   private val taxPayer = "T"
   private val govHeaderPrefixes = Seq("gov-client-", "gov-vendor-")
 
-  given writes: OWrites[RdsRequest] = Json.writes[RdsRequest]
+  given writes: OWrites[ReportRequest] = Json.writes[ReportRequest]
 
   /** Assembles the payload from the vendor's return, the matched obligation, and the auth ARN.
     *
-    * The vendor body has already passed validation upstream, so every mandatory numeric field is present; a missing one indicates validation and
-    * extraction disagreeing, and is treated as a failure by the caller.
+    * The vendor body has already passed validation upstream, so every mandatory numeric field is present
     */
   def from(
       correlationId: String,
@@ -72,21 +65,21 @@ object RdsRequest:
       fraudRiskReportScore: Double,
       fraudRiskReportReasons: Seq[String],
       requestHeaders: Seq[(String, String)]
-  ): Option[RdsRequest] =
+  ): Option[ReportRequest] =
 
-    def dec(field: String): Option[BigDecimal] = (vendorBody \ field).asOpt[BigDecimal]
+    def amount(field: String): Option[BigDecimal] = (vendorBody \ field).asOpt[BigDecimal]
 
     for
-      vatDueSales <- dec("vatDueSales")
-      vatDueAcquisitions <- dec("vatDueAcquisitions")
-      vatDueTotal <- dec("totalVatDue")
-      vatReclaimedCurrPeriod <- dec("vatReclaimedCurrPeriod")
-      vatDueNet <- dec("netVatDue")
-      totalValueSalesExVAT <- dec("totalValueSalesExVAT")
-      totalValuePurchasesExVAT <- dec("totalValuePurchasesExVAT")
-      totalValueGoodsSuppliedExVAT <- dec("totalValueGoodsSuppliedExVAT")
-      totalAllAcquisitionsExVAT <- dec("totalAcquisitionsExVAT")
-    yield RdsRequest(
+      vatDueSales <- amount("vatDueSales")
+      vatDueAcquisitions <- amount("vatDueAcquisitions")
+      vatDueTotal <- amount("totalVatDue")
+      vatReclaimedCurrPeriod <- amount("vatReclaimedCurrPeriod")
+      vatDueNet <- amount("netVatDue")
+      totalValueSalesExVAT <- amount("totalValueSalesExVAT")
+      totalValuePurchasesExVAT <- amount("totalValuePurchasesExVAT")
+      totalValueGoodsSuppliedExVAT <- amount("totalValueGoodsSuppliedExVAT")
+      totalAllAcquisitionsExVAT <- amount("totalAcquisitionsExVAT")
+    yield ReportRequest(
       fixedId = correlationId,
       periodKey = periodKey,
       startDate = startDate,

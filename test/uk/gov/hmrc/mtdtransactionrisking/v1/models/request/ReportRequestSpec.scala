@@ -19,7 +19,7 @@ package uk.gov.hmrc.mtdtransactionrisking.v1.models.request
 import play.api.libs.json.{JsObject, JsValue, Json}
 import uk.gov.hmrc.mtdtransactionrisking.support.UnitSpec
 
-class RdsRequestSpec extends UnitSpec:
+class ReportRequestSpec extends UnitSpec:
 
   private val correlationId        = "2dd537bc-4244-4ebf-bac9-96321be13cdc"
   private val periodKey            = "#001"
@@ -55,8 +55,8 @@ class RdsRequestSpec extends UnitSpec:
 
   private def build(vendorBody: JsValue = vendorBody,
                     agentReferenceNumber: Option[String] = None,
-                    requestHeaders: Seq[(String, String)] = requestHeaders): Option[RdsRequest] =
-    RdsRequest.from(
+                    requestHeaders: Seq[(String, String)] = requestHeaders): Option[ReportRequest] =
+    ReportRequest.from(
       correlationId          = correlationId,
       vendorBody             = vendorBody,
       agentReferenceNumber   = agentReferenceNumber,

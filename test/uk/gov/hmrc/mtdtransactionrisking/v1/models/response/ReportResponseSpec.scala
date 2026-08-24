@@ -19,7 +19,7 @@ package uk.gov.hmrc.mtdtransactionrisking.v1.models.response
 import play.api.libs.json.{JsValue, Json}
 import uk.gov.hmrc.mtdtransactionrisking.support.UnitSpec
 
-class RdsAssessmentReportSpec extends UnitSpec:
+class ReportResponseSpec extends UnitSpec:
 
   private val reportJson: JsValue = Json.parse(
     """
@@ -55,7 +55,7 @@ class RdsAssessmentReportSpec extends UnitSpec:
       |""".stripMargin
   )
 
-  private val report: RdsAssessmentReport = reportJson.as[RdsAssessmentReport]
+  private val report: ReportResponse = reportJson.as[ReportResponse]
 
   "RdsAssessmentReport" when:
 
@@ -83,15 +83,15 @@ class RdsAssessmentReportSpec extends UnitSpec:
     "an output is absent" should:
 
       "return None rather than failing" in:
-        val withoutFeedbackId = RdsAssessmentReport(Seq(RdsOutput("responseCode", Json.toJson("201"))))
+        val withoutFeedbackId = ReportResponse(Seq(ReportOutput("responseCode", Json.toJson("201"))))
 
         withoutFeedbackId.feedbackId shouldBe None
         withoutFeedbackId.rdsCorrelationId shouldBe None
         withoutFeedbackId.responseMessage shouldBe None
 
       "return no action grids" in:
-        RdsAssessmentReport(Seq.empty).englishActions shouldBe empty
+        ReportResponse(Seq.empty).englishActions shouldBe empty
 
     "the response code is not a numeric string" should:
       "return None" in:
-        RdsAssessmentReport(Seq(RdsOutput("responseCode", Json.toJson("not-a-number")))).responseCode shouldBe None
+        ReportResponse(Seq(ReportOutput("responseCode", Json.toJson("not-a-number")))).responseCode shouldBe None
