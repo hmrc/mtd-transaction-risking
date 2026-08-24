@@ -26,7 +26,7 @@ import uk.gov.hmrc.http.client.HttpClientV2
 import uk.gov.hmrc.mtdtransactionrisking.support.{ConnectorSpec, MockAppConfig}
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.auth.RdsAuthCredentials
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.errors.{DownstreamError, ErrorWrapper, ServiceUnavailableError}
-import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.{FraudPreventionHeader, RdsRequest}
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.{FraudPreventionHeader, ReportRequest}
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.FeedbackResponse
 import uk.gov.hmrc.mtdtransactionrisking.v1.services.ServiceOutcome
 
@@ -43,7 +43,7 @@ class RdsConnectorSpec extends ConnectorSpec, BeforeAndAfterAll, Injecting, Mock
   private val rdsCorrelationId = "E9F65715BBC9222477B27074804BBDD5C73CDE62F84D8B00CFD05B883534AF3D"
   private val credentials = RdsAuthCredentials("a-bearer-token", "bearer", 14399)
 
-  private val rdsRequest: RdsRequest = RdsRequest(
+  private val rdsRequest: ReportRequest = ReportRequest(
     fixedId = "2dd537bc-4244-4ebf-bac9-96321be13cdc",
     periodKey = "AB12",
     startDate = "2026-01-01",

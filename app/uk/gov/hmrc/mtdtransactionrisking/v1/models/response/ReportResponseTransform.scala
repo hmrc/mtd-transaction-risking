@@ -19,11 +19,11 @@ package uk.gov.hmrc.mtdtransactionrisking.v1.models.response
 import play.api.libs.json.{JsObject, JsValue}
 
 /** Converts RDS action grids into the feedback shape returned to vendors.
- *
- * An action output holds a metadata block naming the columns and a data block of rows, where each
- * row's values line up positionally with those columns. More help on RdsAssessmentReport class
- */
-object RdsAssessmentReportTransform:
+  *
+  * An action output holds a metadata block naming the columns and a data block of rows, where each row's values line up positionally with those
+  * columns. More in ReportResponse class
+  */
+object ReportResponseTransform:
 
   private val itemNumberColumn = "itemNumber"
   private val messageColumn    = "message" // becomes FeedbackMessage.body
@@ -32,7 +32,7 @@ object RdsAssessmentReportTransform:
   private val pathColumn       = "path"
   private val linksColumn      = "links"
 
-  def toFeedbackResponse(report: RdsAssessmentReport): Option[FeedbackResponse] =
+  def toFeedbackResponse(report: ReportResponse): Option[FeedbackResponse] =
     for
       feedbackId    <- report.feedbackId
       correlationId <- report.rdsCorrelationId
@@ -43,15 +43,12 @@ object RdsAssessmentReportTransform:
       correlationId   = correlationId
     )
 
-  private def toMessages(grids: Seq[RdsActionGrid]): List[FeedbackMessage] =
+  private def toMessages(grids: Seq[ActionGrid]): List[FeedbackMessage] =
     val columns = grids.flatMap(_.metadata).headOption.map(columnNames).getOrElse(Seq.empty)
     val rows    = grids.flatMap(_.data).flatten
 
     rows.map(row => columns.zip(row).toMap).flatMap(toMessage).toList
 
-  /** Each metadata entry is a single-key object naming its column, except the links column which is
-   * an array and so has no name of its own.
-   */
   private def columnNames(metadata: Seq[JsValue]): Seq[String] =
     metadata.map {
       case column: JsObject => column.keys.headOption.getOrElse("")
@@ -76,7 +73,6 @@ object RdsAssessmentReportTransform:
       path       = path
     )
 
-  /** Links arrive as a pair of single-key objects: [{"linkTitle": "..."}, {"linkUrl": "..."}]. */
   private def toLinks(value: JsValue): Option[List[FeedbackLink]] =
     value.asOpt[Seq[JsValue]].flatMap { entries =>
       for

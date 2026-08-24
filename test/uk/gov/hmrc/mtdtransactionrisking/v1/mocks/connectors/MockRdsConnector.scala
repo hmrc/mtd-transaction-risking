@@ -23,7 +23,7 @@ import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
 import uk.gov.hmrc.mtdtransactionrisking.v1.connectors.RdsConnector
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.auth.RdsAuthCredentials
-import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.RdsRequest
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.ReportRequest
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.FeedbackResponse
 import uk.gov.hmrc.mtdtransactionrisking.v1.services.ServiceOutcome
 
@@ -38,5 +38,5 @@ trait MockRdsConnector extends MockFactory:
 
     def generateReport(vrn: String): CallHandler[Future[ServiceOutcome[FeedbackResponse]]] =
       (mockRdsConnector
-        .generateReport(_: String, _: RdsRequest, _: Option[RdsAuthCredentials])(_: HeaderCarrier, _: CorrelationId))
+        .generateReport(_: String, _: ReportRequest, _: Option[RdsAuthCredentials])(_: HeaderCarrier, _: CorrelationId))
         .expects(vrn, *, *, *, *)
