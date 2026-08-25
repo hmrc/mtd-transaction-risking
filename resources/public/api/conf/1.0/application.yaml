@@ -8,7 +8,7 @@ info:
     1. Send draft return data.
     2. Use the relevant acknowledgement endpoint to confirm that your software has presented the HMRC Assist feedback messages to the user.
 
-    Because this process operates on draft, unfinalised data, requesting feedback carries no formal declaration. Also, the process does not block formal declaration submission via the *returns* endpoint of the VAT (MTD) API. Your software must allow customers to submit their VAT return, irrespective of any HMRC Assist submission feedback.
+    Because this process operates on draft, unfinalised data, requesting feedback carries no formal declaration. Also, the process does not block formal declaration submission via the *returns* endpoint of the [VAT (MTD) API](https://developer.service.hmrc.gov.uk/api-documentation/docs/api/service/vat-api/). Your software must allow customers to submit their VAT return, irrespective of any HMRC Assist submission feedback.
   contact: {}
   version: '1.0'
 servers:
@@ -27,7 +27,7 @@ paths:
 
         The response will contain feedback messages in English and Welsh, highlighting potential mistakes or discrepancies in the VAT return data.
 
-        **Note:** Before using this endpoint, you must first call the obligations endpoint on the VAT (MTD) API to get the period key.
+        **Note:** Before using this endpoint, you must first call the obligations endpoint on the [VAT (MTD) API](https://developer.service.hmrc.gov.uk/api-documentation/docs/api/service/vat-api/) to get the period key.
         
         ### Test data
         <p>Scenario simulations using Gov-Test-Scenario headers are only available in the sandbox environment.</p>
@@ -546,7 +546,7 @@ components:
           pattern: '^[#0-9A-Z]{4}$'
           description: >
             The ID code for the period that this obligation belongs to.
-            This should be obtained from the obligations endpoint of the VAT (MTD) API.
+            This should be obtained from the obligations endpoint of the [VAT (MTD) API](https://developer.service.hmrc.gov.uk/api-documentation/docs/api/service/vat-api/).
             The format is a string of four alphanumeric characters.
             Occasionally the format includes the # symbol.
           example: '18AD'
