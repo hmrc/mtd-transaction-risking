@@ -657,12 +657,18 @@ components:
           example: 'E9F65715BBC9222477B27074804BBDD5C73CDE62F84D8B00CFD05B883534AF3D'
         englishFeedback:
           type: array
-          description: An array that contains up to 5 HMRC Assist feedback messages, in English.
+          description: |
+            An array that contains up to 5 HMRC Assist feedback messages, in English.
+
+            The total number of characters across all text fields in an individual message will not exceed 32767.
           items:
             $ref: '#/components/schemas/FeedbackItem'
         welshFeedback:
           type: array
-          description: An array that contains up to 5 HMRC Assist feedback messages, in Welsh.
+          description: |
+            An array that contains up to 5 HMRC Assist feedback messages, in Welsh.
+
+            The total number of characters across all text fields in an individual message will not exceed 32767.
           items:
             $ref: '#/components/schemas/FeedbackItem'
 
