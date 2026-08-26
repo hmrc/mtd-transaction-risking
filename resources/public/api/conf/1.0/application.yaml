@@ -214,7 +214,6 @@ paths:
                         links:
                           - title: 'Go to GOV.UK for more information on HMRC Assist'
                             url: 'https://www.gov.uk'
-                        path: ''
                     welshFeedback:
                       - itemNumber: '0'
                         title: 'Nid yw HMRC Assist wedi dychwelyd unrhyw negeseuon.'
@@ -224,7 +223,6 @@ paths:
                         links:
                           - title: 'Ewch i GOV.UK am ragor o wybodaeth am HMRC Assist'
                             url: 'https://www.gov.uk'
-                        path: ''
         '400':
           description: Bad request. Invalid request body or parameters.
           content:
@@ -674,7 +672,6 @@ components:
         - itemNumber
         - title
         - body
-        - path
       type: object
       properties:
         itemNumber:
