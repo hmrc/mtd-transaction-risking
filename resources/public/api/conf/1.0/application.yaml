@@ -684,7 +684,7 @@ components:
           type: string
           pattern: '^[0-9]{3}$'
           description: The unique identifier for the feedback message. Corresponding English and Welsh feedback messages will have the same number.
-          example: '001'
+          example: '1'
         title:
           type: string
           maxLength: 32767
