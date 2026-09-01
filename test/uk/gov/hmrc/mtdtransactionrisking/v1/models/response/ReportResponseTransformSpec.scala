@@ -19,7 +19,7 @@ package uk.gov.hmrc.mtdtransactionrisking.v1.models.response
 import play.api.libs.json.{JsArray, JsValue, Json}
 import uk.gov.hmrc.mtdtransactionrisking.support.UnitSpec
 
-class RdsAssessmentReportTransformSpec extends UnitSpec:
+class ReportResponseTransformSpec extends UnitSpec:
 
   private val feedbackId    = "f2fb30e5-4ab6-4a29-b3c1-c7264259ff1c"
   private val correlationId = "E9F65715BBC9222477B27074804BBDD5C73CDE62F84D8B00CFD05B883534AF3D"
@@ -47,10 +47,10 @@ class RdsAssessmentReportTransformSpec extends UnitSpec:
     "vatDueSales"
   )
 
-  private def reportWith(outputs: (String, JsValue)*): RdsAssessmentReport =
-    RdsAssessmentReport(outputs.map((name, value) => RdsOutput(name, value)))
+  private def reportWith(outputs: (String, JsValue)*): ReportResponse =
+    ReportResponse(outputs.map((name, value) => ReportOutput(name, value)))
 
-  private val fullReport: RdsAssessmentReport = reportWith(
+  private val fullReport: ReportResponse = reportWith(
     "feedbackId"     -> Json.toJson(feedbackId),
     "correlationId"  -> Json.toJson(correlationId),
     "englishActions" -> actionGrids(completeRow),
@@ -62,13 +62,13 @@ class RdsAssessmentReportTransformSpec extends UnitSpec:
     "the report is complete" should:
 
       "map the feedback and correlation ids" in:
-        val result = RdsAssessmentReportTransform.toFeedbackResponse(fullReport).value
+        val result = ReportResponseTransform.toFeedbackResponse(fullReport).value
 
         result.reportId shouldBe feedbackId
         result.correlationId shouldBe correlationId
 
       "map each data row to a feedback message" in:
-        val message = RdsAssessmentReportTransform.toFeedbackResponse(fullReport).value.englishFeedback.head
+        val message = ReportResponseTransform.toFeedbackResponse(fullReport).value.englishFeedback.head
 
         message shouldBe FeedbackMessage(
           itemNumber = "1",
@@ -80,7 +80,7 @@ class RdsAssessmentReportTransformSpec extends UnitSpec:
         )
 
       "map the welsh grid as well as the english" in:
-        val result = RdsAssessmentReportTransform.toFeedbackResponse(fullReport).value
+        val result = ReportResponseTransform.toFeedbackResponse(fullReport).value
 
         result.englishFeedback should have size 1
         result.welshFeedback should have size 1
@@ -93,7 +93,7 @@ class RdsAssessmentReportTransformSpec extends UnitSpec:
           "welshActions"   -> actionGrids()
         )
 
-        RdsAssessmentReportTransform.toFeedbackResponse(report).value.englishFeedback should have size 2
+        ReportResponseTransform.toFeedbackResponse(report).value.englishFeedback should have size 2
 
     "the columns are in a different order" should:
       "still map each value to the right field, since columns are located by name" in:
@@ -115,7 +115,7 @@ class RdsAssessmentReportTransformSpec extends UnitSpec:
           "welshActions"   -> Json.arr()
         )
 
-        RdsAssessmentReportTransform.toFeedbackResponse(report).value.englishFeedback.head shouldBe FeedbackMessage(
+        ReportResponseTransform.toFeedbackResponse(report).value.englishFeedback.head shouldBe FeedbackMessage(
           itemNumber = "1",
           title      = "VAT Return Query",
           body       = "Please review.",
@@ -144,7 +144,7 @@ class RdsAssessmentReportTransformSpec extends UnitSpec:
           "welshActions"   -> Json.arr()
         )
 
-        val message = RdsAssessmentReportTransform.toFeedbackResponse(report).value.englishFeedback.head
+        val message = ReportResponseTransform.toFeedbackResponse(report).value.englishFeedback.head
 
         message.action shouldBe None
         message.links shouldBe None
@@ -164,19 +164,19 @@ class RdsAssessmentReportTransformSpec extends UnitSpec:
           "welshActions"   -> Json.arr()
         )
 
-        RdsAssessmentReportTransform.toFeedbackResponse(report).value.englishFeedback shouldBe empty
+        ReportResponseTransform.toFeedbackResponse(report).value.englishFeedback shouldBe empty
 
     "the report has no feedback id" should:
       "return None" in:
         val report = reportWith("correlationId" -> Json.toJson(correlationId))
 
-        RdsAssessmentReportTransform.toFeedbackResponse(report) shouldBe None
+        ReportResponseTransform.toFeedbackResponse(report) shouldBe None
 
     "the report has no correlation id" should:
       "return None" in:
         val report = reportWith("feedbackId" -> Json.toJson(feedbackId))
 
-        RdsAssessmentReportTransform.toFeedbackResponse(report) shouldBe None
+        ReportResponseTransform.toFeedbackResponse(report) shouldBe None
 
     "the report has no action grids" should:
       "return a response with empty feedback" in:
@@ -185,7 +185,7 @@ class RdsAssessmentReportTransformSpec extends UnitSpec:
           "correlationId" -> Json.toJson(correlationId)
         )
 
-        val result = RdsAssessmentReportTransform.toFeedbackResponse(report).value
+        val result = ReportResponseTransform.toFeedbackResponse(report).value
 
         result.englishFeedback shouldBe empty
         result.welshFeedback shouldBe empty

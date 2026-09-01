@@ -28,8 +28,8 @@ import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.auth.RdsAuthCredentials
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.errors.{DownstreamError, ErrorWrapper, ServiceUnavailableError}
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.outcomes.ResponseWrapper
-import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.RdsRequest
-import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.{FeedbackResponse, RdsAssessmentReport, RdsAssessmentReportTransform}
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.ReportRequest
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.{FeedbackResponse, ReportResponse, ReportResponseTransform}
 import uk.gov.hmrc.mtdtransactionrisking.v1.services.ServiceOutcome
 
 import javax.inject.{Inject, Singleton}
@@ -38,10 +38,10 @@ import scala.concurrent.{ExecutionContext, Future}
 @Singleton
 class RdsConnector @Inject() (httpClient: HttpClientV2, appConfig: AppConfig)(implicit ec: ExecutionContext) extends Logging:
 
-  /** A 201 means the call executed; the decision itself is in the report's responseCode. */
-  def generateReport(vrn: String, request: RdsRequest, credentials: Option[RdsAuthCredentials])(implicit
-                                                                                                hc: HeaderCarrier,
-                                                                                                correlationId: CorrelationId): Future[ServiceOutcome[FeedbackResponse]] =
+  /** A 201 means the call executed. The decision itself is in the report responseCode field. */
+  def generateReport(vrn: String, request: ReportRequest, credentials: Option[RdsAuthCredentials])(implicit
+                                                                                                   hc: HeaderCarrier,
+                                                                                                   correlationId: CorrelationId): Future[ServiceOutcome[FeedbackResponse]] =
 
     logger.info(s"${correlationId.value}::[RdsConnector][generateReport] requesting report for VRN $vrn")
 
@@ -74,7 +74,7 @@ class RdsConnector @Inject() (httpClient: HttpClientV2, appConfig: AppConfig)(im
           Left(ErrorWrapper(correlationId, DownstreamError))
 
   private def handleReport(response: HttpResponse)(implicit correlationId: CorrelationId): ServiceOutcome[FeedbackResponse] =
-    response.json.asOpt[RdsAssessmentReport] match
+    response.json.asOpt[ReportResponse] match
       case None =>
         logger.error(s"${correlationId.value}::[RdsConnector][generateReport] malformed report: ${response.body}")
         Left(ErrorWrapper(correlationId, DownstreamError))
@@ -82,7 +82,7 @@ class RdsConnector @Inject() (httpClient: HttpClientV2, appConfig: AppConfig)(im
       case Some(report) =>
         report.responseCode match
           case Some(CREATED) =>
-            RdsAssessmentReportTransform.toFeedbackResponse(report) match
+            ReportResponseTransform.toFeedbackResponse(report) match
               case Some(feedback) =>
                 logger.info(s"${correlationId.value}::[RdsConnector][generateReport] report generated")
                 Right(ResponseWrapper(correlationId, feedback))
