@@ -17,7 +17,7 @@
 package uk.gov.hmrc.mtdtransactionrisking.config
 
 import play.api.Configuration
-import uk.gov.hmrc.mtdtransactionrisking.v1.models.auth.RdsCredentials
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.auth.{InteractionCredentials, RdsCredentials}
 import uk.gov.hmrc.play.bootstrap.config.ServicesConfig
 
 import javax.inject.{Inject, Singleton}
@@ -52,7 +52,11 @@ trait AppConfig:
   def rdsAuthRequired: Boolean
   def rdsAuthUrl: String
   def rdsCredentials: RdsCredentials
-
+  
+  // RSD interaction datastore 
+  def interactionsBaseUrl: String
+  def interactionCredentials: InteractionCredentials
+  
 @Singleton
 class AppConfigImpl @Inject() (config: ServicesConfig, configuration: Configuration) extends AppConfig:
 
@@ -91,8 +95,14 @@ class AppConfigImpl @Inject() (config: ServicesConfig, configuration: Configurat
   
   val rdsAuthUrl: String = config.baseUrl("rds.sas") + rdsConfig.get[String]("sas.auth-url")
 
-  val rdsCredentials: RdsCredentials = 
-    RdsCredentials(
+  val rdsCredentials: RdsCredentials = RdsCredentials(
       clientId     = rdsConfig.get[String]("sas.clientId"),
       clientSecret = rdsConfig.get[String]("sas.clientSecret")
     )
+  
+  private val interactionsConfig = configuration.get[Configuration]("microservice.services.interactions-datastore")
+  val interactionsBaseUrl: String = config.baseUrl("interactions-datastore") + interactionsConfig.get[String]("submit-url")
+  val interactionCredentials: InteractionCredentials = InteractionCredentials(
+    clientId = interactionsConfig.get[String]("clientId"),
+    clientSecret = interactionsConfig.get[String]("clientSecret")
+  )  

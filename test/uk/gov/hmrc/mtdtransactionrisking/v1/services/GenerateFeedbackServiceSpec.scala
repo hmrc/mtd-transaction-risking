@@ -21,14 +21,14 @@ import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.mtdtransactionrisking.support.UnitSpec
 import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
 import uk.gov.hmrc.mtdtransactionrisking.v1.mocks.connectors.{MockFeedbackConnector, MockInsightsConnector, MockRdsConnector, MockVatApiConnector}
-import uk.gov.hmrc.mtdtransactionrisking.v1.mocks.services.MockRdsAuthService
+import uk.gov.hmrc.mtdtransactionrisking.v1.mocks.services.{MockInteractionService, MockRdsAuthService}
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.auth.RdsAuthCredentials
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.errors.{DownstreamError, ErrorWrapper, ServiceUnavailableError}
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.outcomes.ResponseWrapper
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.InsightsRequest
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.*
-
 import scala.concurrent.ExecutionContext.Implicits.global
+
 import scala.concurrent.Future
 
 class GenerateFeedbackServiceSpec
@@ -37,7 +37,8 @@ class GenerateFeedbackServiceSpec
       MockInsightsConnector,
       MockFeedbackConnector,
       MockRdsConnector,
-      MockRdsAuthService:
+      MockRdsAuthService,
+      MockInteractionService:
 
   implicit val hc: HeaderCarrier = HeaderCarrier()
   implicit val correlationId: CorrelationId = CorrelationId("test-correlation-id")
@@ -118,6 +119,7 @@ class GenerateFeedbackServiceSpec
   trait Test:
     val service = new GenerateFeedbackService(
       mockRdsAuthService,
+      mockInteractionService,
       mockVatApiConnector,
       mockInsightsConnector,
       mockFeedbackConnector,
@@ -138,23 +140,31 @@ class GenerateFeedbackServiceSpec
       MockRdsAuthService.bearerToken
         .returns(Future.successful(Right(ResponseWrapper(correlationId, Some(credentials)))))
 
+    def interactionIsStored(): Unit =
+      MockInteractionService
+        .store(feedbackResponse, obligation, vrn, validReturnBody)
+        .returns(())
+
     def generate(body: JsValue = validReturnBody): Future[ServiceOutcome[FeedbackResponse]] =
       service.generateFeedback(vrn, body, agentReferenceNumber, requestHeaders)
 
   "generateFeedback" when:
 
     "every downstream responds successfully" should:
-      "return the feedback report" in new Test:
+      "return the feedback report and store the interaction" in new Test:
         vatApiReturnsObligation()
         insightsSucceed()
         authSucceeds()
 
         MockRdsConnector.generateReport(vrn).returns(Future.successful(Right(ResponseWrapper(correlationId, feedbackResponse))))
 
+        interactionIsStored()
+
         await(generate()) shouldBe Right(ResponseWrapper(correlationId, feedbackResponse))
 
     "vat-api returns an error" should:
-      "pass the ErrorWrapper through without calling insights" in new Test:
+      "pass the ErrorWrapper through without calling insights or storing an interaction" in new Test:
+        // No further expectations so nothing downstream of validation should be called
         MockVatApiConnector
           .validate(vrn, validReturnBody)
           .returns(Future.successful(Left(ErrorWrapper(correlationId, DownstreamError))))
@@ -162,7 +172,7 @@ class GenerateFeedbackServiceSpec
         await(generate()) shouldBe Left(ErrorWrapper(correlationId, DownstreamError))
 
     "insights returns an error" should:
-      "pass the ErrorWrapper through without calling RDS" in new Test:
+      "pass the ErrorWrapper through without calling RDS or storing an interaction" in new Test:
         vatApiReturnsObligation()
 
         MockInsightsConnector
@@ -172,7 +182,7 @@ class GenerateFeedbackServiceSpec
         await(generate()) shouldBe Left(ErrorWrapper(correlationId, DownstreamError))
 
     "the validated body is missing a mandatory VAT figure" should:
-      "return DownstreamError without calling RDS" in new Test:
+      "return DownstreamError without calling RDS or storing an interaction" in new Test:
         val incompleteBody: JsValue = validReturnBody.as[JsObject] - "vatDueSales"
 
         MockVatApiConnector
@@ -184,7 +194,7 @@ class GenerateFeedbackServiceSpec
         await(generate(incompleteBody)) shouldBe Left(ErrorWrapper(correlationId, DownstreamError))
 
     "the bearer token cannot be obtained" should:
-      "pass the ErrorWrapper through without calling RDS" in new Test:
+      "pass the ErrorWrapper through without calling RDS or storing an interaction" in new Test:
         vatApiReturnsObligation()
         insightsSucceed()
 
@@ -193,7 +203,7 @@ class GenerateFeedbackServiceSpec
         await(generate()) shouldBe Left(ErrorWrapper(correlationId, DownstreamError))
 
     "RDS returns an error" should:
-      "pass the ErrorWrapper through" in new Test:
+      "pass the ErrorWrapper through without storing an interaction" in new Test:
         vatApiReturnsObligation()
         insightsSucceed()
         authSucceeds()

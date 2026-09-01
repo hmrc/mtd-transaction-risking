@@ -51,7 +51,11 @@ trait IntegrationBaseSpec
     "microservice.services.rds.port"            -> mockPort,
     "microservice.services.rds.protocol"        -> "http",
     "microservice.services.rds.submit-url"      -> "/microanalyticScore/modules/HMRC_ASSIST_VAT_FINSUB_FEEDBACK/steps/execute",
-    "microservice.services.rds.RdsAuthRequired" -> false
+    "microservice.services.rds.RdsAuthRequired" -> false,
+    "microservice.services.interactions-datastore.host"       -> mockHost,
+    "microservice.services.interactions-datastore.port"       -> mockPort,
+    "microservice.services.interactions-datastore.protocol"   -> "http",
+    "microservice.services.interactions-datastore.submit-url" -> "/rsd/receive-and-store"
   )
 
   override implicit lazy val app: Application =

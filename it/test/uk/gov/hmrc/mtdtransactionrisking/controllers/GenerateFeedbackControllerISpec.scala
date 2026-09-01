@@ -16,7 +16,9 @@
 
 package uk.gov.hmrc.mtdtransactionrisking.controllers
 
+import com.github.tomakehurst.wiremock.client.WireMock.{postRequestedFor, urlPathMatching}
 import com.github.tomakehurst.wiremock.stubbing.StubMapping
+import org.scalatest.concurrent.Eventually
 import play.api.http.Status.*
 import play.api.libs.json.{JsValue, Json}
 import play.api.mvc.Result
@@ -30,7 +32,7 @@ import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.FeedbackResponse
 
 import scala.concurrent.Future
 
-class GenerateFeedbackControllerISpec extends IntegrationBaseSpec:
+class GenerateFeedbackControllerISpec extends IntegrationBaseSpec, Eventually:
 
   "GenerateFeedbackController" when:
 
@@ -43,6 +45,7 @@ class GenerateFeedbackControllerISpec extends IntegrationBaseSpec:
             VatApiStub.validationPasses(periodKey, fromDate, toDate)
             InsightsRiskStub.successResponse(vrn)
             RdsStub.reportGenerated()
+            InteractionStub.stores()
 
           val response: Future[Result] = request(vrn)
 
@@ -53,6 +56,30 @@ class GenerateFeedbackControllerISpec extends IntegrationBaseSpec:
           feedback.reportId shouldBe "f2fb30e5-4ab6-4a29-b3c1-c7264259ff1c"
           feedback.englishFeedback should have size 1
           feedback.welshFeedback should have size 1
+
+          // Since rsd call is fire and forget the response doesn't confirm storage happened.
+          // This confirms the call was actually made
+          eventually {
+            wireMockServer.verify(postRequestedFor(urlPathMatching("/rsd/receive-and-store")))
+          }
+
+        "the interactions datastore is unavailable" in new Test:
+          // Storage is fire-and-forget, so the vendor still gets a 200
+          override def setupStubs(): StubMapping =
+            AuthStub.successfulAuthWith(vrn)
+            VatApiStub.validationPasses(periodKey, fromDate, toDate)
+            InsightsRiskStub.successResponse(vrn)
+            RdsStub.reportGenerated()
+            InteractionStub.unavailable()
+
+          val response: Future[Result] = request(vrn)
+
+          status(response) shouldBe OK
+
+          // Confirms the store call was actually attempted before the response
+          eventually {
+            wireMockServer.verify(postRequestedFor(urlPathMatching("/rsd/receive-and-store")))
+          }
 
       "return 400" when:
         "the VRN in the request is invalid" in new Test:
@@ -196,6 +223,7 @@ class GenerateFeedbackControllerISpec extends IntegrationBaseSpec:
     val periodKey: String = "AB12"
     val fromDate: String = "2020-01-01"
     val toDate: String = "2020-03-31"
+
     private val validVatReturnBody: JsValue = Json.parse(
       """
         |{

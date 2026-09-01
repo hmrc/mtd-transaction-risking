@@ -38,8 +38,8 @@ class RdsAuthService @Inject() (connector: RdsAuthConnector, appConfig: AppConfi
 
   private val cachedToken = new AtomicReference[Option[CachedToken]](None)
 
-  /** The bearer token for RDS calls, or None in environments that don't require auth. The token lives for roughly four hours and is reused until
-    * shortly before it expires, as SAS ask that callers avoid fetching one per request.
+  /** The bearer token for RDS calls, None in environments that don't require auth. The token lives for four hours and is reused until shortly before
+    * it expires. SAS ask that callers avoid fetching one per request.
     */
   def bearerToken()(implicit hc: HeaderCarrier, correlationId: CorrelationId): Future[ServiceOutcome[Option[RdsAuthCredentials]]] =
     if !appConfig.rdsAuthRequired then Future.successful(Right(ResponseWrapper(correlationId, None)))

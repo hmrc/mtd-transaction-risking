@@ -38,6 +38,7 @@ import scala.concurrent.{ExecutionContext, Future}
 @Singleton
 class GenerateFeedbackService @Inject() (
     rdsAuthService: RdsAuthService,
+    interactionService: InteractionService,
     vatApiConnector: VatApiConnector,
     insightsConnector: InsightsConnector,
     feedbackStubConnector: FeedbackConnector,
@@ -68,6 +69,8 @@ class GenerateFeedbackService @Inject() (
       credentials <- EitherT(rdsAuthService.bearerToken())
 
       report <- EitherT(rdsConnector.generateReport(vrn, reportRequest, credentials.responseData))
+
+      _ = interactionService.store(report.responseData, obligation.responseData, vrn, body)
     yield ResponseWrapper(correlationId, report.responseData)
 
     result.value
@@ -95,4 +98,3 @@ class GenerateFeedbackService @Inject() (
   private def reportRequestFailure(implicit correlationId: CorrelationId): ErrorWrapper =
     logger.error(s"${correlationId.value}::[GenerateFeedbackService][generateFeedback] validated body missing mandatory VAT figures")
     ErrorWrapper(correlationId, DownstreamError)
-
