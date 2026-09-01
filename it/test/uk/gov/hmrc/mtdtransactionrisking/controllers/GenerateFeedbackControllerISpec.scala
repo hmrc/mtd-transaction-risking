@@ -64,7 +64,7 @@ class GenerateFeedbackControllerISpec extends IntegrationBaseSpec, Eventually:
           }
 
         "the interactions datastore is unavailable" in new Test:
-          // Storage is fire-and-forget, so the vendor still gets a 200
+          // Storage is fire and forget so the vendor still gets a 200
           override def setupStubs(): StubMapping =
             AuthStub.successfulAuthWith(vrn)
             VatApiStub.validationPasses(periodKey, fromDate, toDate)

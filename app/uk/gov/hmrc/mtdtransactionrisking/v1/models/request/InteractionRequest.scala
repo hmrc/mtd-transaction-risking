@@ -47,7 +47,7 @@ object Interaction:
       payload        = InteractionPayload.from(feedback)
     )
 
-final case class InteractionMetadata(vrn: String, start: String, end: String, additionalProperties: JsValue)
+final case class InteractionMetadata(vrn: String, start: Option[String], end: Option[String], additionalProperties: JsValue)
 
 object InteractionMetadata:
 
@@ -66,12 +66,11 @@ object InteractionMetadata:
 
   given writes: OWrites[InteractionMetadata] = Json.writes[InteractionMetadata]
 
-  /** The vendor's return as submitted, keeping only the fields the datastore holds. */
   def from(vrn: String, obligation: Obligation, vendorBody: JsValue): InteractionMetadata =
     InteractionMetadata(
       vrn                  = vrn,
-      start                = obligation.start,
-      end                  = obligation.end,
+      start                = Some(obligation.start),
+      end                  = Some(obligation.end),
       additionalProperties = JsObject(vatReturnFields.flatMap(field => (vendorBody \ field).asOpt[JsValue].map(field -> _)))
     )
 

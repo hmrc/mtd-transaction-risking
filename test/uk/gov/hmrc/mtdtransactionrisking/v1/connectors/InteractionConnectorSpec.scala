@@ -52,7 +52,7 @@ class InteractionConnectorSpec extends ConnectorSpec, BeforeAndAfterAll, Injecti
     eventName      = "generate-report",
     feedbackId     = "f2fb30e5-4ab6-4a29-b3c1-c00000000001",
     eventTimestamp = "2026-08-13T09:00:00Z",
-    metadata       = Seq(InteractionMetadata(vrn = "123456789", start = "2026-01-01", end = "2026-03-31", additionalProperties = Json.obj())),
+    metadata       = Seq(InteractionMetadata(vrn = "123456789", start = Some("2026-01-01"), end = Some("2026-03-31"), additionalProperties = Json.obj())),
     payload        = InteractionPayload(reportId = "f2fb30e5-4ab6-4a29-b3c1-c00000000001", messages = Seq.empty)
   )
 

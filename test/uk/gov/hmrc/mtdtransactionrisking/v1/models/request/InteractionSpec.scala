@@ -91,8 +91,8 @@ class InteractionSpec extends UnitSpec:
         val metadata = Interaction.from(feedback, obligation, vrn, vendorBody, now).metadata.head
 
         metadata.vrn shouldBe vrn
-        metadata.start shouldBe obligation.start
-        metadata.end shouldBe obligation.end
+        metadata.start shouldBe Some(obligation.start)
+        metadata.end shouldBe Some(obligation.end)
 
       "keep only the VAT return fields in additionalProperties" in:
         val feedback = FeedbackResponse("report-1", List(englishMessage("1")), List(welshMessage("1")), "rds-corr-id")

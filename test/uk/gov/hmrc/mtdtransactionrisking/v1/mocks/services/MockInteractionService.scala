@@ -21,7 +21,6 @@ import org.scalamock.scalatest.MockFactory
 import org.scalatest.TestSuite
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
-import uk.gov.hmrc.mtdtransactionrisking.v1.services.ServiceOutcome
 import uk.gov.hmrc.mtdtransactionrisking.v1.services.InteractionService
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.FeedbackResponse
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.Obligation
