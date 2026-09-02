@@ -15,5 +15,32 @@
  */
 
 package uk.gov.hmrc.mtdtransactionrisking.v1.models.request
+import play.api.libs.json.{Json, OWrites}
 
 case class AcknowledgeRequest(vrn: String, reportId: String, correlationId: String, presentedDateTime: String)
+
+object AcknowledgeRequest:
+
+  given writes: OWrites[AcknowledgeRequest] =
+    OWrites { request =>
+      Json.obj(
+        "inputs" -> Json.arr(
+          Json.obj(
+            "name" -> "correlationID",
+            "value" -> request.correlationId
+          ),
+          Json.obj(
+            "name" -> "feedbackId",
+            "value" -> request.reportId
+          ),
+          Json.obj(
+            "name" -> "vrn",
+            "value" -> request.vrn
+          ),
+          Json.obj(
+            "name" -> "presentedDateTime",
+            "value" -> request.presentedDateTime
+          )
+        )
+      )
+    }
