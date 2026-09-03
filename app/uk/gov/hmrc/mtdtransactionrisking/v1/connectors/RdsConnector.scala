@@ -30,7 +30,7 @@ import uk.gov.hmrc.mtdtransactionrisking.v1.models.auth.RdsAuthCredentials
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.errors.{DownstreamError, ErrorWrapper, ServiceUnavailableError}
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.outcomes.ResponseWrapper
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.{AcknowledgeRequest, ReportRequest}
-import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.{AcknowledgeResponseWrapper, FeedbackResponse, ReportResponse, ReportResponseTransform}
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.{AcknowledgeResponse, AcknowledgeResponseWrapper, FeedbackResponse, ReportResponse, ReportResponseTransform}
 import uk.gov.hmrc.mtdtransactionrisking.v1.services.ServiceOutcome
 
 import javax.inject.{Inject, Singleton}
@@ -41,11 +41,11 @@ import scala.util.Try
 class RdsConnector @Inject() (httpClient: HttpClientV2, appConfig: AppConfig)(implicit ec: ExecutionContext) extends Logging:
 
   def acknowledge(request: AcknowledgeRequest, credentials: Option[RdsAuthCredentials])(implicit
-                                                                                        hc: HeaderCarrier,
-                                                                                        correlationId: CorrelationId): Future[ServiceOutcome[Unit]] =
+                                                                                      hc: HeaderCarrier,
+                                                                                      correlationId: CorrelationId): Future[ServiceOutcome[AcknowledgeResponse]] =
 
     logger.info(
-      s"${correlationId.value}::[RdsConnector][acknowledge] calling acknowledge service"
+      s"${correlationId.value}::[RdsConnector][acknowledge] sending acknowledge request to RDS"
     )
     httpClient
       .post(url"${appConfig.rdsAcknowledgeUrl}")
@@ -56,14 +56,13 @@ class RdsConnector @Inject() (httpClient: HttpClientV2, appConfig: AppConfig)(im
       .map { response =>
         response.status match
 
-          case ACCEPTED =>
+          case CREATED =>
             response.json
               .validate[AcknowledgeResponseWrapper]
               .fold(
                 errors =>
                   logger.error(
-                    s"${correlationId.value}::[RdsConnector][acknowledge] " +
-                      s"malformed response: ${JsError.toJson(errors)}"
+                    s"${correlationId.value}::[RdsConnector][acknowledge] " + s"malformed response: ${JsError.toJson(errors)}"
                   )
 
                   Left(
@@ -76,61 +75,57 @@ class RdsConnector @Inject() (httpClient: HttpClientV2, appConfig: AppConfig)(im
                   ),
 
                 acknowledgeResponse =>
-                  if acknowledgeResponse.output.responseCode.contains(ACCEPTED) then
-                    logger.info(
-                      s"${correlationId.value}::[RdsConnector][acknowledge] success"
-                    )
+                  val output = acknowledgeResponse.output
 
-                    Right(ResponseWrapper(correlationId, ()))
-                  else
-                    logger.error(
-                      s"${correlationId.value}::[RdsConnector][acknowledge] " +
-                        s"unexpected response code: " +
-                        s"${acknowledgeResponse.output.responseCode.getOrElse("missing")}"
-                    )
-
-                    Left(
-                      ErrorWrapper(
-                        correlationId,
-                        DownstreamError,
-                        rawBody = Some(response.json),
-                        rawStatus = Some(response.status)
+                  output.responseCode match
+                    case Some(ACCEPTED) =>
+                      logger.info(
+                        s"${correlationId.value}::[RdsConnector][acknowledge] success"
                       )
-                    )
+
+                      Right(ResponseWrapper(correlationId, output))
+
+                    case Some(UNAUTHORIZED) =>
+                      logger.error(
+                        s"${correlationId.value}::[RdsConnector][acknowledge] acknowledgement failed with responseCode $UNAUTHORIZED"
+                      )
+
+                      Left(ErrorWrapper(correlationId, DownstreamError, rawBody = Some(response.json), rawStatus = Some(response.status)))
+
+                    case Some(code) =>
+                      logger.error(
+                        s"${correlationId.value}::[RdsConnector][acknowledge] unexpected response code: $code"
+                      )
+
+                      Left(ErrorWrapper(correlationId, DownstreamError, rawBody = Some(response.json), rawStatus = Some(response.status)))
+
+                    case None =>
+                      logger.error(
+                        s"${correlationId.value}::[RdsConnector][acknowledge] missing response code"
+                      )
+
+                      Left(ErrorWrapper(correlationId, DownstreamError, rawBody = Some(response.json), rawStatus = Some(response.status)))
               )
 
           case NOT_FOUND | REQUEST_TIMEOUT | SERVICE_UNAVAILABLE =>
             logger.error(
-              s"${correlationId.value}::[RdsConnector][acknowledge] " +
-                s"RDS unavailable, status ${response.status}"
+              s"${correlationId.value}::[RdsConnector][acknowledge] " + s"RDS unavailable, status ${response.status}"
             )
 
             Left(ErrorWrapper(correlationId, ServiceUnavailableError))
 
           case status =>
             logger.error(
-              s"${correlationId.value}::[RdsConnector][acknowledge] " +
-                s"failed $status: ${response.body}"
+              s"${correlationId.value}::[RdsConnector][acknowledge] " + s"failed $status: ${response.body}"
             )
 
-            val body =
-              Try(response.json).getOrElse(DownstreamError.asJson)
+            val body = Try(response.json).getOrElse(DownstreamError.asJson)
 
-            Left(
-              ErrorWrapper(
-                correlationId,
-                DownstreamError,
-                rawBody = Some(body),
-                rawStatus = Some(status)
-              )
-            )
+            Left(ErrorWrapper(correlationId, DownstreamError, rawBody = Some(body), rawStatus = Some(status)))
       }
       .recover:
         case ex =>
-          logger.error(
-            s"${correlationId.value}::[RdsConnector][acknowledge] unexpected exception",
-            ex
-          )
+          logger.error(s"${correlationId.value}::[RdsConnector][acknowledge] unexpected exception", ex)
 
           Left(ErrorWrapper(correlationId, DownstreamError))
 
