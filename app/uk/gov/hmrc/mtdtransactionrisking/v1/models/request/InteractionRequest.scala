@@ -22,29 +22,29 @@ import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.{FeedbackMessage, Fe
 import java.time.Instant
 
 final case class Interaction(
-                              serviceRegime: String,
-                              eventName: String,
-                              feedbackId: String,
-                              eventTimestamp: String,
-                              metadata: Seq[InteractionMetadata],
-                              payload: InteractionPayload
-                            )
+    serviceRegime: String,
+    eventName: String,
+    feedbackId: String,
+    eventTimestamp: String,
+    metadata: Seq[InteractionMetadata],
+    payload: InteractionPayload
+)
 
 object Interaction:
 
   private val serviceRegime = "vat-assist"
-  private val eventName     = "generate-report"
+  private val eventName = "generate-report"
 
   given writes: OWrites[Interaction] = Json.writes[Interaction]
 
   def from(feedback: FeedbackResponse, obligation: Obligation, vrn: String, vendorBody: JsValue, occurredAt: Instant): Interaction =
     Interaction(
-      serviceRegime  = serviceRegime,
-      eventName      = eventName,
-      feedbackId     = feedback.reportId,
+      serviceRegime = serviceRegime,
+      eventName = eventName,
+      feedbackId = feedback.reportId,
       eventTimestamp = occurredAt.toString,
-      metadata       = Seq(InteractionMetadata.from(vrn, obligation, vendorBody)),
-      payload        = InteractionPayload.from(feedback)
+      metadata = Seq(InteractionMetadata.from(vrn, obligation, vendorBody)),
+      payload = InteractionPayload.from(feedback)
     )
 
 final case class InteractionMetadata(vrn: String, start: Option[String], end: Option[String], additionalProperties: JsValue)
@@ -68,9 +68,9 @@ object InteractionMetadata:
 
   def from(vrn: String, obligation: Obligation, vendorBody: JsValue): InteractionMetadata =
     InteractionMetadata(
-      vrn                  = vrn,
-      start                = Some(obligation.start),
-      end                  = Some(obligation.end),
+      vrn = vrn,
+      start = Some(obligation.start),
+      end = Some(obligation.end),
       additionalProperties = JsObject(vatReturnFields.flatMap(field => (vendorBody \ field).asOpt[JsValue].map(field -> _)))
     )
 
@@ -79,7 +79,7 @@ final case class InteractionPayload(reportId: String, messages: Seq[InteractionM
 object InteractionPayload:
 
   given writes: OWrites[InteractionPayload] = Json.writes[InteractionPayload]
-  
+
   def from(feedback: FeedbackResponse): InteractionPayload =
     val welshByItemNumber = feedback.welshFeedback.map(message => message.itemNumber -> message).toMap
 
@@ -100,18 +100,18 @@ object InteractionMessage:
     english.itemNumber.toIntOption.map { itemNumber =>
       InteractionMessage(
         englishActions = InteractionAction.from(itemNumber, english),
-        welshActions   = InteractionAction.from(itemNumber, welsh)
+        welshActions = InteractionAction.from(itemNumber, welsh)
       )
     }
 
 final case class InteractionAction(
-                                    itemNumber: Int,
-                                    title: String,
-                                    body: String,
-                                    action: String,
-                                    links: Seq[InteractionLink],
-                                    path: String
-                                  )
+    itemNumber: Int,
+    title: String,
+    body: String,
+    action: String,
+    links: Seq[InteractionLink],
+    path: String
+)
 
 object InteractionAction:
 
@@ -120,13 +120,13 @@ object InteractionAction:
   def from(itemNumber: Int, message: FeedbackMessage): InteractionAction =
     InteractionAction(
       itemNumber = itemNumber,
-      title      = message.title,
-      body       = message.body,
-      action     = message.action.getOrElse(""),
-      links      = message.links.getOrElse(Nil).map(link => InteractionLink(link.title, link.url)),
-      path       = message.path
+      title = message.title,
+      body = message.body,
+      action = message.action.getOrElse(""),
+      links = message.links.getOrElse(Nil).map(link => InteractionLink(link.title, link.url)),
+      path = message.path
     )
-    
+
 final case class InteractionLink(linkTitle: String, linkUrl: String)
 
 object InteractionLink:

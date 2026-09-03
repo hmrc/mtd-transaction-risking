@@ -82,4 +82,4 @@ trait MockAppConfig extends MockFactory:
       (() => mockAppConfig.interactionsBaseUrl).expects()
 
     def interactionCredentials: CallHandler[InteractionCredentials] =
-      (() => mockAppConfig.interactionCredentials).expects()  
+      (() => mockAppConfig.interactionCredentials).expects()

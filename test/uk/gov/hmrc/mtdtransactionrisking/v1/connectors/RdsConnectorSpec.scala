@@ -35,7 +35,7 @@ import scala.concurrent.Future
 class RdsConnectorSpec extends ConnectorSpec, BeforeAndAfterAll, Injecting, MockAppConfig:
 
   val httpClient: HttpClientV2 = app.injector.instanceOf[HttpClientV2]
-  private val vrn        = "123456789"
+  private val vrn = "123456789"
   private val reportPath = "/microanalyticScore/modules/HMRC_ASSIST_VAT_FINSUB_FEEDBACK/steps/execute"
   private val urlPattern = urlPathMatching(reportPath)
 
@@ -63,6 +63,7 @@ class RdsConnectorSpec extends ConnectorSpec, BeforeAndAfterAll, Injecting, Mock
     totalValueGoodsSuppliedExVAT = BigDecimal(300),
     totalAllAcquisitionsExVAT = BigDecimal(200)
   )
+
   /** A report with no feedbackId, so the transform cannot build a response. */
   private val reportWithoutFeedbackId: JsValue = Json.parse(
     s"""

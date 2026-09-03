@@ -21,13 +21,13 @@ import uk.gov.hmrc.mtdtransactionrisking.support.UnitSpec
 
 class ReportRequestSpec extends UnitSpec:
 
-  private val correlationId        = "2dd537bc-4244-4ebf-bac9-96321be13cdc"
-  private val periodKey            = "#001"
-  private val startDate            = "2026-01-01"
-  private val endDate              = "2026-03-31"
+  private val correlationId = "2dd537bc-4244-4ebf-bac9-96321be13cdc"
+  private val periodKey = "#001"
+  private val startDate = "2026-01-01"
+  private val endDate = "2026-03-31"
   private val agentReferenceNumber = "LARN0085901"
-  private val riskScore            = 4.7
-  private val riskReasons          = Seq("VRN 123456789 is 3.7 hops away from something risky.")
+  private val riskScore = 4.7
+  private val riskReasons = Seq("VRN 123456789 is 3.7 hops away from something risky.")
 
   private val vendorBody: JsValue = Json.parse(
     """
@@ -48,24 +48,24 @@ class ReportRequestSpec extends UnitSpec:
 
   private val requestHeaders: Seq[(String, String)] = Seq(
     "Gov-Client-Connection-Method" -> "DESKTOP_APP_VIA_SERVER",
-    "Gov-Vendor-Version"           -> "my-desktop-app=2.2.2",
-    "Authorization"                -> "Bearer abc123",
-    "Accept"                       -> "application/vnd.hmrc.1.0+json"
+    "Gov-Vendor-Version" -> "my-desktop-app=2.2.2",
+    "Authorization" -> "Bearer abc123",
+    "Accept" -> "application/vnd.hmrc.1.0+json"
   )
 
   private def build(vendorBody: JsValue = vendorBody,
                     agentReferenceNumber: Option[String] = None,
                     requestHeaders: Seq[(String, String)] = requestHeaders): Option[ReportRequest] =
     ReportRequest.from(
-      correlationId          = correlationId,
-      vendorBody             = vendorBody,
-      agentReferenceNumber   = agentReferenceNumber,
-      periodKey              = periodKey,
-      startDate              = startDate,
-      endDate                = endDate,
-      fraudRiskReportScore   = riskScore,
+      correlationId = correlationId,
+      vendorBody = vendorBody,
+      agentReferenceNumber = agentReferenceNumber,
+      periodKey = periodKey,
+      startDate = startDate,
+      endDate = endDate,
+      fraudRiskReportScore = riskScore,
       fraudRiskReportReasons = riskReasons,
-      requestHeaders         = requestHeaders
+      requestHeaders = requestHeaders
     )
 
   "from" when:
@@ -168,8 +168,7 @@ class ReportRequestSpec extends UnitSpec:
       "write the fraud prevention headers as key/value pairs" in:
         val json = Json.toJson(build().value)
 
-        (json \ "fraudPreventionHeaders").as[Seq[JsObject]] should contain(
-          Json.obj("key" -> "gov-vendor-version", "value" -> "my-desktop-app=2.2.2"))
+        (json \ "fraudPreventionHeaders").as[Seq[JsObject]] should contain(Json.obj("key" -> "gov-vendor-version", "value" -> "my-desktop-app=2.2.2"))
 
       "omit the agent reference number when absent" in:
         val json = Json.toJson(build().value)

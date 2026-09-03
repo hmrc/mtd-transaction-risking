@@ -23,11 +23,11 @@ class ObligationSpec extends UnitSpec:
 
   private val openObligation = Obligation(
     periodKey = "19AA",
-    start     = "2019-01-01",
-    end       = "2019-01-31",
-    due       = "2019-03-07",
-    status    = "O",
-    received  = None
+    start = "2019-01-01",
+    end = "2019-01-31",
+    due = "2019-03-07",
+    status = "O",
+    received = None
   )
 
   private val fulfilledObligation = openObligation.copy(status = "F", received = Some("2019-03-06"))
