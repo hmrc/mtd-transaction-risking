@@ -683,7 +683,10 @@ components:
         itemNumber:
           type: string
           pattern: '^[0-9]{3}$'
-          description: The unique identifier for the feedback message. Corresponding English and Welsh feedback messages will have the same number.
+          description: |
+            The unique identifier for the feedback message. Corresponding English and Welsh feedback messages will have the same number.
+
+            If there is no HMRC Assist feedback, a single message to that effect will be returned. It will have *itemNumber* "0".
           example: '1'
         title:
           type: string
