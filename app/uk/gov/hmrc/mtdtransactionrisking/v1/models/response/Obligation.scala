@@ -19,13 +19,13 @@ package uk.gov.hmrc.mtdtransactionrisking.v1.models.response
 import play.api.libs.json.{Json, OFormat}
 
 case class Obligation(
-                             periodKey: String,
-                             start:     String,
-                             end:       String,
-                             due:       String,
-                             status:    String,
-                             received:  Option[String]
-                           )
+    periodKey: String,
+    start: String,
+    end: String,
+    due: String,
+    status: String,
+    received: Option[String]
+)
 
 object Obligation:
   given format: OFormat[Obligation] = Json.format[Obligation]

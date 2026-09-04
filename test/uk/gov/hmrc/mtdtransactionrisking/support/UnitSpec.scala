@@ -27,10 +27,9 @@ import scala.concurrent.{Await, Future}
 import scala.language.{implicitConversions, postfixOps}
 
 trait UnitSpec extends AnyWordSpecLike, MockFactory, EitherValues, OptionValues, Matchers, FutureAwaits, DefaultAwaitTimeout:
-  
+
   implicit val defaultTimeout: FiniteDuration = 5.seconds
 
   implicit def extractAwait[A](future: Future[A]): A = await[A](future)
 
   def await[A](future: Future[A])(implicit timeout: Duration): A = Await.result(future, timeout)
-

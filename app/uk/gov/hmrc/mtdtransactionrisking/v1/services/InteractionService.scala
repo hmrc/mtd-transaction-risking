@@ -39,5 +39,6 @@ class InteractionService @Inject() (connector: InteractionConnector, clock: Cloc
       .foreach {
         case Right(_) => ()
         case Left(errorWrapper) =>
-          logger.warn(s"${correlationId.value}::[InteractionService][store] failed to store interaction for feedbackId:${feedback.reportId} error:${errorWrapper.error.code}")
+          logger.warn(
+            s"${correlationId.value}::[InteractionService][store] failed to store interaction for feedbackId:${feedback.reportId} error:${errorWrapper.error.code}")
       }

@@ -37,10 +37,10 @@ class RdsAuthConnectorSpec extends ConnectorSpec, BeforeAndAfterAll, Injecting, 
 
   val httpClient: HttpClientV2 = app.injector.instanceOf[HttpClientV2]
 
-  private val authPath   = "/SASLogon/oauth/token"
+  private val authPath = "/SASLogon/oauth/token"
   private val urlPattern = urlPathMatching(authPath)
 
-  private val clientId     = "txr_api_user1"
+  private val clientId = "txr_api_user1"
   private val clientSecret = "a-client-secret"
 
   private val expectedBasicAuth =
@@ -78,7 +78,7 @@ class RdsAuthConnectorSpec extends ConnectorSpec, BeforeAndAfterAll, Injecting, 
       wireMockServer.stubFor(post(urlPattern).willReturn(aResponse().withFault(Fault.CONNECTION_RESET_BY_PEER)))
 
   override def beforeAll(): Unit = wireMockServer.start()
-  override def afterAll(): Unit  = wireMockServer.stop()
+  override def afterAll(): Unit = wireMockServer.stop()
 
   "RdsAuthConnector.retrieveBearerToken" when:
 

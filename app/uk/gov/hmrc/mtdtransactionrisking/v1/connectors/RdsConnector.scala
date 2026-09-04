@@ -37,11 +37,11 @@ import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class RdsConnector @Inject() (httpClient: HttpClientV2, appConfig: AppConfig)(implicit ec: ExecutionContext) extends Logging:
-
-  /** A 201 means the call executed. The decision itself is in the report responseCode field. */
+  
+  // A 201 means the call executed. The actual decision is in the report responseCode field
   def generateReport(vrn: String, request: ReportRequest, credentials: Option[RdsAuthCredentials])(implicit
-                                                                                                   hc: HeaderCarrier,
-                                                                                                   correlationId: CorrelationId): Future[ServiceOutcome[FeedbackResponse]] =
+      hc: HeaderCarrier,
+      correlationId: CorrelationId): Future[ServiceOutcome[FeedbackResponse]] =
 
     logger.info(s"${correlationId.value}::[RdsConnector][generateReport] requesting report for VRN $vrn")
 

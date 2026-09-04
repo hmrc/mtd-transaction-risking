@@ -36,7 +36,7 @@ class VatApiConnectorSpec extends ConnectorSpec, BeforeAndAfterAll, Injecting, M
 
   val httpClient: HttpClientV2 = app.injector.instanceOf[HttpClientV2]
 
-  private val vrn        = "123456789"
+  private val vrn = "123456789"
   private val urlPattern = urlPathMatching("/internal/validate/.*")
 
   private val validBody: JsValue = Json.parse(
@@ -71,11 +71,11 @@ class VatApiConnectorSpec extends ConnectorSpec, BeforeAndAfterAll, Injecting, M
   private val expectedObligation: Obligation =
     Obligation(
       periodKey = "AB12",
-      start     = "2026-01-01",
-      end       = "2026-03-31",
-      due       = "2026-05-07",
-      status    = "O",
-      received  = None
+      start = "2026-01-01",
+      end = "2026-03-31",
+      due = "2026-05-07",
+      status = "O",
+      received = None
     )
 
   private val validationErrorBody: JsValue = Json.parse(
@@ -113,7 +113,7 @@ class VatApiConnectorSpec extends ConnectorSpec, BeforeAndAfterAll, Injecting, M
       wireMockServer.stubFor(post(urlPattern).willReturn(aResponse().withFault(Fault.CONNECTION_RESET_BY_PEER)))
 
   override def beforeAll(): Unit = wireMockServer.start()
-  override def afterAll(): Unit  = wireMockServer.stop()
+  override def afterAll(): Unit = wireMockServer.stop()
 
   "VatApiConnector.validate" when:
 

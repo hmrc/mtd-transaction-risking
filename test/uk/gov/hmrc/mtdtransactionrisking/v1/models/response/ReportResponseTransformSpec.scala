@@ -21,7 +21,7 @@ import uk.gov.hmrc.mtdtransactionrisking.support.UnitSpec
 
 class ReportResponseTransformSpec extends UnitSpec:
 
-  private val feedbackId    = "f2fb30e5-4ab6-4a29-b3c1-c7264259ff1c"
+  private val feedbackId = "f2fb30e5-4ab6-4a29-b3c1-c7264259ff1c"
   private val correlationId = "E9F65715BBC9222477B27074804BBDD5C73CDE62F84D8B00CFD05B883534AF3D"
 
   /** An action output as returned. a metadata block naming the columns then the data rows. */
@@ -29,9 +29,9 @@ class ReportResponseTransformSpec extends UnitSpec:
     Json.obj(
       "metadata" -> Json.arr(
         Json.obj("itemNumber" -> "1"),
-        Json.obj("message"    -> "m"),
-        Json.obj("action"     -> "a"),
-        Json.obj("title"      -> "t"),
+        Json.obj("message" -> "m"),
+        Json.obj("action" -> "a"),
+        Json.obj("title" -> "t"),
         Json.arr(Json.obj("linkTitle" -> "lt"), Json.obj("linkUrl" -> "lu")),
         Json.obj("path" -> "p")
       )),
@@ -51,10 +51,10 @@ class ReportResponseTransformSpec extends UnitSpec:
     ReportResponse(outputs.map((name, value) => ReportOutput(name, value)))
 
   private val fullReport: ReportResponse = reportWith(
-    "feedbackId"     -> Json.toJson(feedbackId),
-    "correlationId"  -> Json.toJson(correlationId),
+    "feedbackId" -> Json.toJson(feedbackId),
+    "correlationId" -> Json.toJson(correlationId),
     "englishActions" -> actionGrids(completeRow),
-    "welshActions"   -> actionGrids(completeRow)
+    "welshActions" -> actionGrids(completeRow)
   )
 
   "toFeedbackResponse" when:
@@ -72,11 +72,11 @@ class ReportResponseTransformSpec extends UnitSpec:
 
         message shouldBe FeedbackMessage(
           itemNumber = "1",
-          title      = "VAT Return Query",
-          body       = "Please review your VAT return figures.",
-          action     = Some("Check your sales records for the period."),
-          links      = Some(List(FeedbackLink("VAT guidance", "https://www.gov.uk/vat-returns"))),
-          path       = "vatDueSales"
+          title = "VAT Return Query",
+          body = "Please review your VAT return figures.",
+          action = Some("Check your sales records for the period."),
+          links = Some(List(FeedbackLink("VAT guidance", "https://www.gov.uk/vat-returns"))),
+          path = "vatDueSales"
         )
 
       "map the welsh grid as well as the english" in:
@@ -87,10 +87,10 @@ class ReportResponseTransformSpec extends UnitSpec:
 
       "map every row in the grid" in:
         val report = reportWith(
-          "feedbackId"     -> Json.toJson(feedbackId),
-          "correlationId"  -> Json.toJson(correlationId),
+          "feedbackId" -> Json.toJson(feedbackId),
+          "correlationId" -> Json.toJson(correlationId),
           "englishActions" -> actionGrids(completeRow, completeRow),
-          "welshActions"   -> actionGrids()
+          "welshActions" -> actionGrids()
         )
 
         ReportResponseTransform.toFeedbackResponse(report).value.englishFeedback should have size 2
@@ -100,28 +100,28 @@ class ReportResponseTransformSpec extends UnitSpec:
         val reordered = Json.arr(
           Json.obj(
             "metadata" -> Json.arr(
-              Json.obj("path"       -> "p"),
-              Json.obj("title"      -> "t"),
+              Json.obj("path" -> "p"),
+              Json.obj("title" -> "t"),
               Json.obj("itemNumber" -> "1"),
-              Json.obj("message"    -> "m")
+              Json.obj("message" -> "m")
             )),
           Json.obj("data" -> Json.arr(Json.arr("vatDueSales", "VAT Return Query", "1", "Please review.")))
         )
 
         val report = reportWith(
-          "feedbackId"     -> Json.toJson(feedbackId),
-          "correlationId"  -> Json.toJson(correlationId),
+          "feedbackId" -> Json.toJson(feedbackId),
+          "correlationId" -> Json.toJson(correlationId),
           "englishActions" -> reordered,
-          "welshActions"   -> Json.arr()
+          "welshActions" -> Json.arr()
         )
 
         ReportResponseTransform.toFeedbackResponse(report).value.englishFeedback.head shouldBe FeedbackMessage(
           itemNumber = "1",
-          title      = "VAT Return Query",
-          body       = "Please review.",
-          action     = None,
-          links      = None,
-          path       = "vatDueSales"
+          title = "VAT Return Query",
+          body = "Please review.",
+          action = None,
+          links = None,
+          path = "vatDueSales"
         )
 
     "a row is missing its optional columns" should:
@@ -130,18 +130,18 @@ class ReportResponseTransformSpec extends UnitSpec:
           Json.obj(
             "metadata" -> Json.arr(
               Json.obj("itemNumber" -> "1"),
-              Json.obj("message"    -> "m"),
-              Json.obj("title"      -> "t"),
-              Json.obj("path"       -> "p")
+              Json.obj("message" -> "m"),
+              Json.obj("title" -> "t"),
+              Json.obj("path" -> "p")
             )),
           Json.obj("data" -> Json.arr(Json.arr("1", "Please review.", "VAT Return Query", "vatDueSales")))
         )
 
         val report = reportWith(
-          "feedbackId"     -> Json.toJson(feedbackId),
-          "correlationId"  -> Json.toJson(correlationId),
+          "feedbackId" -> Json.toJson(feedbackId),
+          "correlationId" -> Json.toJson(correlationId),
           "englishActions" -> minimal,
-          "welshActions"   -> Json.arr()
+          "welshActions" -> Json.arr()
         )
 
         val message = ReportResponseTransform.toFeedbackResponse(report).value.englishFeedback.head
@@ -152,16 +152,15 @@ class ReportResponseTransformSpec extends UnitSpec:
     "a row is missing a mandatory column" should:
       "drop that message rather than failing the whole report" in:
         val withoutTitle = Json.arr(
-          Json.obj(
-            "metadata" -> Json.arr(Json.obj("itemNumber" -> "1"), Json.obj("message" -> "m"), Json.obj("path" -> "p"))),
+          Json.obj("metadata" -> Json.arr(Json.obj("itemNumber" -> "1"), Json.obj("message" -> "m"), Json.obj("path" -> "p"))),
           Json.obj("data" -> Json.arr(Json.arr("1", "Please review.", "vatDueSales")))
         )
 
         val report = reportWith(
-          "feedbackId"     -> Json.toJson(feedbackId),
-          "correlationId"  -> Json.toJson(correlationId),
+          "feedbackId" -> Json.toJson(feedbackId),
+          "correlationId" -> Json.toJson(correlationId),
           "englishActions" -> withoutTitle,
-          "welshActions"   -> Json.arr()
+          "welshActions" -> Json.arr()
         )
 
         ReportResponseTransform.toFeedbackResponse(report).value.englishFeedback shouldBe empty
@@ -181,7 +180,7 @@ class ReportResponseTransformSpec extends UnitSpec:
     "the report has no action grids" should:
       "return a response with empty feedback" in:
         val report = reportWith(
-          "feedbackId"    -> Json.toJson(feedbackId),
+          "feedbackId" -> Json.toJson(feedbackId),
           "correlationId" -> Json.toJson(correlationId)
         )
 
