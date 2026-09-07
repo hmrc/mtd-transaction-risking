@@ -18,7 +18,7 @@ package uk.gov.hmrc.mtdtransactionrisking.v1.controllers
 
 import play.api.mvc.*
 import uk.gov.hmrc.mtdtransactionrisking.config.AppConfig
-import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator
+import uk.gov.hmrc.mtdtransactionrisking.utils.{IdGenerator, Logging}
 import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
 import uk.gov.hmrc.mtdtransactionrisking.v1.controllers.auth.VATAuthAction
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.AcknowledgeRequest
@@ -37,7 +37,7 @@ class AcknowledgeController @Inject() (
                                         appConfig: AppConfig
                                       )(implicit ec: ExecutionContext)
   extends BackendController(cc),
-    ResponseHandler:
+    ResponseHandler, Logging:
 
   def acknowledgeReport(vrn: String, reportId: String, correlationId: String): Action[AnyContent] =
     authAction
@@ -45,7 +45,7 @@ class AcknowledgeController @Inject() (
       .async: request =>
 
         given Request[AnyContent] = request
-        given genCorrelationId: CorrelationId = IdGenerator.generateId()
+        given internalCorrelationId: CorrelationId = IdGenerator.generateId()
 
         val presentedDateTime  = request.getQueryString("presentedDateTime").getOrElse("")
         val acknowledgeRequest = AcknowledgeRequest(vrn, reportId, correlationId, presentedDateTime)
@@ -53,6 +53,7 @@ class AcknowledgeController @Inject() (
         appConfig.acknowledgeStubBaseUrl match
           // Acknowledge stub path used in external test while the real downstream is built
           case Some(_) =>
+            logger.info(s"${internalCorrelationId.value}::[AcknowledgeController][acknowledgeReport] using stub path for reportId $reportId")
             acknowledgeService.stubAcknowledge(acknowledgeRequest).map(handleOutcomeUnit)
 
           case None =>
