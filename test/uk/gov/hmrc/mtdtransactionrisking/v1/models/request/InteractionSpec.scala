@@ -149,3 +149,51 @@ class InteractionSpec extends UnitSpec:
         )
 
         Interaction.forGeneratedReport(feedback, obligation, vrn, vendorBody, now).payload.messages.get should have size 2
+
+  "Interaction.forAcknowledgement" when:
+
+    "building the interaction" should:
+
+      "set the service regime and event name" in:
+        val request = AcknowledgeRequest(
+          vrn = vrn,
+          reportId = "report-1",
+          correlationId = "9EEB55EF4FA9A24954BC982DF1D59B3D02BC097F6B1377B8B335C7583D92B959",
+          presentedDateTime = "2026-08-13T09:00:00Z"
+        )
+
+        val interaction = Interaction.forAcknowledgement(request, now)
+
+        interaction.serviceRegime shouldBe "vat-assist"
+        interaction.eventName shouldBe "acknowledge-report"
+        interaction.feedbackId shouldBe "report-1"
+        interaction.eventTimestamp shouldBe now.toString
+
+      "carry the vrn but no obligation dates in the metadata" in:
+        val request = AcknowledgeRequest(vrn, "report-1", "9EEB55EF4FA9A24954BC982DF1D59B3D02BC097F6B1377B8B335C7583D92B959", "2026-08-13T09:00:00Z")
+
+        val metadata = Interaction.forAcknowledgement(request, now).metadata.head
+
+        metadata.vrn shouldBe vrn
+        metadata.start shouldBe None
+        metadata.end shouldBe None
+
+      "carry presentedDateTime in additionalProperties" in:
+        val request = AcknowledgeRequest(vrn, "report-1", "9EEB55EF4FA9A24954BC982DF1D59B3D02BC097F6B1377B8B335C7583D92B959", "2026-08-13T09:00:00Z")
+
+        val additionalProperties = Interaction.forAcknowledgement(request, now).metadata.head.additionalProperties
+
+        (additionalProperties \ "presentedDateTime").asOpt[String] shouldBe Some("2026-08-13T09:00:00Z")
+
+      "have no payload messages" in:
+        val request = AcknowledgeRequest(vrn, "report-1", "9EEB55EF4FA9A24954BC982DF1D59B3D02BC097F6B1377B8B335C7583D92B959", "2026-08-13T09:00:00Z")
+
+        Interaction.forAcknowledgement(request, now).payload.messages shouldBe None
+
+      "carry the report id as feedbackId and the payload's reportId" in:
+        val request = AcknowledgeRequest(vrn, "report-1", "9EEB55EF4FA9A24954BC982DF1D59B3D02BC097F6B1377B8B335C7583D92B959", "2026-08-13T09:00:00Z")
+
+        val interaction = Interaction.forAcknowledgement(request, now)
+
+        interaction.feedbackId shouldBe "report-1"
+        interaction.payload.reportId shouldBe "report-1"

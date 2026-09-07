@@ -16,5 +16,5 @@
 
 package uk.gov.hmrc.mtdtransactionrisking.v1.models.auth
 
-/** TxR credentials used to obtain a bearer token forGeneratedReport the login service. */
+/** TxR credentials used to obtain a bearer token from the login service. */
 final case class RdsCredentials(clientId: String, clientSecret: String)
