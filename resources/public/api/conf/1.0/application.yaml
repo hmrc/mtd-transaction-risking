@@ -4,11 +4,14 @@ info:
   description: |
     # Overview
     Use this API to get HMRC Assist feedback about potential inaccuracies in returns before they are formally submitted.
-    You must follow a two-step process:
-    1. Send draft return data.
-    2. Use the relevant acknowledgement endpoint to confirm that your software has presented the HMRC Assist feedback messages to the user.
+
+    The endpoints must be used in this order:
+    1. Use the *assist* endpoint to send draft return data, and receive HMRC Assist feedback messages about that data.
+    2. Use the *acknowledge* endpoint to confirm that your software has presented the HMRC Assist feedback messages to the user.
 
     Because this process operates on draft, unfinalised data, requesting feedback carries no formal declaration. Also, the process does not block formal declaration submission via the *returns* endpoint of the [VAT (MTD) API](https://developer.service.hmrc.gov.uk/api-documentation/docs/api/service/vat-api/). Your software must allow customers to submit their VAT return, irrespective of any HMRC Assist submission feedback.
+
+    For more information about HMRC Assist for VAT, see the [VAT (MTD) end-to-end service guide](https://developer.service.hmrc.gov.uk/guides/vat-mtd-end-to-end-service-guide/documentation/hmrc-assist-for-vat.html).
   contact: {}
   version: '1.0'
 servers:
@@ -23,7 +26,7 @@ paths:
         - Endpoints
       summary: Request HMRC Assist feedback for VAT [test only]
       description: |
-        Send VAT return data, to receive feedback from HMRC before formally submitting a VAT return. 
+        Send draft VAT return data, to receive feedback from HMRC before formally submitting a VAT return. 
 
         The response will contain feedback messages in English and Welsh, highlighting potential mistakes or discrepancies in the VAT return data.
 
@@ -711,7 +714,10 @@ components:
         path:
           type: string
           maxLength: 32767
-          description: The VAT box numbers and equivalent descriptions (as appearing on a paper return) that are the focus of the feedback presented in the message.
+          description: |
+            The name of the request field that is the focus of the feedback message.
+
+            If only a "no feedback" message is returned, this field will not be present.
           example: 'vatDueSales'
 
     FeedbackLink:
