@@ -26,7 +26,6 @@ import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.FeedbackResponse
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.Obligation
 import play.api.libs.json.JsValue
 
-
 trait MockInteractionService extends MockFactory:
   this: TestSuite =>
 

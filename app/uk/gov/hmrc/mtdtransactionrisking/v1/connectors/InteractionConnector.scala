@@ -16,7 +16,6 @@
 
 package uk.gov.hmrc.mtdtransactionrisking.v1.connectors
 
-import org.apache.pekko.util.ByteString.UTF_8
 import play.api.Logging
 import play.api.http.Status.NO_CONTENT
 import play.api.libs.json.Json
@@ -32,6 +31,7 @@ import uk.gov.hmrc.mtdtransactionrisking.v1.models.outcomes.ResponseWrapper
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.Interaction
 import uk.gov.hmrc.mtdtransactionrisking.v1.services.ServiceOutcome
 
+import java.nio.charset.StandardCharsets.UTF_8
 import java.util.Base64
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
@@ -67,8 +67,8 @@ class InteractionConnector @Inject() (httpClient: HttpClientV2, appConfig: AppCo
     val encoded = Base64.getEncoder.encodeToString(s"${credentials.clientId}:${credentials.clientSecret}".getBytes(UTF_8))
 
     Seq(
-      "Content-Type"  -> "application/json",
-      "Accept"        -> "*/*",
+      "Content-Type" -> "application/json",
+      "Accept" -> "*/*",
       "CorrelationId" -> correlationId.value,
       "Authorization" -> s"Basic $encoded"
     )

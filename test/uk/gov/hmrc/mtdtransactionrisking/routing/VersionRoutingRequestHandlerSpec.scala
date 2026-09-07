@@ -47,7 +47,7 @@ class VersionRoutingRequestHandlerSpec extends UnitSpec, Inside, MockAppConfig, 
   import play.api.routing.sird.*
 
   object DefaultHandler extends Handler
-  object V1Handler      extends Handler
+  object V1Handler extends Handler
 
   private val defaultRouter = Router.from { case POST(p"") =>
     DefaultHandler
@@ -58,7 +58,7 @@ class VersionRoutingRequestHandlerSpec extends UnitSpec, Inside, MockAppConfig, 
   }
 
   private val routingMap = new VersionRoutingMap:
-    override val defaultRouter: Router    = test.defaultRouter
+    override val defaultRouter: Router = test.defaultRouter
     override val map: Map[String, Router] = Map("1.0" -> v1Router)
 
   private def enabledConfig: Option[Configuration] =
@@ -72,7 +72,7 @@ class VersionRoutingRequestHandlerSpec extends UnitSpec, Inside, MockAppConfig, 
     val httpConfiguration: HttpConfiguration = HttpConfiguration("context")
 
     private val errorHandler = mock[HttpErrorHandler]
-    private val filters      = mock[HttpFilters]
+    private val filters = mock[HttpFilters]
 
     (() => filters.filters).expects().returns(Nil).anyNumberOfTimes()
 

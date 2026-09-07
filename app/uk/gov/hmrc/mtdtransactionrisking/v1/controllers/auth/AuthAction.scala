@@ -98,7 +98,7 @@ class VATAuthAction @Inject() (override val authConnector: AuthConnector, config
 
                   case Some(vrn) =>
                     block(AuthenticatedVATRequest(request, userId, vrn, arn))
-                    
+
               case _ =>
                 logger.warn("Unable to retrieve required auth values")
                 Future.successful(Unauthorized("Unable to retrieve required auth values"))

@@ -37,10 +37,10 @@ class InsightsConnectorSpec extends ConnectorSpec, BeforeAndAfterAll, Injecting,
   override def afterAll(): Unit = wireMockServer.stop()
 
   val httpClient: HttpClientV2 = app.injector.instanceOf[HttpClientV2]
-  
+
   private val vrn = "123456789"
   private val urlPattern = urlPathMatching("/check/insights")
-  
+
   private val request = InsightsRequest(vrn)
   private val successResponseJson: JsValue = Json.parse(
     """
@@ -91,7 +91,7 @@ class InsightsConnectorSpec extends ConnectorSpec, BeforeAndAfterAll, Injecting,
         stubInsights(Some(successResponseJson.toString), OK)
         await(connector.getRiskInsights(request)) shouldBe Right(ResponseWrapper(correlationId, expectedResponse))
 
-    "the proxy responds 200 with a body missing reasons" should :
+    "the proxy responds 200 with a body missing reasons" should:
       "return Left(DownstreamError)" in new Test:
         val missingReasons: JsValue = Json.parse(
           """{"insights":{"strategicRisk":{"riskScore":12.33,"riskCorrelationId":"123e4567-e89b-12d3-a456-426614174000"}}}"""

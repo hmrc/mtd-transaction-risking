@@ -31,7 +31,7 @@ import scala.concurrent.Future
 
 class RdsAuthServiceSpec extends UnitSpec, MockRdsAuthConnector, MockAppConfig:
 
-  implicit val hc: HeaderCarrier            = HeaderCarrier()
+  implicit val hc: HeaderCarrier = HeaderCarrier()
   implicit val correlationId: CorrelationId = CorrelationId("test-correlation-id")
 
   private val issuedAt = Instant.parse("2026-08-13T09:00:00Z")
@@ -40,18 +40,18 @@ class RdsAuthServiceSpec extends UnitSpec, MockRdsAuthConnector, MockAppConfig:
   private val tokenLifetimeSeconds = 14399
   private val refreshMarginSeconds = 300
 
-  private val credentials          = RdsAuthCredentials("a-bearer-token", "bearer", tokenLifetimeSeconds)
+  private val credentials = RdsAuthCredentials("a-bearer-token", "bearer", tokenLifetimeSeconds)
   private val refreshedCredentials = credentials.copy(access_token = "a-refreshed-token")
 
   private val justBeforeRefresh = issuedAt.plusSeconds(tokenLifetimeSeconds - refreshMarginSeconds - 1)
-  private val atRefreshMargin   = issuedAt.plusSeconds(tokenLifetimeSeconds - refreshMarginSeconds)
-  private val afterExpiry       = issuedAt.plusSeconds(tokenLifetimeSeconds)
+  private val atRefreshMargin = issuedAt.plusSeconds(tokenLifetimeSeconds - refreshMarginSeconds)
+  private val afterExpiry = issuedAt.plusSeconds(tokenLifetimeSeconds)
 
   /** A clock the test can move forward so token expiry is can be manipulated. */
   private class TestClock(var now: Instant) extends Clock:
-    override def instant(): Instant              = now
-    override def getZone: ZoneId                 = ZoneOffset.UTC
-    override def withZone(zone: ZoneId): Clock   = this
+    override def instant(): Instant = now
+    override def getZone: ZoneId = ZoneOffset.UTC
+    override def withZone(zone: ZoneId): Clock = this
 
   private trait Test:
     val testClock = new TestClock(issuedAt)

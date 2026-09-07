@@ -40,6 +40,7 @@ import scala.util.Try
 @Singleton
 class RdsConnector @Inject() (httpClient: HttpClientV2, appConfig: AppConfig)(implicit ec: ExecutionContext) extends Logging:
 
+
   def acknowledge(request: AcknowledgeRequest, credentials: Option[RdsAuthCredentials])(implicit
                                                                                       hc: HeaderCarrier,
                                                                                       correlationId: CorrelationId): Future[ServiceOutcome[AcknowledgeResponse]] =
@@ -128,8 +129,8 @@ class RdsConnector @Inject() (httpClient: HttpClientV2, appConfig: AppConfig)(im
           logger.error(s"${correlationId.value}::[RdsConnector][acknowledge] unexpected exception", ex)
 
           Left(ErrorWrapper(correlationId, DownstreamError))
-
-  /** A 201 means the call executed. The decision itself is in the report responseCode field. */
+  
+  // A 201 means the call executed. The actual decision is in the report responseCode field
   def generateReport(vrn: String, request: ReportRequest, credentials: Option[RdsAuthCredentials])(implicit
       hc: HeaderCarrier,
       correlationId: CorrelationId): Future[ServiceOutcome[FeedbackResponse]] =

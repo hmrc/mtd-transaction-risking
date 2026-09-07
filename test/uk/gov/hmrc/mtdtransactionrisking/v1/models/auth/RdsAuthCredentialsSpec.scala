@@ -25,8 +25,8 @@ class RdsAuthCredentialsSpec extends UnitSpec:
 
   private val credentials = RdsAuthCredentials(
     access_token = "a-bearer-token",
-    token_type   = "bearer",
-    expires_in   = 14399
+    token_type = "bearer",
+    expires_in = 14399
   )
 
   private val credentialsJson: JsValue = Json.parse(

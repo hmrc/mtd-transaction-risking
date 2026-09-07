@@ -38,22 +38,22 @@ class InteractionConnectorSpec extends ConnectorSpec, BeforeAndAfterAll, Injecti
 
   val httpClient: HttpClientV2 = app.injector.instanceOf[HttpClientV2]
 
-  private val storePath  = "/rsd/receive-and-store"
+  private val storePath = "/rsd/receive-and-store"
   private val urlPattern = urlPathMatching(storePath)
 
-  private val clientId     = "stub-client-id"
+  private val clientId = "stub-client-id"
   private val clientSecret = "stub-client-secret"
 
   private val expectedBasicAuth =
     "Basic " + Base64.getEncoder.encodeToString(s"$clientId:$clientSecret".getBytes(UTF_8))
 
   private val interaction: Interaction = Interaction(
-    serviceRegime  = "vat-assist",
-    eventName      = "generate-report",
-    feedbackId     = "f2fb30e5-4ab6-4a29-b3c1-c00000000001",
+    serviceRegime = "vat-assist",
+    eventName = "generate-report",
+    feedbackId = "f2fb30e5-4ab6-4a29-b3c1-c00000000001",
     eventTimestamp = "2026-08-13T09:00:00Z",
-    metadata       = Seq(InteractionMetadata(vrn = "123456789", start = Some("2026-01-01"), end = Some("2026-03-31"), additionalProperties = Json.obj())),
-    payload        = InteractionPayload(reportId = "f2fb30e5-4ab6-4a29-b3c1-c00000000001", messages = Seq.empty)
+    metadata = Seq(InteractionMetadata(vrn = "123456789", start = Some("2026-01-01"), end = Some("2026-03-31"), additionalProperties = Json.obj())),
+    payload = InteractionPayload(reportId = "f2fb30e5-4ab6-4a29-b3c1-c00000000001", messages = Seq.empty)
   )
 
   class Test:
@@ -72,7 +72,7 @@ class InteractionConnectorSpec extends ConnectorSpec, BeforeAndAfterAll, Injecti
       wireMockServer.stubFor(post(urlPattern).willReturn(aResponse().withFault(Fault.CONNECTION_RESET_BY_PEER)))
 
   override def beforeAll(): Unit = wireMockServer.start()
-  override def afterAll(): Unit  = wireMockServer.stop()
+  override def afterAll(): Unit = wireMockServer.stop()
 
   "InteractionConnector.store" when:
 

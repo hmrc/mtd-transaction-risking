@@ -26,26 +26,26 @@ import play.api.libs.json.{JsObject, JsValue}
 object ReportResponseTransform:
 
   private val itemNumberColumn = "itemNumber"
-  private val messageColumn    = "message" // becomes FeedbackMessage.body
-  private val actionColumn     = "action"
-  private val titleColumn      = "title"
-  private val pathColumn       = "path"
-  private val linksColumn      = "links"
+  private val messageColumn = "message" // becomes FeedbackMessage.body
+  private val actionColumn = "action"
+  private val titleColumn = "title"
+  private val pathColumn = "path"
+  private val linksColumn = "links"
 
   def toFeedbackResponse(report: ReportResponse): Option[FeedbackResponse] =
     for
-      feedbackId    <- report.feedbackId
+      feedbackId <- report.feedbackId
       correlationId <- report.rdsCorrelationId
     yield FeedbackResponse(
-      reportId        = feedbackId,
+      reportId = feedbackId,
       englishFeedback = toMessages(report.englishActions),
-      welshFeedback   = toMessages(report.welshActions),
-      correlationId   = correlationId
+      welshFeedback = toMessages(report.welshActions),
+      correlationId = correlationId
     )
 
   private def toMessages(grids: Seq[ActionGrid]): List[FeedbackMessage] =
     val columns = grids.flatMap(_.metadata).headOption.map(columnNames).getOrElse(Seq.empty)
-    val rows    = grids.flatMap(_.data).flatten
+    val rows = grids.flatMap(_.data).flatten
 
     rows.map(row => columns.zip(row).toMap).flatMap(toMessage).toList
 
@@ -61,22 +61,22 @@ object ReportResponseTransform:
 
     for
       itemNumber <- string(itemNumberColumn)
-      body       <- string(messageColumn)
-      title      <- string(titleColumn)
-      path       <- string(pathColumn)
+      body <- string(messageColumn)
+      title <- string(titleColumn)
+      path <- string(pathColumn)
     yield FeedbackMessage(
       itemNumber = itemNumber,
-      title      = title,
-      body       = body,
-      action     = string(actionColumn),
-      links      = fields.get(linksColumn).flatMap(toLinks),
-      path       = path
+      title = title,
+      body = body,
+      action = string(actionColumn),
+      links = fields.get(linksColumn).flatMap(toLinks),
+      path = path
     )
 
   private def toLinks(value: JsValue): Option[List[FeedbackLink]] =
     value.asOpt[Seq[JsValue]].flatMap { entries =>
       for
         title <- entries.flatMap(entry => (entry \ "linkTitle").asOpt[String]).headOption
-        url   <- entries.flatMap(entry => (entry \ "linkUrl").asOpt[String]).headOption
+        url <- entries.flatMap(entry => (entry \ "linkUrl").asOpt[String]).headOption
       yield List(FeedbackLink(title, url))
     }

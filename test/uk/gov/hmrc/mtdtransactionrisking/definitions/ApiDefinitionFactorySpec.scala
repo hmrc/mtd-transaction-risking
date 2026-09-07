@@ -49,7 +49,7 @@ class ApiDefinitionFactorySpec extends UnitSpec, MockAppConfig:
       MockedAppConfig.endpointsEnabled("1").returns(true).anyNumberOfTimes()
 
       val factory = new ApiDefinitionFactory(mockAppConfig)
-      val result  = factory.definition
+      val result = factory.definition
 
       result.api.name shouldBe "VAT Assist (MTD)"
       result.api.context shouldBe "misc/transaction-risking"

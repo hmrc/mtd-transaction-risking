@@ -52,19 +52,19 @@ trait AppConfig:
   def rdsAuthRequired: Boolean
   def rdsAuthUrl: String
   def rdsCredentials: RdsCredentials
-  
-  // RSD interaction datastore 
+
+  // RSD interaction datastore
   def interactionsBaseUrl: String
   def interactionCredentials: InteractionCredentials
-  
+
 @Singleton
 class AppConfigImpl @Inject() (config: ServicesConfig, configuration: Configuration) extends AppConfig:
 
   val appName: String = config.getString("appName")
 
-  def featureSwitch: Option[Configuration]       = configuration.getOptional[Configuration]("feature-switch")
-  val apiGatewayContext: String                  = config.getString("api.gateway.context")
-  def apiStatus(version: String): String         = config.getString(s"api.$version.status")
+  def featureSwitch: Option[Configuration] = configuration.getOptional[Configuration]("feature-switch")
+  val apiGatewayContext: String = config.getString("api.gateway.context")
+  def apiStatus(version: String): String = config.getString(s"api.$version.status")
   def endpointsEnabled(version: String): Boolean = config.getBoolean(s"feature-switch.version-$version.enabled")
 
   val feedbackStubBaseUrl: Option[String] =
@@ -75,13 +75,13 @@ class AppConfigImpl @Inject() (config: ServicesConfig, configuration: Configurat
   val feedbackEnvironmentHeaders: Option[Seq[String]] =
     configuration.getOptional[Seq[String]]("microservice.services.feedback-stub.environmentHeaders")
 
-  private val vatApiConfig  = configuration.get[Configuration]("microservice.services.vat-api")
+  private val vatApiConfig = configuration.get[Configuration]("microservice.services.vat-api")
   val vatApiBaseUrl: String = config.baseUrl("vat-api") + vatApiConfig.get[String]("submit-url")
 
-  private val insightsProxyConfig         = configuration.get[Configuration]("microservice.services.insights-proxy")
+  private val insightsProxyConfig = configuration.get[Configuration]("microservice.services.insights-proxy")
   val insightsProxyServiceBaseUrl: String = config.baseUrl("insights-proxy") + insightsProxyConfig.get[String]("submit-url")
 
-  private val acknowledgeStubConfig  = configuration.get[Configuration]("microservice.services.acknowledge-stub")
+  private val acknowledgeStubConfig = configuration.get[Configuration]("microservice.services.acknowledge-stub")
   val acknowledgeStubBaseUrl: String = config.baseUrl("acknowledge-stub") + acknowledgeStubConfig.get[String]("submit-url")
 
   val acknowledgeEnvironmentHeaders: Option[Seq[String]] =
@@ -89,20 +89,20 @@ class AppConfigImpl @Inject() (config: ServicesConfig, configuration: Configurat
 
   private val rdsConfig = configuration.get[Configuration]("microservice.services.rds")
 
-  val rdsSubmitUrl: String      = config.baseUrl("rds") + rdsConfig.get[String]("submit-url")
+  val rdsSubmitUrl: String = config.baseUrl("rds") + rdsConfig.get[String]("submit-url")
   val rdsAcknowledgeUrl: String = config.baseUrl("rds") + rdsConfig.get[String]("acknowledge-url")
-  val rdsAuthRequired: Boolean  = rdsConfig.get[Boolean]("RdsAuthRequired")
-  
+  val rdsAuthRequired: Boolean = rdsConfig.get[Boolean]("RdsAuthRequired")
+
   val rdsAuthUrl: String = config.baseUrl("rds.sas") + rdsConfig.get[String]("sas.auth-url")
 
   val rdsCredentials: RdsCredentials = RdsCredentials(
-      clientId     = rdsConfig.get[String]("sas.clientId"),
-      clientSecret = rdsConfig.get[String]("sas.clientSecret")
-    )
-  
+    clientId = rdsConfig.get[String]("sas.clientId"),
+    clientSecret = rdsConfig.get[String]("sas.clientSecret")
+  )
+
   private val interactionsConfig = configuration.get[Configuration]("microservice.services.interactions-datastore")
   val interactionsBaseUrl: String = config.baseUrl("interactions-datastore") + interactionsConfig.get[String]("submit-url")
   val interactionCredentials: InteractionCredentials = InteractionCredentials(
     clientId = interactionsConfig.get[String]("clientId"),
     clientSecret = interactionsConfig.get[String]("clientSecret")
-  )  
+  )

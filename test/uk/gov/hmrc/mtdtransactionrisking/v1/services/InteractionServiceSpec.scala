@@ -33,7 +33,7 @@ import scala.concurrent.{ExecutionContext, Future}
 
 class InteractionServiceSpec extends UnitSpec, MockInteractionConnector, LogCapturing:
 
-  implicit val hc: HeaderCarrier            = HeaderCarrier()
+  implicit val hc: HeaderCarrier = HeaderCarrier()
   implicit val correlationId: CorrelationId = CorrelationId("test-correlation-id")
 
   private val vrn = "123456789"
@@ -42,11 +42,11 @@ class InteractionServiceSpec extends UnitSpec, MockInteractionConnector, LogCapt
 
   private val obligation = Obligation(
     periodKey = "AB12",
-    start     = "2026-01-01",
-    end       = "2026-03-31",
-    due       = "2026-05-07",
-    status    = "O",
-    received  = None
+    start = "2026-01-01",
+    end = "2026-03-31",
+    due = "2026-05-07",
+    status = "O",
+    received = None
   )
 
   private val vendorBody: JsValue = Json.parse(
@@ -68,20 +68,20 @@ class InteractionServiceSpec extends UnitSpec, MockInteractionConnector, LogCapt
 
   private val englishMessage = FeedbackMessage(
     itemNumber = "1",
-    title      = "VAT title",
-    body       = "VAT body",
-    action     = Some("VAT action"),
-    links      = Some(List(FeedbackLink("VAT", "https://www.gov.uk/vat"))),
-    path       = "/guidance"
+    title = "VAT title",
+    body = "VAT body",
+    action = Some("VAT action"),
+    links = Some(List(FeedbackLink("VAT", "https://www.gov.uk/vat"))),
+    path = "/guidance"
   )
 
   private val welshMessage = englishMessage.copy(title = "Teitl TAW", body = "Corff TAW")
 
   private val feedback = FeedbackResponse(
-    reportId        = "f2fb30e5-4ab6-4a29-b3c1-c00000000001",
+    reportId = "f2fb30e5-4ab6-4a29-b3c1-c00000000001",
     englishFeedback = List(englishMessage),
-    welshFeedback   = List(welshMessage),
-    correlationId   = "E9F65715BBC9222477B27074804BBDD5C73CDE62F84D8B00CFD05B883534AF3D"
+    welshFeedback = List(welshMessage),
+    correlationId = "E9F65715BBC9222477B27074804BBDD5C73CDE62F84D8B00CFD05B883534AF3D"
   )
 
   private val expectedInteraction: Interaction =
@@ -100,7 +100,7 @@ class InteractionServiceSpec extends UnitSpec, MockInteractionConnector, LogCapt
 
         service.store(feedback, obligation, vrn, vendorBody)
 
-    "the connector returns an error" should :
+    "the connector returns an error" should:
       "not propagate it to the caller" in new Test:
         MockInteractionConnector
           .store(expectedInteraction)

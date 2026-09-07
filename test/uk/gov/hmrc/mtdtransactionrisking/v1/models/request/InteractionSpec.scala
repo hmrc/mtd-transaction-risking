@@ -29,11 +29,11 @@ class InteractionSpec extends UnitSpec:
 
   private val obligation = Obligation(
     periodKey = "AB12",
-    start     = "2026-01-01",
-    end       = "2026-03-31",
-    due       = "2026-05-07",
-    status    = "O",
-    received  = None
+    start = "2026-01-01",
+    end = "2026-03-31",
+    due = "2026-05-07",
+    status = "O",
+    received = None
   )
 
   private val vendorBody: JsValue = Json.parse(
@@ -55,20 +55,20 @@ class InteractionSpec extends UnitSpec:
 
   private def englishMessage(itemNumber: String) = FeedbackMessage(
     itemNumber = itemNumber,
-    title      = "VAT title",
-    body       = "VAT body",
-    action     = Some("VAT action"),
-    links      = Some(List(FeedbackLink("VAT guidance", "https://www.gov.uk/vat-returns"))),
-    path       = "/guidance"
+    title = "VAT title",
+    body = "VAT body",
+    action = Some("VAT action"),
+    links = Some(List(FeedbackLink("VAT guidance", "https://www.gov.uk/vat-returns"))),
+    path = "/guidance"
   )
 
   private def welshMessage(itemNumber: String) = FeedbackMessage(
     itemNumber = itemNumber,
-    title      = "Teitl TAW",
-    body       = "Corff TAW",
-    action     = Some("Gweithred TAW"),
-    links      = Some(List(FeedbackLink("Canllawiau TAW", "https://www.gov.uk/ffurflenni-taw"))),
-    path       = "/guidance"
+    title = "Teitl TAW",
+    body = "Corff TAW",
+    action = Some("Gweithred TAW"),
+    links = Some(List(FeedbackLink("Canllawiau TAW", "https://www.gov.uk/ffurflenni-taw"))),
+    path = "/guidance"
   )
 
   "Interaction.from" when:

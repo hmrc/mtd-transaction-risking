@@ -46,13 +46,13 @@ import play.api.libs.json.{JsValue, Json, Reads}
   */
 final case class ReportResponse(outputs: Seq[ReportOutput]):
 
-  def responseCode: Option[Int]        = valueOf("responseCode").flatMap(_.asOpt[String]).flatMap(_.toIntOption)
-  def responseMessage: Option[String]  = valueOf("responseMessage").flatMap(_.asOpt[String])
-  def feedbackId: Option[String]       = valueOf("feedbackId").flatMap(_.asOpt[String])
+  def responseCode: Option[Int] = valueOf("responseCode").flatMap(_.asOpt[String]).flatMap(_.toIntOption)
+  def responseMessage: Option[String] = valueOf("responseMessage").flatMap(_.asOpt[String])
+  def feedbackId: Option[String] = valueOf("feedbackId").flatMap(_.asOpt[String])
   def rdsCorrelationId: Option[String] = valueOf("correlationId").flatMap(_.asOpt[String])
-  
-  def englishActions: Seq[ActionGrid]  = actionGrids("englishActions")
-  def welshActions: Seq[ActionGrid]    = actionGrids("welshActions")
+
+  def englishActions: Seq[ActionGrid] = actionGrids("englishActions")
+  def welshActions: Seq[ActionGrid] = actionGrids("welshActions")
 
   private def valueOf(name: String): Option[JsValue] = outputs.find(_.name == name).map(_.value)
 

@@ -46,7 +46,7 @@ class VatApiConnector @Inject() (httpClient: HttpClientV2, appConfig: AppConfig)
     httpClient
       .post(url"$url")
       .withBody(body)
-      .setHeader(buildHeaders(correlationId, appConfig.appName) *)
+      .setHeader(buildHeaders(correlationId, appConfig.appName)*)
       .execute[HttpResponse]
       .map { response =>
         response.status match
@@ -71,7 +71,7 @@ class VatApiConnector @Inject() (httpClient: HttpClientV2, appConfig: AppConfig)
         case e =>
           logger.error(s"${correlationId.value}::[VatApiConnector][validate] unexpected exception", e)
           Left(ErrorWrapper(correlationId, DownstreamError))
-          
+
   private def buildHeaders(correlationId: CorrelationId, appName: String)(implicit hc: HeaderCarrier): Seq[(String, String)] =
     Seq(
       "User-Agent" -> appName,
