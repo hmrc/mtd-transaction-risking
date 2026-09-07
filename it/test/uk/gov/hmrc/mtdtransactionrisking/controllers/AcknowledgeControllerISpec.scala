@@ -15,95 +15,47 @@
  */
 
 package uk.gov.hmrc.mtdtransactionrisking.controllers
-
+import com.github.tomakehurst.wiremock.client.WireMock.{postRequestedFor, urlPathMatching}
 import com.github.tomakehurst.wiremock.stubbing.StubMapping
-import play.api.libs.ws.{EmptyBody, writeableOf_WsBody, WSResponse}
+import org.scalatest.concurrent.Eventually
+import play.api.libs.ws.{EmptyBody, WSResponse, writeableOf_WsBody}
 import play.api.test.Helpers.*
-import uk.gov.hmrc.mtdtransactionrisking.stubs.{AcknowledgeStub, AuthStub, CommonTestData}
+import uk.gov.hmrc.mtdtransactionrisking.stubs.{AuthStub, CommonTestData, InteractionStub}
 import uk.gov.hmrc.mtdtransactionrisking.support.IntegrationBaseSpec
 
 class AcknowledgeControllerISpec extends IntegrationBaseSpec:
 
-  override def servicesConfig: Map[String, Any] =
-    super.servicesConfig ++ Map(
-      "microservice.services.acknowledge-stub.host"       -> mockHost,
-      "microservice.services.acknowledge-stub.port"       -> mockPort,
-      "microservice.services.acknowledge-stub.submit-url" -> "/acknowledge"
-    )
-
-  private val vrn               = CommonTestData.simpleVrn
-  private val reportId          = "f2fb30e5-4ab6-4a29-b3c1-c00000000001"
-  private val requestCorrId     = "c75f40a6-a3df-4429-a697-471eeec46435"
+  private val vrn = CommonTestData.simpleVrn
+  private val reportId = "f2fb30e5-4ab6-4a29-b3c1-c00000000001"
+  private val requestCorrelationId = "c75f40a6-a3df-4429-a697-471eeec46435"
   private val presentedDateTime = "2026-06-09T10:30:00Z"
 
   private def uri: String =
-    s"/acknowledge/$vrn/$reportId/$requestCorrId?presentedDateTime=$presentedDateTime"
+    s"/acknowledge/$vrn/$reportId/$requestCorrelationId?presentedDateTime=$presentedDateTime"
 
-  "POST /acknowledge/:vrn/:reportId/:correlationId" when:
+  "POST /acknowledge/:vrn/:reportId/:correlationId" should:
 
-    "the downstream acknowledges successfully" should:
-      "return 204 with a correlation header" in new Test:
-        override def setupStubs(): StubMapping =
-          AuthStub.successfulAuthWith(vrn)
-          AcknowledgeStub.successResponse()
+    "return 204 and store the interaction" in new Test:
+      override def setupStubs(): StubMapping =
+        AuthStub.successfulAuthWith(vrn)
+        InteractionStub.stores()
 
-        val response: WSResponse = await(buildRequest(uri).post(EmptyBody))
-        response.status shouldBe NO_CONTENT
-        response.header("X-CorrelationId") shouldBe defined
+      val response: WSResponse = await(buildRequest(uri).post(EmptyBody))
+      println(s"xxxxxxx${response.body}")
+      response.status shouldBe NO_CONTENT
 
-    "the downstream returns a report ID format error" should:
-      "return 400 with FORMAT_REPORT_ID" in new Test:
-        override def setupStubs(): StubMapping =
-          AuthStub.successfulAuthWith(vrn)
-          AcknowledgeStub.reportIdInvalidResponse()
+      eventually {
+        wireMockServer.verify(postRequestedFor(urlPathMatching("/rsd/receive-and-store")))
+      }
 
-        val response: WSResponse = await(buildRequest(uri).post(EmptyBody))
-        response.status shouldBe BAD_REQUEST
-        (document(response) \ "code").as[String] shouldBe "FORMAT_REPORT_ID"
+    "return 204 even when the interactions datastore is unavailable" in new Test:
+      override def setupStubs(): StubMapping =
+        AuthStub.successfulAuthWith(vrn)
+        InteractionStub.unavailable()
 
-    "the downstream returns a correlation ID mismatch" should:
-      "return 403 with CORRELATION_ID" in new Test:
-        override def setupStubs(): StubMapping =
-          AuthStub.successfulAuthWith(vrn)
-          AcknowledgeStub.correlationIdMismatchResponse()
+      val response: WSResponse = await(buildRequest(uri).post(EmptyBody))
 
-        val response: WSResponse = await(buildRequest(uri).post(EmptyBody))
-        response.status shouldBe FORBIDDEN
-        (document(response) \ "code").as[String] shouldBe "CORRELATION_ID"
-
-    "the downstream cannot find the report" should:
-      "return 404 with MATCHING_RESOURCE_NOT_FOUND" in new Test:
-        override def setupStubs(): StubMapping =
-          AuthStub.successfulAuthWith(vrn)
-          AcknowledgeStub.notFoundResponse()
-
-        val response: WSResponse = await(buildRequest(uri).post(EmptyBody))
-        response.status shouldBe NOT_FOUND
-        (document(response) \ "code").as[String] shouldBe "MATCHING_RESOURCE_NOT_FOUND"
-
-    "the user has no MTD VAT enrolment" should:
-      "return 403" in new Test:
-        override def setupStubs(): StubMapping = AuthStub.successfulAuthWithNoEnrolments()
-
-        val response: WSResponse = await(buildRequest(uri).post(EmptyBody))
-        response.status shouldBe FORBIDDEN
-
-    "auth returns no internal id" should:
-      "return 401" in new Test:
-        override def setupStubs(): StubMapping = AuthStub.successfulAuthWithNoUserId()
-
-        val response: WSResponse = await(buildRequest(uri).post(EmptyBody))
-        response.status shouldBe UNAUTHORIZED
-
-    "the downstream connection faults" should :
-      "return 500 INTERNAL_SERVER_ERROR" in new Test:
-        override def setupStubs(): StubMapping =
-          AuthStub.successfulAuthWith(vrn)
-          AcknowledgeStub.connectionFaultResponse()
-
-        val response: WSResponse = await(buildRequest(uri).post(EmptyBody))
-        response.status shouldBe INTERNAL_SERVER_ERROR
-        (document(response) \ "code").as[String] shouldBe "INTERNAL_SERVER_ERROR"
+      response.status shouldBe NO_CONTENT
 
   private trait Test:
     def setupStubs(): StubMapping

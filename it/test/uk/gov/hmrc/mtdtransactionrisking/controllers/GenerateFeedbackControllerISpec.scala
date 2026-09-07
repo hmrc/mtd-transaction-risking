@@ -32,7 +32,7 @@ import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.FeedbackResponse
 
 import scala.concurrent.Future
 
-class GenerateFeedbackControllerISpec extends IntegrationBaseSpec, Eventually:
+class GenerateFeedbackControllerISpec extends IntegrationBaseSpec:
 
   "GenerateFeedbackController" when:
 

@@ -36,7 +36,7 @@ class RdsAuthServiceSpec extends UnitSpec, MockRdsAuthConnector, MockAppConfig:
 
   private val issuedAt = Instant.parse("2026-08-13T09:00:00Z")
 
-  /** tokens live for roughly four hours; the service refreshes five minutes early. */
+  // tokens live for around four hours so the service refreshes five minutes early
   private val tokenLifetimeSeconds = 14399
   private val refreshMarginSeconds = 300
 
@@ -46,12 +46,6 @@ class RdsAuthServiceSpec extends UnitSpec, MockRdsAuthConnector, MockAppConfig:
   private val justBeforeRefresh = issuedAt.plusSeconds(tokenLifetimeSeconds - refreshMarginSeconds - 1)
   private val atRefreshMargin = issuedAt.plusSeconds(tokenLifetimeSeconds - refreshMarginSeconds)
   private val afterExpiry = issuedAt.plusSeconds(tokenLifetimeSeconds)
-
-  /** A clock the test can move forward so token expiry is can be manipulated. */
-  private class TestClock(var now: Instant) extends Clock:
-    override def instant(): Instant = now
-    override def getZone: ZoneId = ZoneOffset.UTC
-    override def withZone(zone: ZoneId): Clock = this
 
   private trait Test:
     val testClock = new TestClock(issuedAt)
@@ -64,7 +58,6 @@ class RdsAuthServiceSpec extends UnitSpec, MockRdsAuthConnector, MockAppConfig:
     def authIsNotRequired(): Unit =
       MockedAppConfig.rdsAuthRequired.returns(false).anyNumberOfTimes()
 
-    /** Expected exactly once, so an unnecessary refetch fails the test. */
     def connectorReturns(credentials: RdsAuthCredentials): Unit =
       MockRdsAuthConnector.retrieveBearerToken
         .returns(Future.successful(Right(ResponseWrapper(correlationId, credentials))))
@@ -75,18 +68,23 @@ class RdsAuthServiceSpec extends UnitSpec, MockRdsAuthConnector, MockAppConfig:
         .returns(Future.successful(Left(ErrorWrapper(correlationId, DownstreamError))))
         .once()
 
+  // A clock the test can move forward so token expiry is can be manipulated
+  private class TestClock(var now: Instant) extends Clock:
+    override def instant(): Instant = now
+    override def getZone: ZoneId = ZoneOffset.UTC
+    override def withZone(zone: ZoneId): Clock = this
+
   "bearerToken" when:
 
     "the environment does not require auth" should:
       "return no credentials without calling the connector" in new Test:
         authIsNotRequired()
         // No connector expectation — no token should be requested
-
         await(service.bearerToken()) shouldBe Right(ResponseWrapper(correlationId, None))
 
     "no token has been cached" should:
 
-      "fetch one from the connector" in new Test:
+      "fetch one forGeneratedReport the connector" in new Test:
         authIsRequired()
         connectorReturns(credentials)
 

@@ -19,13 +19,23 @@ package uk.gov.hmrc.mtdtransactionrisking.v1.services
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
 import uk.gov.hmrc.mtdtransactionrisking.v1.connectors.AcknowledgeConnector
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.outcomes.ResponseWrapper
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.AcknowledgeRequest
 
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.Future
 
 @Singleton
-class AcknowledgeStubService @Inject() (connector: AcknowledgeConnector):
+class AcknowledgeService @Inject() (
+    acknowledgeConnector: AcknowledgeConnector,
+    interactionService: InteractionService
+):
+
+  def stubAcknowledge(request: AcknowledgeRequest)(implicit hc: HeaderCarrier, correlationId: CorrelationId): Future[ServiceOutcome[Unit]] =
+    acknowledgeConnector.acknowledge(request)
 
   def acknowledge(request: AcknowledgeRequest)(implicit hc: HeaderCarrier, correlationId: CorrelationId): Future[ServiceOutcome[Unit]] =
-    connector.acknowledge(request)
+    interactionService.storeAcknowledgement(request)
+    Future.successful(Right(ResponseWrapper(correlationId, ())))
+
+

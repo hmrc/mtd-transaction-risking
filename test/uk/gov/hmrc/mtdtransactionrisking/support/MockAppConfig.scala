@@ -57,7 +57,7 @@ trait MockAppConfig extends MockFactory:
     def insightsProxyServiceBaseUrl: CallHandler[String] =
       (() => mockAppConfig.insightsProxyServiceBaseUrl).expects()
 
-    def acknowledgeStubBaseUrl: CallHandler[String] =
+    def acknowledgeStubBaseUrl: CallHandler[Option[String]] =
       (() => mockAppConfig.acknowledgeStubBaseUrl).expects()
 
     def acknowledgeEnvironmentHeaders: CallHandler[Option[Seq[String]]] =

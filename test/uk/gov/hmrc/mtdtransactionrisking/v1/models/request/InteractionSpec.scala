@@ -71,14 +71,14 @@ class InteractionSpec extends UnitSpec:
     path = "/guidance"
   )
 
-  "Interaction.from" when:
+  "Interaction.forGeneratedReport" when:
 
     "there is one matched pair of feedback messages" should:
 
       "set the service regime and event name" in:
         val feedback = FeedbackResponse("report-1", List(englishMessage("1")), List(welshMessage("1")), "rds-corr-id")
 
-        val interaction = Interaction.from(feedback, obligation, vrn, vendorBody, now)
+        val interaction = Interaction.forGeneratedReport(feedback, obligation, vrn, vendorBody, now)
 
         interaction.serviceRegime shouldBe "vat-assist"
         interaction.eventName shouldBe "generate-report"
@@ -88,7 +88,7 @@ class InteractionSpec extends UnitSpec:
       "carry the vrn and obligation dates in the metadata" in:
         val feedback = FeedbackResponse("report-1", List(englishMessage("1")), List(welshMessage("1")), "rds-corr-id")
 
-        val metadata = Interaction.from(feedback, obligation, vrn, vendorBody, now).metadata.head
+        val metadata = Interaction.forGeneratedReport(feedback, obligation, vrn, vendorBody, now).metadata.head
 
         metadata.vrn shouldBe vrn
         metadata.start shouldBe Some(obligation.start)
@@ -97,15 +97,18 @@ class InteractionSpec extends UnitSpec:
       "keep only the VAT return fields in additionalProperties" in:
         val feedback = FeedbackResponse("report-1", List(englishMessage("1")), List(welshMessage("1")), "rds-corr-id")
 
-        val additionalProperties = Interaction.from(feedback, obligation, vrn, vendorBody, now).metadata.head.additionalProperties
+        val additionalProperties = Interaction.forGeneratedReport(feedback, obligation, vrn, vendorBody, now).metadata.head.additionalProperties
 
         (additionalProperties \ "vatDueSales").asOpt[BigDecimal] shouldBe Some(BigDecimal("100.00"))
         (additionalProperties \ "totalVatDue").asOpt[BigDecimal] shouldBe Some(BigDecimal("200.00"))
 
       "nest the paired english and welsh actions under one message with an integer item number" in:
         val feedback = FeedbackResponse("report-1", List(englishMessage("1")), List(welshMessage("1")), "rds-corr-id")
+        val messages = Interaction.forGeneratedReport(feedback, obligation, vrn, vendorBody, now).payload.messages.get
 
-        val message = Interaction.from(feedback, obligation, vrn, vendorBody, now).payload.messages.head
+        messages should have size 1
+
+        val message = messages.head
 
         message.englishActions.itemNumber shouldBe 1
         message.englishActions.title shouldBe "VAT title"
@@ -114,32 +117,27 @@ class InteractionSpec extends UnitSpec:
 
       "map links to linkTitle and linkUrl" in:
         val feedback = FeedbackResponse("report-1", List(englishMessage("1")), List(welshMessage("1")), "rds-corr-id")
+        val message = Interaction.forGeneratedReport(feedback, obligation, vrn, vendorBody, now).payload.messages.get.head
 
-        val links = Interaction.from(feedback, obligation, vrn, vendorBody, now).payload.messages.head.englishActions.links
-
-        links shouldBe List(InteractionLink("VAT guidance", "https://www.gov.uk/vat-returns"))
+        message.englishActions.links shouldBe List(InteractionLink("VAT guidance", "https://www.gov.uk/vat-returns"))
 
       "default a missing action to an empty string" in:
-        val feedback = FeedbackResponse(
-          "report-1",
-          List(englishMessage("1").copy(action = None)),
-          List(welshMessage("1")),
-          "rds-corr-id"
-        )
+        val feedback = FeedbackResponse("report-1", List(englishMessage("1").copy(action = None)), List(welshMessage("1")), "rds-corr-id")
+        val message = Interaction.forGeneratedReport(feedback, obligation, vrn, vendorBody, now).payload.messages.get.head
 
-        Interaction.from(feedback, obligation, vrn, vendorBody, now).payload.messages.head.englishActions.action shouldBe ""
+        message.englishActions.action shouldBe ""
 
     "an english message has no matching welsh item number" should:
-      "drop it from the payload" in:
+      "drop it forGeneratedReport the payload" in:
         val feedback = FeedbackResponse("report-1", List(englishMessage("1")), List(welshMessage("2")), "rds-corr-id")
 
-        Interaction.from(feedback, obligation, vrn, vendorBody, now).payload.messages shouldBe empty
+        Interaction.forGeneratedReport(feedback, obligation, vrn, vendorBody, now).payload.messages.get shouldBe empty
 
     "an item number is not numeric" should:
       "drop that message" in:
         val feedback = FeedbackResponse("report-1", List(englishMessage("not-a-number")), List(welshMessage("not-a-number")), "rds-corr-id")
 
-        Interaction.from(feedback, obligation, vrn, vendorBody, now).payload.messages shouldBe empty
+        Interaction.forGeneratedReport(feedback, obligation, vrn, vendorBody, now).payload.messages.get shouldBe empty
 
     "there are several matched pairs" should:
       "include every matched message" in:
@@ -150,4 +148,4 @@ class InteractionSpec extends UnitSpec:
           "rds-corr-id"
         )
 
-        Interaction.from(feedback, obligation, vrn, vendorBody, now).payload.messages should have size 2
+        Interaction.forGeneratedReport(feedback, obligation, vrn, vendorBody, now).payload.messages.get should have size 2

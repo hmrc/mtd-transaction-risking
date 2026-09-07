@@ -33,18 +33,29 @@ final case class Interaction(
 object Interaction:
 
   private val serviceRegime = "vat-assist"
-  private val eventName = "generate-report"
+  private val generateReportEvent = "generate-report"
+  private val acknowledgeReportEvent = "acknowledge-report"
 
   given writes: OWrites[Interaction] = Json.writes[Interaction]
 
-  def from(feedback: FeedbackResponse, obligation: Obligation, vrn: String, vendorBody: JsValue, occurredAt: Instant): Interaction =
+  def forGeneratedReport(feedback: FeedbackResponse, obligation: Obligation, vrn: String, vendorBody: JsValue, occurredAt: Instant): Interaction =
     Interaction(
       serviceRegime = serviceRegime,
-      eventName = eventName,
+      eventName = generateReportEvent,
       feedbackId = feedback.reportId,
       eventTimestamp = occurredAt.toString,
-      metadata = Seq(InteractionMetadata.from(vrn, obligation, vendorBody)),
-      payload = InteractionPayload.from(feedback)
+      metadata = Seq(InteractionMetadata.forGeneratedReport(vrn, obligation, vendorBody)),
+      payload = InteractionPayload.forGeneratedReport(feedback)
+    )
+
+  def forAcknowledgement(request: AcknowledgeRequest, occurredAt: Instant): Interaction =
+    Interaction(
+      serviceRegime = serviceRegime,
+      eventName = acknowledgeReportEvent,
+      feedbackId = request.reportId,
+      eventTimestamp = occurredAt.toString,
+      metadata = Seq(InteractionMetadata.forAcknowledgement(request.vrn, request.presentedDateTime)),
+      payload = InteractionPayload(request.reportId, messages = None)
     )
 
 final case class InteractionMetadata(vrn: String, start: Option[String], end: Option[String], additionalProperties: JsValue)
@@ -66,7 +77,7 @@ object InteractionMetadata:
 
   given writes: OWrites[InteractionMetadata] = Json.writes[InteractionMetadata]
 
-  def from(vrn: String, obligation: Obligation, vendorBody: JsValue): InteractionMetadata =
+  def forGeneratedReport(vrn: String, obligation: Obligation, vendorBody: JsValue): InteractionMetadata =
     InteractionMetadata(
       vrn = vrn,
       start = Some(obligation.start),
@@ -74,20 +85,28 @@ object InteractionMetadata:
       additionalProperties = JsObject(vatReturnFields.flatMap(field => (vendorBody \ field).asOpt[JsValue].map(field -> _)))
     )
 
-final case class InteractionPayload(reportId: String, messages: Seq[InteractionMessage])
+  def forAcknowledgement(vrn: String, presentedDateTime: String): InteractionMetadata =
+    InteractionMetadata(
+      vrn = vrn,
+      start = None,
+      end = None,
+      additionalProperties = Json.obj("presentedDateTime" -> presentedDateTime)
+    )
+
+final case class InteractionPayload(reportId: String, messages: Option[Seq[InteractionMessage]])
 
 object InteractionPayload:
 
   given writes: OWrites[InteractionPayload] = Json.writes[InteractionPayload]
 
-  def from(feedback: FeedbackResponse): InteractionPayload =
+  def forGeneratedReport(feedback: FeedbackResponse): InteractionPayload =
     val welshByItemNumber = feedback.welshFeedback.map(message => message.itemNumber -> message).toMap
 
     InteractionPayload(
       reportId = feedback.reportId,
-      messages = feedback.englishFeedback.flatMap { english =>
+      messages = Some(feedback.englishFeedback.flatMap { english =>
         welshByItemNumber.get(english.itemNumber).flatMap(welsh => InteractionMessage.from(english, welsh))
-      }
+      })
     )
 
 final case class InteractionMessage(englishActions: InteractionAction, welshActions: InteractionAction)

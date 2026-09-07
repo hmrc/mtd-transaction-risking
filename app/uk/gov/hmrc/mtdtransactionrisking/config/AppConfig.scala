@@ -43,7 +43,7 @@ trait AppConfig:
   def insightsProxyServiceBaseUrl: String
 
   // acknowledge stub, used in external test
-  def acknowledgeStubBaseUrl: String
+  def acknowledgeStubBaseUrl: Option[String]
   def acknowledgeEnvironmentHeaders: Option[Seq[String]]
 
   // RDS report generation
@@ -81,8 +81,10 @@ class AppConfigImpl @Inject() (config: ServicesConfig, configuration: Configurat
   private val insightsProxyConfig = configuration.get[Configuration]("microservice.services.insights-proxy")
   val insightsProxyServiceBaseUrl: String = config.baseUrl("insights-proxy") + insightsProxyConfig.get[String]("submit-url")
 
-  private val acknowledgeStubConfig = configuration.get[Configuration]("microservice.services.acknowledge-stub")
-  val acknowledgeStubBaseUrl: String = config.baseUrl("acknowledge-stub") + acknowledgeStubConfig.get[String]("submit-url")
+  val acknowledgeStubBaseUrl: Option[String] =
+    configuration
+      .getOptional[Configuration]("microservice.services.acknowledge-stub")
+      .map(acknowledgeConfig => config.baseUrl("acknowledge-stub") + acknowledgeConfig.get[String]("submit-url"))
 
   val acknowledgeEnvironmentHeaders: Option[Seq[String]] =
     configuration.getOptional[Seq[String]]("microservice.services.acknowledge-stub.environmentHeaders")

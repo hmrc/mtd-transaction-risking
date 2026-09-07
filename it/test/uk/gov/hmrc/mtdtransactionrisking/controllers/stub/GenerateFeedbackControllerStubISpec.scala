@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.mtdtransactionrisking.controllers
+package uk.gov.hmrc.mtdtransactionrisking.controllers.stub
 
 import com.github.tomakehurst.wiremock.stubbing.StubMapping
 import play.api.libs.json.{JsArray, JsValue, Json}
@@ -28,7 +28,7 @@ import uk.gov.hmrc.mtdtransactionrisking.v1.controllers.GenerateFeedbackControll
 
 import scala.concurrent.Future
 
-class GenerateFeedbackControllerStubPathISpec extends IntegrationBaseSpec:
+class GenerateFeedbackControllerStubISpec extends IntegrationBaseSpec:
 
   override def servicesConfig: Map[String, Any] =
     super.servicesConfig ++ Map(

@@ -50,11 +50,7 @@ object ReportRequest:
   private val govHeaderPrefixes = Seq("gov-client-", "gov-vendor-")
 
   given writes: OWrites[ReportRequest] = Json.writes[ReportRequest]
-
-  /** Assembles the payload from the vendor's return, the matched obligation, and the auth ARN.
-    *
-    * The vendor body has already passed validation upstream, so every mandatory numeric field is present
-    */
+  
   def from(
       correlationId: String,
       vendorBody: JsValue,
