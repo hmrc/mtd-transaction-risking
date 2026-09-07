@@ -84,7 +84,7 @@ class RdsAuthServiceSpec extends UnitSpec, MockRdsAuthConnector, MockAppConfig:
 
     "no token has been cached" should:
 
-      "fetch one forGeneratedReport the connector" in new Test:
+      "fetch one from the connector" in new Test:
         authIsRequired()
         connectorReturns(credentials)
 
