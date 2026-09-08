@@ -26,7 +26,7 @@ object AcknowledgeRequest:
       Json.obj(
         "inputs" -> Json.arr(
           Json.obj(
-            "name" -> "correlationID",
+            "name" -> "correlationId",
             "value" -> request.correlationId
           ),
           Json.obj(
