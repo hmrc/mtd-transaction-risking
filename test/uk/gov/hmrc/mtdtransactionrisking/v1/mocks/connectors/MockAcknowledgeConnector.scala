@@ -14,18 +14,27 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.mtdtransactionrisking.v1.services
+package uk.gov.hmrc.mtdtransactionrisking.v1.mocks.connectors
 
+import org.scalamock.handlers.CallHandler
+import org.scalamock.scalatest.MockFactory
+import org.scalatest.TestSuite
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
 import uk.gov.hmrc.mtdtransactionrisking.v1.connectors.AcknowledgeConnector
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.AcknowledgeRequest
+import uk.gov.hmrc.mtdtransactionrisking.v1.services.ServiceOutcome
 
-import javax.inject.{Inject, Singleton}
 import scala.concurrent.Future
 
-@Singleton
-class AcknowledgeStubService @Inject() (connector: AcknowledgeConnector):
+trait MockAcknowledgeConnector extends MockFactory:
+  this: TestSuite =>
 
-  def acknowledge(request: AcknowledgeRequest)(implicit hc: HeaderCarrier, correlationId: CorrelationId): Future[ServiceOutcome[Unit]] =
-    connector.acknowledge(request)
+  val mockAcknowledgeConnector: AcknowledgeConnector = mock[AcknowledgeConnector]
+
+  object MockAcknowledgeConnector:
+
+    def acknowledge(request: AcknowledgeRequest): CallHandler[Future[ServiceOutcome[Unit]]] =
+      (mockAcknowledgeConnector
+        .acknowledge(_: AcknowledgeRequest)(_: HeaderCarrier, _: CorrelationId))
+        .expects(request, *, *)

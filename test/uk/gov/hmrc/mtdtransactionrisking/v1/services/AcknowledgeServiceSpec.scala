@@ -16,21 +16,19 @@
 
 package uk.gov.hmrc.mtdtransactionrisking.v1.services
 
-import org.mockito.ArgumentMatchers.{any, eq as eqTo}
-import org.mockito.Mockito.when
-import org.scalatestplus.mockito.MockitoSugar
-import play.api.http.Status.*
+import play.api.http.Status.BAD_REQUEST
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.mtdtransactionrisking.support.UnitSpec
 import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
-import uk.gov.hmrc.mtdtransactionrisking.v1.connectors.AcknowledgeConnector
+import uk.gov.hmrc.mtdtransactionrisking.v1.mocks.connectors.MockAcknowledgeConnector
+import uk.gov.hmrc.mtdtransactionrisking.v1.mocks.services.MockInteractionService
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.errors.{DownstreamError, ErrorWrapper}
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.outcomes.ResponseWrapper
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.AcknowledgeRequest
 
 import scala.concurrent.Future
 
-class AcknowledgeServiceSpec extends UnitSpec, MockitoSugar:
+class AcknowledgeServiceSpec extends UnitSpec, MockAcknowledgeConnector, MockInteractionService:
 
   implicit private val hc: HeaderCarrier = HeaderCarrier()
   implicit private val correlationId: CorrelationId = CorrelationId("test-correlation-id")
@@ -43,20 +41,29 @@ class AcknowledgeServiceSpec extends UnitSpec, MockitoSugar:
   )
 
   private trait Test:
-    val connector: AcknowledgeConnector = mock[AcknowledgeConnector]
-    val service = new AcknowledgeStubService(connector)
+    val service = new AcknowledgeService(mockAcknowledgeConnector, mockInteractionService)
 
   "acknowledge" should:
 
-    "pass through a successful outcome from the connector" in new Test:
-      when(connector.acknowledge(eqTo(request))(any(), any()))
-        .thenReturn(Future.successful(Right(ResponseWrapper(correlationId, ()))))
+    "store the interaction and return a successful outcome" in new Test:
+      MockInteractionService.storeAcknowledgement(request).returns(())
 
       await(service.acknowledge(request)) shouldBe Right(ResponseWrapper(correlationId, ()))
 
-    "pass through an error outcome from the connector" in new Test:
-      val errorWrapper = ErrorWrapper(correlationId, DownstreamError, rawStatus = Some(BAD_REQUEST))
-      when(connector.acknowledge(eqTo(request))(any(), any()))
-        .thenReturn(Future.successful(Left(errorWrapper)))
+  "requestStubAcknowledge" should:
 
-      await(service.acknowledge(request)) shouldBe Left(errorWrapper)
+    "pass through a successful outcome from the connector" in new Test:
+      MockAcknowledgeConnector
+        .acknowledge(request)
+        .returns(Future.successful(Right(ResponseWrapper(correlationId, ()))))
+
+      await(service.stubAcknowledge(request)) shouldBe Right(ResponseWrapper(correlationId, ()))
+
+    "pass through an error outcome from the connector" in new Test:
+      private val errorWrapper = ErrorWrapper(correlationId, DownstreamError, rawStatus = Some(BAD_REQUEST))
+
+      MockAcknowledgeConnector
+        .acknowledge(request)
+        .returns(Future.successful(Left(errorWrapper)))
+
+      await(service.stubAcknowledge(request)) shouldBe Left(errorWrapper)

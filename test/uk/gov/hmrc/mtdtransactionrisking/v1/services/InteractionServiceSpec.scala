@@ -85,7 +85,7 @@ class InteractionServiceSpec extends UnitSpec, MockInteractionConnector, LogCapt
   )
 
   private val expectedInteraction: Interaction =
-    Interaction.from(feedback, obligation, vrn, vendorBody, now)
+    Interaction.forGeneratedReport(feedback, obligation, vrn, vendorBody, now)
 
   trait Test:
     val service = new InteractionService(mockInteractionConnector, clock)

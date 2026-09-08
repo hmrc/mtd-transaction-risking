@@ -42,7 +42,7 @@ class AcknowledgeConnector @Inject() (
   def acknowledge(request: AcknowledgeRequest)(implicit hc: HeaderCarrier, correlationId: CorrelationId): Future[ServiceOutcome[Unit]] =
     logger.info(s"${correlationId.value}::[AcknowledgeConnector][acknowledge] calling acknowledge stub service")
 
-    val url = s"${appConfig.acknowledgeStubBaseUrl}"
+    val url = s"${appConfig.acknowledgeStubBaseUrl.getOrElse("")}"
 
     httpClient
       .post(url"$url")

@@ -16,7 +16,6 @@
 
 package uk.gov.hmrc.mtdtransactionrisking.v1.services
 
-
 import cats.data.EitherT
 import cats.implicits.*
 import uk.gov.hmrc.http.HeaderCarrier
@@ -31,10 +30,14 @@ import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
-class AcknowledgeService @Inject() (rdsAuthService: RdsAuthService, rdsConnector: RdsConnector)(implicit ec: ExecutionContext) extends Logging:
+class AcknowledgeService @Inject() (rdsAuthService: RdsAuthService, rdsConnector: RdsConnector, interactionService: InteractionService)(implicit ec: ExecutionContext) extends Logging:
+
+  def stubAcknowledge(request: AcknowledgeRequest)(implicit hc: HeaderCarrier, correlationId: CorrelationId): Future[ServiceOutcome[Unit]] =
+    acknowledgeConnector.acknowledge(request)
 
   def acknowledge(request: AcknowledgeRequest)(implicit hc: HeaderCarrier, correlationId: CorrelationId): Future[ServiceOutcome[Unit]] =
-    logger.info(s"[AcknowledgeService][acknowledge] Sending acknowledge request to RDS for correlationId: $correlationId")
+    logger.info(s"${correlationId.value}::[AcknowledgeService][acknowledge] acknowledgement received for reportId ${request.reportId}")
+    interactionService.storeAcknowledgement(request)
     val result = for
       credentials <- EitherT(rdsAuthService.bearerToken())
       _           <- EitherT(rdsConnector.acknowledge(request, credentials.responseData))

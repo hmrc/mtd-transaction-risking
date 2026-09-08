@@ -17,12 +17,13 @@
 package uk.gov.hmrc.mtdtransactionrisking.v1.controllers
 
 import play.api.mvc.*
-import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator
+import uk.gov.hmrc.mtdtransactionrisking.config.AppConfig
+import uk.gov.hmrc.mtdtransactionrisking.utils.{IdGenerator, Logging}
 import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
 import uk.gov.hmrc.mtdtransactionrisking.v1.controllers.auth.VATAuthAction
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.AcknowledgeRequest
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.ResponseHandler
-import uk.gov.hmrc.mtdtransactionrisking.v1.services.AcknowledgeStubService
+import uk.gov.hmrc.mtdtransactionrisking.v1.services.AcknowledgeService
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
 
 import javax.inject.{Inject, Singleton}
@@ -30,22 +31,30 @@ import scala.concurrent.ExecutionContext
 
 @Singleton
 class AcknowledgeController @Inject() (
-    cc: ControllerComponents,
-    acknowledgeService: AcknowledgeStubService,
-    authAction: VATAuthAction
-)(implicit ec: ExecutionContext)
-    extends BackendController(cc),
-      ResponseHandler:
+                                        cc: ControllerComponents,
+                                        acknowledgeService: AcknowledgeService,
+                                        authAction: VATAuthAction,
+                                        appConfig: AppConfig
+                                      )(implicit ec: ExecutionContext)
+  extends BackendController(cc),
+    ResponseHandler, Logging:
 
   def acknowledgeReport(vrn: String, reportId: String, correlationId: String): Action[AnyContent] =
     authAction
       .authorisedFor(vrn)
       .async: request =>
+
         given Request[AnyContent] = request
-        given genCorrelationId: CorrelationId = IdGenerator.generateId()
+        given internalCorrelationId: CorrelationId = IdGenerator.generateId()
 
-        val presentedDateTime = request.getQueryString("presentedDateTime").getOrElse("")
+        val presentedDateTime  = request.getQueryString("presentedDateTime").getOrElse("")
+        val acknowledgeRequest = AcknowledgeRequest(vrn, reportId, correlationId, presentedDateTime)
 
-        acknowledgeService
-          .acknowledge(AcknowledgeRequest(vrn, reportId, correlationId, presentedDateTime))
-          .map(handleOutcomeUnit)
+        appConfig.acknowledgeStubBaseUrl match
+          // Acknowledge stub path used in external test while the real downstream is built
+          case Some(_) =>
+            logger.info(s"${internalCorrelationId.value}::[AcknowledgeController][acknowledgeReport] using stub path for reportId $reportId")
+            acknowledgeService.stubAcknowledge(acknowledgeRequest).map(handleOutcomeUnit)
+
+          case None =>
+            acknowledgeService.acknowledge(acknowledgeRequest).map(handleOutcomeUnit)
