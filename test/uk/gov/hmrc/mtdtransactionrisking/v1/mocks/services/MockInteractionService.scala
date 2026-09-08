@@ -19,12 +19,12 @@ package uk.gov.hmrc.mtdtransactionrisking.v1.mocks.services
 import org.scalamock.handlers.CallHandler
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.TestSuite
+import play.api.libs.json.JsValue
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.AcknowledgeRequest
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.{FeedbackResponse, Obligation}
 import uk.gov.hmrc.mtdtransactionrisking.v1.services.InteractionService
-import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.FeedbackResponse
-import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.Obligation
-import play.api.libs.json.JsValue
 
 trait MockInteractionService extends MockFactory:
   this: TestSuite =>
@@ -37,3 +37,8 @@ trait MockInteractionService extends MockFactory:
       (mockInteractionService
         .store(_: FeedbackResponse, _: Obligation, _: String, _: JsValue)(_: HeaderCarrier, _: CorrelationId))
         .expects(feedback, obligation, vrn, vendorBody, *, *)
+
+    def storeAcknowledgement(request: AcknowledgeRequest): CallHandler[Unit] =
+      (mockInteractionService
+        .storeAcknowledgement(_: AcknowledgeRequest)(_: HeaderCarrier, _: CorrelationId))
+        .expects(request, *, *)

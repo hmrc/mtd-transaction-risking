@@ -17,6 +17,7 @@
 package uk.gov.hmrc.mtdtransactionrisking.support
 
 import org.scalatest.BeforeAndAfterAll
+import org.scalatest.concurrent.Eventually
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatestplus.play.guice.GuiceOneServerPerSuite
@@ -32,7 +33,8 @@ trait IntegrationBaseSpec
     with Matchers
     with WireMockHelper
     with GuiceOneServerPerSuite
-    with BeforeAndAfterAll:
+    with BeforeAndAfterAll
+    with Eventually:
 
   lazy val client: WSClient = app.injector.instanceOf[WSClient]
   val mockHost: String = WireMockHelper.host

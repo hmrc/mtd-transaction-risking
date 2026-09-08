@@ -44,7 +44,7 @@ class GenerateFeedbackController @Inject() (cc: ControllerComponents,
       .async(parse.json): request =>
 
         given Request[JsValue] = request
-        given correlationId: CorrelationId = IdGenerator.generateId()
+        given internalCorrelationId: CorrelationId = IdGenerator.generateId()
 
         appConfig.feedbackStubBaseUrl match
           // Feedback stub path used in external test while the real downstream is built
