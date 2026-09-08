@@ -236,8 +236,6 @@ class RdsConnectorSpec extends ConnectorSpec, BeforeAndAfterAll, Injecting, Mock
           ErrorWrapper(
             correlationId,
             DownstreamError,
-            rawBody = Some(responseJson),
-            rawStatus = Some(CREATED)
           )
         )
 
@@ -250,8 +248,6 @@ class RdsConnectorSpec extends ConnectorSpec, BeforeAndAfterAll, Injecting, Mock
           ErrorWrapper(
             correlationId,
             DownstreamError,
-            rawBody = Some(responseJson),
-            rawStatus = Some(CREATED)
           )
         )
 
@@ -262,8 +258,6 @@ class RdsConnectorSpec extends ConnectorSpec, BeforeAndAfterAll, Injecting, Mock
           ErrorWrapper(
             correlationId,
             DownstreamError,
-            rawBody = Some(acknowledgeWithoutResponseCode),
-            rawStatus = Some(CREATED)
           )
         )
 
@@ -275,9 +269,7 @@ class RdsConnectorSpec extends ConnectorSpec, BeforeAndAfterAll, Injecting, Mock
         await(acknowledge()) shouldBe Left(
           ErrorWrapper(
             correlationId,
-            DownstreamError,
-            rawBody = Some(malformed),
-            rawStatus = Some(CREATED)
+            DownstreamError
           )
         )
 
@@ -296,8 +288,6 @@ class RdsConnectorSpec extends ConnectorSpec, BeforeAndAfterAll, Injecting, Mock
           ErrorWrapper(
             correlationId,
             DownstreamError,
-            rawBody = Some(DownstreamError.asJson),
-            rawStatus = Some(OK)
           )
         )
 

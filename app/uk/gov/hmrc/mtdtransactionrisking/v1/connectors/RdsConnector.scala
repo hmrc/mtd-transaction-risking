@@ -18,9 +18,8 @@ package uk.gov.hmrc.mtdtransactionrisking.v1.connectors
 
 import play.api.Logging
 import play.api.http.Status.*
-import play.api.libs.json.Json
+import play.api.libs.json.{JsError, Json}
 import play.api.libs.ws.writeableOf_JsValue
-import play.api.libs.json.JsError
 import uk.gov.hmrc.http.HttpReads.Implicits.*
 import uk.gov.hmrc.http.client.HttpClientV2
 import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse, StringContextOps}
@@ -30,12 +29,11 @@ import uk.gov.hmrc.mtdtransactionrisking.v1.models.auth.RdsAuthCredentials
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.errors.{DownstreamError, ErrorWrapper, ServiceUnavailableError}
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.outcomes.ResponseWrapper
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.{AcknowledgeRequest, ReportRequest}
-import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.{AcknowledgeResponse, AcknowledgeResponseWrapper, FeedbackResponse, ReportResponse, ReportResponseTransform}
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.*
 import uk.gov.hmrc.mtdtransactionrisking.v1.services.ServiceOutcome
 
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
-import scala.util.Try
 
 @Singleton
 class RdsConnector @Inject() (httpClient: HttpClientV2, appConfig: AppConfig)(implicit ec: ExecutionContext) extends Logging:
@@ -45,9 +43,6 @@ class RdsConnector @Inject() (httpClient: HttpClientV2, appConfig: AppConfig)(im
                                                                                       hc: HeaderCarrier,
                                                                                       correlationId: CorrelationId): Future[ServiceOutcome[AcknowledgeResponse]] =
 
-    logger.info(
-      s"${correlationId.value}::[RdsConnector][acknowledge] sending acknowledge request to RDS"
-    )
     httpClient
       .post(url"${appConfig.rdsAcknowledgeUrl}")
       .withBody(Json.toJson(request))
@@ -55,6 +50,7 @@ class RdsConnector @Inject() (httpClient: HttpClientV2, appConfig: AppConfig)(im
       .withProxy
       .execute[HttpResponse]
       .map { response =>
+        logger.info(s"${correlationId.value}::[RdsConnector][acknowledge] sending acknowledge request to RDS")
         response.status match
 
           case CREATED =>
@@ -62,67 +58,33 @@ class RdsConnector @Inject() (httpClient: HttpClientV2, appConfig: AppConfig)(im
               .validate[AcknowledgeResponseWrapper]
               .fold(
                 errors =>
-                  logger.error(
-                    s"${correlationId.value}::[RdsConnector][acknowledge] " + s"malformed response: ${JsError.toJson(errors)}"
-                  )
-
-                  Left(
-                    ErrorWrapper(
-                      correlationId,
-                      DownstreamError,
-                      rawBody = Some(response.json),
-                      rawStatus = Some(response.status)
-                    )
-                  ),
+                  logger.error(s"${correlationId.value}::[RdsConnector][acknowledge] malformed response: ${JsError.toJson(errors)}")
+                  Left(ErrorWrapper(correlationId, DownstreamError)),
 
                 acknowledgeResponse =>
-                  val output = acknowledgeResponse.output
-
-                  output.responseCode match
+                  acknowledgeResponse.output.responseCode match
                     case Some(ACCEPTED) =>
-                      logger.info(
-                        s"${correlationId.value}::[RdsConnector][acknowledge] success"
-                      )
-
-                      Right(ResponseWrapper(correlationId, output))
+                      logger.info(s"${correlationId.value}::[RdsConnector][acknowledge] success")
+                      Right(ResponseWrapper(correlationId, acknowledgeResponse.output))
 
                     case Some(UNAUTHORIZED) =>
-                      logger.error(
-                        s"${correlationId.value}::[RdsConnector][acknowledge] acknowledgement failed with responseCode $UNAUTHORIZED"
-                      )
+                      logger.error(s"${correlationId.value}::[RdsConnector][acknowledge] acknowledgement failed responseCode ${UNAUTHORIZED}, responseMessage: ${acknowledgeResponse.output.responseMessage.getOrElse("no message")}")
+                      Left(ErrorWrapper(correlationId, DownstreamError))
 
-                      Left(ErrorWrapper(correlationId, DownstreamError, rawBody = Some(response.json), rawStatus = Some(response.status)))
-
-                    case Some(code) =>
-                      logger.error(
-                        s"${correlationId.value}::[RdsConnector][acknowledge] unexpected response code: $code"
-                      )
-
-                      Left(ErrorWrapper(correlationId, DownstreamError, rawBody = Some(response.json), rawStatus = Some(response.status)))
-
-                    case None =>
-                      logger.error(
-                        s"${correlationId.value}::[RdsConnector][acknowledge] missing response code"
-                      )
-
-                      Left(ErrorWrapper(correlationId, DownstreamError, rawBody = Some(response.json), rawStatus = Some(response.status)))
+                    case other =>
+                      logger.error(s"${correlationId.value}::[RdsConnector][acknowledge] unexpected or missing response code: ${other.getOrElse("missing")}")
+                      Left(ErrorWrapper(correlationId, DownstreamError))
               )
 
           case NOT_FOUND | REQUEST_TIMEOUT | SERVICE_UNAVAILABLE =>
-            logger.error(
-              s"${correlationId.value}::[RdsConnector][acknowledge] " + s"RDS unavailable, status ${response.status}"
-            )
+            logger.error(s"${correlationId.value}::[RdsConnector][acknowledge] RDS unavailable, status ${response.status}")
 
             Left(ErrorWrapper(correlationId, ServiceUnavailableError))
 
           case status =>
-            logger.error(
-              s"${correlationId.value}::[RdsConnector][acknowledge] " + s"failed $status: ${response.body}"
-            )
+            logger.error(s"${correlationId.value}::[RdsConnector][acknowledge] failed $status: ${response.body}")
 
-            val body = Try(response.json).getOrElse(DownstreamError.asJson)
-
-            Left(ErrorWrapper(correlationId, DownstreamError, rawBody = Some(body), rawStatus = Some(status)))
+            Left(ErrorWrapper(correlationId, DownstreamError))
       }
       .recover:
         case ex =>
@@ -135,7 +97,7 @@ class RdsConnector @Inject() (httpClient: HttpClientV2, appConfig: AppConfig)(im
       hc: HeaderCarrier,
       correlationId: CorrelationId): Future[ServiceOutcome[FeedbackResponse]] =
 
-    logger.info(s"${correlationId.value}::[RdsConnector][generateReport] requesting report for VRN $vrn")
+
 
     httpClient
       .post(url"${appConfig.rdsSubmitUrl}")
@@ -144,6 +106,7 @@ class RdsConnector @Inject() (httpClient: HttpClientV2, appConfig: AppConfig)(im
       .withProxy
       .execute[HttpResponse]
       .map { response =>
+        logger.info(s"${correlationId.value}::[RdsConnector][generateReport] requesting report for VRN $vrn")
         response.status match
           case CREATED =>
             handleReport(response)
