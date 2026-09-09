@@ -40,7 +40,7 @@ class RdsConnectorSpec extends ConnectorSpec, BeforeAndAfterAll, Injecting, Mock
 
   private val reportPath = "/microanalyticScore/modules/HMRC_ASSIST_VAT_FINSUB_FEEDBACK/steps/execute"
   private val reportUrlPattern = urlPathMatching(reportPath)
-  private val acknowledgePath = "/microanalyticScore/modules/HMRC_ASSIST_VAT_FINSUB_FEEDBACK/steps/acknowledge"
+  private val acknowledgePath = "/microanalyticScore/modules/HMRC_ASSIST_VAT_FINSUB_FEEDBACK_ACK/steps/execute"
   private val acknowledgeUrlPattern = urlPathMatching(acknowledgePath)
 
   private val feedbackId = "f2fb30e5-4ab6-4a29-b3c1-c7264259ff1c"

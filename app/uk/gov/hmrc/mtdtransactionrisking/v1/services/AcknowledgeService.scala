@@ -25,12 +25,13 @@ import uk.gov.hmrc.mtdtransactionrisking.v1.connectors.RdsConnector
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.outcomes.ResponseWrapper
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.AcknowledgeRequest
 import uk.gov.hmrc.mtdtransactionrisking.v1.services.auth.RdsAuthService
+import uk.gov.hmrc.mtdtransactionrisking.v1.connectors.AcknowledgeConnector
 
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
-class AcknowledgeService @Inject() (rdsAuthService: RdsAuthService, rdsConnector: RdsConnector, interactionService: InteractionService)(implicit ec: ExecutionContext) extends Logging:
+class AcknowledgeService @Inject() (rdsAuthService: RdsAuthService, rdsConnector: RdsConnector, interactionService: InteractionService, acknowledgeConnector: AcknowledgeConnector)(implicit ec: ExecutionContext) extends Logging:
 
   def stubAcknowledge(request: AcknowledgeRequest)(implicit hc: HeaderCarrier, correlationId: CorrelationId): Future[ServiceOutcome[Unit]] =
     acknowledgeConnector.acknowledge(request)

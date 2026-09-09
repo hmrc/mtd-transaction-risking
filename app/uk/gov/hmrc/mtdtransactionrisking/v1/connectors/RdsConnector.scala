@@ -68,7 +68,7 @@ class RdsConnector @Inject() (httpClient: HttpClientV2, appConfig: AppConfig)(im
                       Right(ResponseWrapper(correlationId, acknowledgeResponse.output))
 
                     case Some(UNAUTHORIZED) =>
-                      logger.error(s"${correlationId.value}::[RdsConnector][acknowledge] acknowledgement failed responseCode ${UNAUTHORIZED}, responseMessage: ${acknowledgeResponse.output.responseMessage.getOrElse("no message")}")
+                      logger.error(s"${correlationId.value}::[RdsConnector][acknowledge] acknowledgement failed responseCode $UNAUTHORIZED, responseMessage: ${acknowledgeResponse.output.responseMessage.getOrElse("no message")}")
                       Left(ErrorWrapper(correlationId, DownstreamError))
 
                     case other =>

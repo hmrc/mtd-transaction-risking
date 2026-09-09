@@ -20,10 +20,10 @@ import com.github.tomakehurst.wiremock.stubbing.StubMapping
 import org.scalatest.concurrent.Eventually
 import play.api.libs.ws.{EmptyBody, WSResponse, writeableOf_WsBody}
 import play.api.test.Helpers.*
-import uk.gov.hmrc.mtdtransactionrisking.stubs.{AuthStub, CommonTestData, InteractionStub}
+import uk.gov.hmrc.mtdtransactionrisking.stubs.{AuthStub, CommonTestData, InteractionStub, RdsStub}
 import uk.gov.hmrc.mtdtransactionrisking.support.IntegrationBaseSpec
 
-class AcknowledgeControllerISpec extends IntegrationBaseSpec:
+class AcknowledgeControllerISpec extends IntegrationBaseSpec, Eventually:
 
   private val vrn = CommonTestData.simpleVrn
   private val reportId = "f2fb30e5-4ab6-4a29-b3c1-c00000000001"
@@ -39,6 +39,7 @@ class AcknowledgeControllerISpec extends IntegrationBaseSpec:
       override def setupStubs(): StubMapping =
         AuthStub.successfulAuthWith(vrn)
         InteractionStub.stores()
+        RdsStub.acknowledgeAccepted()
 
       val response: WSResponse = await(buildRequest(uri).post(EmptyBody))
       println(s"xxxxxxx${response.body}")
@@ -46,16 +47,42 @@ class AcknowledgeControllerISpec extends IntegrationBaseSpec:
 
       eventually {
         wireMockServer.verify(postRequestedFor(urlPathMatching("/rsd/receive-and-store")))
+        wireMockServer.verify(postRequestedFor(urlPathMatching("/microanalyticScore/modules/HMRC_ASSIST_VAT_FINSUB_FEEDBACK_ACK/steps/execute")))
+
       }
 
     "return 204 even when the interactions datastore is unavailable" in new Test:
       override def setupStubs(): StubMapping =
         AuthStub.successfulAuthWith(vrn)
         InteractionStub.unavailable()
+        RdsStub.acknowledgeAccepted()
 
       val response: WSResponse = await(buildRequest(uri).post(EmptyBody))
 
       response.status shouldBe NO_CONTENT
+
+    "return 503 when the RDS service is unavailable" in new Test:
+      override def setupStubs(): StubMapping =
+        AuthStub.successfulAuthWith(vrn)
+        InteractionStub.stores()
+        RdsStub.acknowledgeUnavailable()
+
+      val response: WSResponse = await(buildRequest(uri).post(EmptyBody))
+
+      response.status shouldBe SERVICE_UNAVAILABLE
+
+
+    "return 500 when the RDS service returns a malformed response" in new Test:
+      override def setupStubs(): StubMapping =
+        AuthStub.successfulAuthWith(vrn)
+        InteractionStub.stores()
+        RdsStub.acknowledgeMalformedResponse()
+
+      val response: WSResponse = await(buildRequest(uri).post(EmptyBody))
+
+      response.status shouldBe INTERNAL_SERVER_ERROR
+
+
 
   private trait Test:
     def setupStubs(): StubMapping
