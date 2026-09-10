@@ -16,21 +16,22 @@
 
 package uk.gov.hmrc.mtdtransactionrisking.v1.services
 
+import cats.data.EitherT
+import cats.implicits.*
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
 import uk.gov.hmrc.mtdtransactionrisking.utils.Logging
-import uk.gov.hmrc.mtdtransactionrisking.v1.connectors.AcknowledgeConnector
+import uk.gov.hmrc.mtdtransactionrisking.v1.connectors.RdsConnector
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.outcomes.ResponseWrapper
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.AcknowledgeRequest
+import uk.gov.hmrc.mtdtransactionrisking.v1.services.auth.RdsAuthService
+import uk.gov.hmrc.mtdtransactionrisking.v1.connectors.AcknowledgeConnector
 
 import javax.inject.{Inject, Singleton}
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
-class AcknowledgeService @Inject() (
-    acknowledgeConnector: AcknowledgeConnector,
-    interactionService: InteractionService
-) extends Logging:
+class AcknowledgeService @Inject() (rdsAuthService: RdsAuthService, rdsConnector: RdsConnector, interactionService: InteractionService, acknowledgeConnector: AcknowledgeConnector)(implicit ec: ExecutionContext) extends Logging:
 
   def stubAcknowledge(request: AcknowledgeRequest)(implicit hc: HeaderCarrier, correlationId: CorrelationId): Future[ServiceOutcome[Unit]] =
     acknowledgeConnector.acknowledge(request)
@@ -38,6 +39,9 @@ class AcknowledgeService @Inject() (
   def acknowledge(request: AcknowledgeRequest)(implicit hc: HeaderCarrier, correlationId: CorrelationId): Future[ServiceOutcome[Unit]] =
     logger.info(s"${correlationId.value}::[AcknowledgeService][acknowledge] acknowledgement received for reportId ${request.reportId}")
     interactionService.storeAcknowledgement(request)
-    Future.successful(Right(ResponseWrapper(correlationId, ())))
+    val result = for
+      credentials <- EitherT(rdsAuthService.bearerToken())
+      _           <- EitherT(rdsConnector.acknowledge(request, credentials.responseData))
+    yield ResponseWrapper(correlationId, ())
 
-
+    result.value

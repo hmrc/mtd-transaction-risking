@@ -52,6 +52,7 @@ trait IntegrationBaseSpec
     "microservice.services.rds.host"            -> mockHost,
     "microservice.services.rds.port"            -> mockPort,
     "microservice.services.rds.protocol"        -> "http",
+    "microservice.services.rds.acknowledge-url" -> "/microanalyticScore/modules/HMRC_ASSIST_VAT_FINSUB_FEEDBACK_ACK/steps/execute",
     "microservice.services.rds.submit-url"      -> "/microanalyticScore/modules/HMRC_ASSIST_VAT_FINSUB_FEEDBACK/steps/execute",
     "microservice.services.rds.RdsAuthRequired" -> false,
     "microservice.services.interactions-datastore.host"       -> mockHost,

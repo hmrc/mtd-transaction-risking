@@ -23,6 +23,7 @@ import play.api.http.Status.*
 object RdsStub:
 
   private val reportUrl = urlPathMatching("/microanalyticScore/modules/HMRC_ASSIST_VAT_FINSUB_FEEDBACK/steps/execute")
+  private val acknowledgeUrl = urlPathMatching("/microanalyticScore/modules/HMRC_ASSIST_VAT_FINSUB_FEEDBACK_ACK/steps/execute")
 
   /** A 201 carrying a report with one english and one welsh feedback message. */
   def reportGenerated(): StubMapping =
@@ -67,6 +68,44 @@ object RdsStub:
           )
       )
     )
+
+  def acknowledgeAccepted(): StubMapping =
+    stubFor(
+      post(acknowledgeUrl).willReturn(
+        aResponse()
+          .withStatus(CREATED)
+          .withHeader("Content-Type", "application/json")
+          .withBody(
+            """
+              |{
+              |  "output": {
+              |    "vrn": "123456789",
+              |    "feedbackId": "f2fb30e5-4ab6-4a29-b3c1-c00000000001",
+              |    "createdDttm": "2026-06-09T10:30:00Z",
+              |    "responseCode": 202,
+              |    "responseMessage": "Accepted"
+              |  }
+              |}
+              |""".stripMargin
+          )
+      )
+    )
+
+  def acknowledgeUnavailable(): StubMapping =
+    stubFor(post(acknowledgeUrl).willReturn(aResponse().withStatus(SERVICE_UNAVAILABLE)))
+
+  def acknowledgeMalformedResponse(): StubMapping =
+    stubFor(
+      post(acknowledgeUrl).willReturn(
+        aResponse()
+          .withStatus(CREATED)
+          .withHeader("Content-Type", "application/json")
+          .withBody("""{"unexpected":"shape"}""")
+      ))
+
+  def acknowledgeBadRequest(): StubMapping =
+    stubFor(post(acknowledgeUrl).willReturn(aResponse().withStatus(BAD_REQUEST)))
+
 
   def badRequest(): StubMapping =
     stubFor(post(reportUrl).willReturn(aResponse().withStatus(BAD_REQUEST)))

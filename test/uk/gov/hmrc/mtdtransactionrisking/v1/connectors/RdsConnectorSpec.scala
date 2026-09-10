@@ -20,14 +20,15 @@ import com.github.tomakehurst.wiremock.client.WireMock.*
 import com.github.tomakehurst.wiremock.http.Fault
 import com.github.tomakehurst.wiremock.stubbing.StubMapping
 import org.scalatest.BeforeAndAfterAll
-import play.api.libs.json.{JsValue, Json}
+import play.api.libs.json.{JsObject, JsValue, Json}
 import play.api.test.Injecting
 import uk.gov.hmrc.http.client.HttpClientV2
 import uk.gov.hmrc.mtdtransactionrisking.support.{ConnectorSpec, MockAppConfig}
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.auth.RdsAuthCredentials
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.errors.{DownstreamError, ErrorWrapper, ServiceUnavailableError}
-import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.{FraudPreventionHeader, ReportRequest}
-import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.FeedbackResponse
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.outcomes.ResponseWrapper
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.{AcknowledgeRequest, FraudPreventionHeader, ReportRequest}
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.{AcknowledgeResponse, FeedbackResponse}
 import uk.gov.hmrc.mtdtransactionrisking.v1.services.ServiceOutcome
 
 import scala.concurrent.Future
@@ -35,9 +36,12 @@ import scala.concurrent.Future
 class RdsConnectorSpec extends ConnectorSpec, BeforeAndAfterAll, Injecting, MockAppConfig:
 
   val httpClient: HttpClientV2 = app.injector.instanceOf[HttpClientV2]
-  private val vrn = "123456789"
+  private val vrn        = "123456789"
+
   private val reportPath = "/microanalyticScore/modules/HMRC_ASSIST_VAT_FINSUB_FEEDBACK/steps/execute"
-  private val urlPattern = urlPathMatching(reportPath)
+  private val reportUrlPattern = urlPathMatching(reportPath)
+  private val acknowledgePath = "/microanalyticScore/modules/HMRC_ASSIST_VAT_FINSUB_FEEDBACK_ACK/steps/execute"
+  private val acknowledgeUrlPattern = urlPathMatching(acknowledgePath)
 
   private val feedbackId = "f2fb30e5-4ab6-4a29-b3c1-c7264259ff1c"
   private val rdsCorrelationId = "E9F65715BBC9222477B27074804BBDD5C73CDE62F84D8B00CFD05B883534AF3D"
@@ -64,6 +68,13 @@ class RdsConnectorSpec extends ConnectorSpec, BeforeAndAfterAll, Injecting, Mock
     totalAllAcquisitionsExVAT = BigDecimal(200)
   )
 
+  private val acknowledgeRequest: AcknowledgeRequest = AcknowledgeRequest(
+      vrn = vrn,
+      reportId = feedbackId,
+      correlationId = rdsCorrelationId,
+      presentedDateTime = "2026-09-03T10:00:00Z"
+    )
+
   /** A report with no feedbackId, so the transform cannot build a response. */
   private val reportWithoutFeedbackId: JsValue = Json.parse(
     s"""
@@ -86,11 +97,40 @@ class RdsConnectorSpec extends ConnectorSpec, BeforeAndAfterAll, Injecting, Mock
        |""".stripMargin
   )
 
+  // An acknowledge response with no response code.
+  private val acknowledgeWithoutResponseCode: JsValue = Json.parse(
+    s"""
+       |{
+       |  "output": {
+       |    "vrn": "$vrn",
+       |    "feedbackId": "$feedbackId",
+       |    "createdDttm": "2026-09-03T10:00:00Z",
+       |    "responseMessage": "Missing response code"
+       |  }
+       |}
+       |""".stripMargin
+  )
+
   def port: Int = wireMockServer.port()
 
   override def beforeAll(): Unit = wireMockServer.start()
 
   override def afterAll(): Unit = wireMockServer.stop()
+
+  private def acknowledgeJson(responseCode: Option[Int] = Some(202), responseMessage: Option[String] = Some("Accepted")): JsValue =
+    Json.parse(
+      s"""
+         |{
+         |  "output": {
+         |    "vrn": "$vrn",
+         |    "feedbackId": "$feedbackId",
+         |    "createdDttm": "2026-09-03T10:00:00Z",
+         |    "responseCode": ${responseCode.map(_.toString).getOrElse("null")},
+         |    "responseMessage": ${responseMessage.map(m => s""""$m"""").getOrElse("null")}
+         |  }
+         |}
+         |""".stripMargin
+    )
 
   /** A report as SAS returns it, with the inner response code and one message per language. */
   private def reportJson(responseCode: String = "201"): JsValue = Json.parse(
@@ -135,21 +175,165 @@ class RdsConnectorSpec extends ConnectorSpec, BeforeAndAfterAll, Injecting, Mock
 
   class Test:
     MockedAppConfig.rdsSubmitUrl.returns(s"http://localhost:$port$reportPath").anyNumberOfTimes()
+    MockedAppConfig.rdsAcknowledgeUrl.returns(s"http://localhost:$port$acknowledgePath").anyNumberOfTimes()
     MockedAppConfig.appName.returns("mtd-transaction-risking").anyNumberOfTimes()
 
     val connector = new RdsConnector(httpClient, mockAppConfig)
 
+    // Report stub helpers
     def stubReport(body: Option[String], status: Int): StubMapping =
       wireMockServer.stubFor:
         val resp = body.foldLeft(aResponse().withStatus(status)): (r, b) =>
           r.withBody(b).withHeader("Content-Type", "application/json")
-        post(urlPattern).willReturn(resp)
+        post(reportUrlPattern).willReturn(resp)
 
-    def stubFault(): StubMapping =
-      wireMockServer.stubFor(post(urlPattern).willReturn(aResponse().withFault(Fault.CONNECTION_RESET_BY_PEER)))
+    def stubReportFault(): StubMapping =
+      wireMockServer.stubFor(post(reportUrlPattern).willReturn(aResponse().withFault(Fault.CONNECTION_RESET_BY_PEER)))
 
     def generateReport(credentials: Option[RdsAuthCredentials] = Some(credentials)): Future[ServiceOutcome[FeedbackResponse]] =
       connector.generateReport(vrn, rdsRequest, credentials)
+
+
+    // Acknowledge stub helpers
+    def stubAcknowledge(body: Option[String], status: Int): StubMapping =
+      wireMockServer.stubFor:
+        val resp = body.foldLeft(aResponse().withStatus(status)): (r, b) =>
+          r.withBody(b).withHeader("Content-Type", "application/json")
+        post(acknowledgeUrlPattern).willReturn(resp)
+
+    def stubAcknowledgeFault(): StubMapping =
+      wireMockServer.stubFor(post(acknowledgeUrlPattern).willReturn(aResponse().withFault(Fault.CONNECTION_RESET_BY_PEER)))
+
+    def acknowledge(credentials: Option[RdsAuthCredentials] = Some(credentials)): Future[ServiceOutcome[AcknowledgeResponse]] =
+      connector.acknowledge(acknowledgeRequest, credentials)
+
+  "RdsConnector.acknowledge" when:
+
+    "RDS acknowledges the report" should:
+
+      "return the acknowledge response when the inner response code is 202" in new Test:
+        stubAcknowledge(Some(acknowledgeJson(responseCode = Some(202)).toString), CREATED)
+
+        await(acknowledge()) shouldBe Right(
+          ResponseWrapper(
+            correlationId,
+            AcknowledgeResponse(
+              vrn = Some(vrn),
+              feedbackId = Some(feedbackId),
+              createdDttm = Some("2026-09-03T10:00:00Z"),
+              responseCode = Some(202),
+              responseMessage = Some("Accepted")
+            )
+          )
+        )
+
+      "return DownstreamError when the inner response code is 401" in new Test:
+        val responseJson: JsValue = acknowledgeJson(responseCode = Some(401), responseMessage = Some("Unauthorised"))
+
+        stubAcknowledge(Some(responseJson.toString), CREATED)
+
+        await(acknowledge()) shouldBe Left(
+          ErrorWrapper(
+            correlationId,
+            DownstreamError,
+          )
+        )
+
+      "return DownstreamError when the inner response code is unexpected" in new Test:
+        val responseJson: JsValue = acknowledgeJson(responseCode = Some(500), responseMessage = Some("Unexpected"))
+
+        stubAcknowledge(Some(responseJson.toString), CREATED)
+
+        await(acknowledge()) shouldBe Left(
+          ErrorWrapper(
+            correlationId,
+            DownstreamError,
+          )
+        )
+
+      "return DownstreamError when the response has no response code" in new Test:
+        stubAcknowledge(Some(acknowledgeWithoutResponseCode.toString), CREATED)
+
+        await(acknowledge()) shouldBe Left(
+          ErrorWrapper(
+            correlationId,
+            DownstreamError,
+          )
+        )
+
+      "return DownstreamError when the body is malformed" in new Test:
+        val malformed: JsObject = Json.obj("unexpected" -> "shape")
+
+        stubAcknowledge(Some(malformed.toString), CREATED)
+
+        await(acknowledge()) shouldBe Left(
+          ErrorWrapper(
+            correlationId,
+            DownstreamError
+          )
+        )
+
+    "RDS is unreachable" should:
+      Seq(NOT_FOUND, REQUEST_TIMEOUT, SERVICE_UNAVAILABLE).foreach: status =>
+        s"return ServiceUnavailableError on $status" in new Test:
+          stubAcknowledge(None, status)
+
+          await(acknowledge()) shouldBe Left(ErrorWrapper(correlationId, ServiceUnavailableError))
+
+    "RDS returns an unexpected status" should:
+      "return DownstreamError" in new Test:
+        stubAcknowledge(None, OK)
+
+        await(acknowledge()) shouldBe Left(
+          ErrorWrapper(
+            correlationId,
+            DownstreamError,
+          )
+        )
+
+    "the connection faults" should:
+      "return DownstreamError via recover" in new Test:
+        stubAcknowledgeFault()
+
+        await(acknowledge()) shouldBe Left(ErrorWrapper(correlationId, DownstreamError))
+
+    "making the request" should:
+
+      "send the bearer token when credentials are supplied" in new Test:
+        stubAcknowledge(Some(acknowledgeJson().toString), CREATED)
+
+        await(acknowledge())
+
+        wireMockServer.verify(postRequestedFor(acknowledgeUrlPattern).withHeader("Authorization", equalTo("Bearer a-bearer-token")))
+
+      "send no authorization header when no credentials are supplied" in new Test:
+        stubAcknowledge(Some(acknowledgeJson().toString), CREATED)
+
+        await(acknowledge(credentials = None))
+
+        wireMockServer.verify(postRequestedFor(acknowledgeUrlPattern).withoutHeader("Authorization"))
+
+      "send the acknowledge request as JSON" in new Test:
+        stubAcknowledge(Some(acknowledgeJson().toString), CREATED)
+
+        await(acknowledge())
+
+        wireMockServer.verify(
+          postRequestedFor(acknowledgeUrlPattern)
+            .withRequestBody(equalToJson(Json.toJson(acknowledgeRequest).toString, true, false))
+        )
+
+      "send the correlation id and user agent" in new Test:
+        stubAcknowledge(Some(acknowledgeJson().toString), CREATED)
+
+        await(acknowledge())
+
+        wireMockServer.verify(
+          postRequestedFor(acknowledgeUrlPattern)
+            .withHeader("X-CorrelationId", equalTo(correlationId.value))
+            .withHeader("User-Agent", equalTo("mtd-transaction-risking"))
+        )
+
 
   "RdsConnector.generateReport" when:
 
@@ -206,7 +390,7 @@ class RdsConnectorSpec extends ConnectorSpec, BeforeAndAfterAll, Injecting, Mock
 
     "the connection faults" should:
       "return DownstreamError via recover" in new Test:
-        stubFault()
+        stubReportFault()
 
         await(generateReport()) shouldBe Left(ErrorWrapper(correlationId, DownstreamError))
 
@@ -217,21 +401,21 @@ class RdsConnectorSpec extends ConnectorSpec, BeforeAndAfterAll, Injecting, Mock
 
         await(generateReport())
 
-        wireMockServer.verify(postRequestedFor(urlPattern).withHeader("Authorization", equalTo("Bearer a-bearer-token")))
+        wireMockServer.verify(postRequestedFor(reportUrlPattern).withHeader("Authorization", equalTo("Bearer a-bearer-token")))
 
       "send no authorization header when no credentials are supplied" in new Test:
         stubReport(Some(reportJson().toString), CREATED)
 
         await(generateReport(credentials = None))
 
-        wireMockServer.verify(postRequestedFor(urlPattern).withoutHeader("Authorization"))
+        wireMockServer.verify(postRequestedFor(reportUrlPattern).withoutHeader("Authorization"))
 
       "send the report request as JSON" in new Test:
         stubReport(Some(reportJson().toString), CREATED)
 
         await(generateReport())
 
-        wireMockServer.verify(postRequestedFor(urlPattern).withRequestBody(equalToJson(Json.toJson(rdsRequest).toString, true, false)))
+        wireMockServer.verify(postRequestedFor(reportUrlPattern).withRequestBody(equalToJson(Json.toJson(rdsRequest).toString, true, false)))
 
       "send the correlation id and user agent" in new Test:
         stubReport(Some(reportJson().toString), CREATED)
@@ -239,6 +423,6 @@ class RdsConnectorSpec extends ConnectorSpec, BeforeAndAfterAll, Injecting, Mock
         await(generateReport())
 
         wireMockServer.verify(
-          postRequestedFor(urlPattern)
+          postRequestedFor(reportUrlPattern)
             .withHeader("X-CorrelationId", equalTo(correlationId.value))
             .withHeader("User-Agent", equalTo("mtd-transaction-risking")))
