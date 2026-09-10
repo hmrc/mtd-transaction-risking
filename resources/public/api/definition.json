@@ -2,7 +2,7 @@
   "api": {
     "name": "VAT Assist (MTD)",
     "description": "A service that identifies potential inaccuracies in returns before submission.",
-    "context": "misc/transaction-risking",
+    "context": "organisations/vat",
     "categories": ["VAT_MTD"],
     "versions": [
       {

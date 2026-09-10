@@ -20,7 +20,7 @@ servers:
   - url: https://api.service.hmrc.gov.uk
     description: Production
 paths:
-  /misc/transaction-risking/assist/{vrn}:
+  /organisations/vat/assist/{vrn}:
     post:
       tags:
         - Endpoints
@@ -320,7 +320,7 @@ paths:
         - userRestricted:
             - write:vat
 
-  /misc/transaction-risking/acknowledge/{vrn}/{reportId}/{correlationId}:
+  /organisations/vat/acknowledge/{vrn}/{reportId}/{correlationId}:
     post:
       tags:
         - Endpoints
