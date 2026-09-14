@@ -26,7 +26,7 @@ import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse, StringContextOps}
 import uk.gov.hmrc.mtdtransactionrisking.config.AppConfig
 import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.auth.RdsAuthCredentials
-import uk.gov.hmrc.mtdtransactionrisking.v1.models.errors.{DownstreamError, ErrorWrapper, ServiceUnavailableError}
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.errors.{AcknowledgementValidationFailedError, DownstreamError, ErrorWrapper, ServiceUnavailableError}
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.outcomes.ResponseWrapper
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.{AcknowledgeRequest, RdsAcknowledgeRequest, ReportRequest}
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.*
@@ -70,11 +70,11 @@ class RdsConnector @Inject() (httpClient: HttpClientV2, appConfig: AppConfig)(im
 
                     case Some(UNAUTHORIZED) =>
                       logger.error(s"${correlationId.value}::[RdsConnector][acknowledge] acknowledgement failed responseCode $UNAUTHORIZED, responseMessage: ${acknowledgeResponse.output.responseMessage.getOrElse("no message")}")
-                      Left(ErrorWrapper(correlationId, DownstreamError))
+                      Left(ErrorWrapper(correlationId, AcknowledgementValidationFailedError))
 
                     case other =>
                       logger.error(s"${correlationId.value}::[RdsConnector][acknowledge] unexpected or missing response code: ${other.getOrElse("missing")}")
-                      Left(ErrorWrapper(correlationId, DownstreamError))
+                      Left(ErrorWrapper(correlationId, AcknowledgementValidationFailedError))
               )
 
           case NOT_FOUND | REQUEST_TIMEOUT | SERVICE_UNAVAILABLE =>

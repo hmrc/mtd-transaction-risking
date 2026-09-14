@@ -25,7 +25,7 @@ import play.api.test.Injecting
 import uk.gov.hmrc.http.client.HttpClientV2
 import uk.gov.hmrc.mtdtransactionrisking.support.{ConnectorSpec, MockAppConfig}
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.auth.RdsAuthCredentials
-import uk.gov.hmrc.mtdtransactionrisking.v1.models.errors.{DownstreamError, ErrorWrapper, ServiceUnavailableError}
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.errors.{AcknowledgementValidationFailedError, DownstreamError, ErrorWrapper, ServiceUnavailableError}
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.outcomes.ResponseWrapper
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.{AcknowledgeRequest, FraudPreventionHeader, RdsAcknowledgeRequest, ReportRequest}
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.{AcknowledgeResponse, FeedbackResponse}
@@ -228,7 +228,7 @@ class RdsConnectorSpec extends ConnectorSpec, BeforeAndAfterAll, Injecting, Mock
         )
 
     "RDS rejects the acknowledgement or the response cannot be interpreted" should:
-      "return DownstreamError when the inner response code is 401" in new Test:
+      "return AcknowledgementValidationFailedError when the inner response code is 401" in new Test:
         val responseJson: JsValue = acknowledgeJson(responseCode = Some(401), responseMessage = Some("Unauthorised"))
 
         stubAcknowledge(Some(responseJson.toString), CREATED)
@@ -236,11 +236,11 @@ class RdsConnectorSpec extends ConnectorSpec, BeforeAndAfterAll, Injecting, Mock
         await(acknowledge()) shouldBe Left(
           ErrorWrapper(
             correlationId,
-            DownstreamError,
+            AcknowledgementValidationFailedError,
           )
         )
 
-      "return DownstreamError when the inner response code is unexpected" in new Test:
+      "return AcknowledgementValidationFailedError when the inner response code is unexpected" in new Test:
         val responseJson: JsValue = acknowledgeJson(responseCode = Some(500), responseMessage = Some("Unexpected"))
 
         stubAcknowledge(Some(responseJson.toString), CREATED)
@@ -248,17 +248,17 @@ class RdsConnectorSpec extends ConnectorSpec, BeforeAndAfterAll, Injecting, Mock
         await(acknowledge()) shouldBe Left(
           ErrorWrapper(
             correlationId,
-            DownstreamError,
+            AcknowledgementValidationFailedError,
           )
         )
 
-      "return DownstreamError when the response has no response code" in new Test:
+      "return AcknowledgementValidationFailedError when the response has no response code" in new Test:
         stubAcknowledge(Some(acknowledgeWithoutResponseCode.toString), CREATED)
 
         await(acknowledge()) shouldBe Left(
           ErrorWrapper(
             correlationId,
-            DownstreamError,
+            AcknowledgementValidationFailedError,
           )
         )
 

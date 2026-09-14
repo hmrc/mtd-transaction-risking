@@ -60,6 +60,9 @@ object DownstreamError extends MtdError("INTERNAL_SERVER_ERROR", "An internal se
 
 object BadRequestError extends MtdError("INVALID_REQUEST", "Invalid request", BAD_REQUEST)
 
+object AcknowledgementValidationFailedError
+    extends MtdError("ACKNOWLEDGEMENT_VALIDATION_FAILED", "The acknowledgement request failed validation", INTERNAL_SERVER_ERROR)
+
 object ServiceUnavailableError extends MtdError("SERVICE_UNAVAILABLE", "Internal server error", SERVICE_UNAVAILABLE)
 
 object InvalidJson extends MtdError("INVALID_JSON", "Invalid JSON received", BAD_REQUEST)
