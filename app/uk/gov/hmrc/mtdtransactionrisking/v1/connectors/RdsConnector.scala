@@ -28,7 +28,7 @@ import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.auth.RdsAuthCredentials
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.errors.{DownstreamError, ErrorWrapper, ServiceUnavailableError}
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.outcomes.ResponseWrapper
-import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.{AcknowledgeRequest, ReportRequest}
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.{AcknowledgeRequest, RdsAcknowledgeRequest, ReportRequest}
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.*
 import uk.gov.hmrc.mtdtransactionrisking.v1.services.ServiceOutcome
 
@@ -43,14 +43,15 @@ class RdsConnector @Inject() (httpClient: HttpClientV2, appConfig: AppConfig)(im
                                                                                       hc: HeaderCarrier,
                                                                                       correlationId: CorrelationId): Future[ServiceOutcome[AcknowledgeResponse]] =
 
+    logger.info(s"${correlationId.value}::[RdsConnector][acknowledge] sending acknowledge request to RDS")
+
     httpClient
       .post(url"${appConfig.rdsAcknowledgeUrl}")
-      .withBody(Json.toJson(request))
+      .withBody(Json.toJson(RdsAcknowledgeRequest.from(request)))
       .setHeader(buildHeaders(correlationId, appConfig.appName, credentials) *)
       .withProxy
       .execute[HttpResponse]
       .map { response =>
-        logger.info(s"${correlationId.value}::[RdsConnector][acknowledge] sending acknowledge request to RDS")
         response.status match
 
           case CREATED =>
@@ -98,6 +99,7 @@ class RdsConnector @Inject() (httpClient: HttpClientV2, appConfig: AppConfig)(im
       correlationId: CorrelationId): Future[ServiceOutcome[FeedbackResponse]] =
 
 
+    logger.info(s"${correlationId.value}::[RdsConnector][generateReport] requesting report for VRN $vrn")
 
     httpClient
       .post(url"${appConfig.rdsSubmitUrl}")
@@ -106,7 +108,6 @@ class RdsConnector @Inject() (httpClient: HttpClientV2, appConfig: AppConfig)(im
       .withProxy
       .execute[HttpResponse]
       .map { response =>
-        logger.info(s"${correlationId.value}::[RdsConnector][generateReport] requesting report for VRN $vrn")
         response.status match
           case CREATED =>
             handleReport(response)

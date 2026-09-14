@@ -38,10 +38,11 @@ class AcknowledgeService @Inject() (rdsAuthService: RdsAuthService, rdsConnector
 
   def acknowledge(request: AcknowledgeRequest)(implicit hc: HeaderCarrier, correlationId: CorrelationId): Future[ServiceOutcome[Unit]] =
     logger.info(s"${correlationId.value}::[AcknowledgeService][acknowledge] acknowledgement received for reportId ${request.reportId}")
-    interactionService.storeAcknowledgement(request)
     val result = for
       credentials <- EitherT(rdsAuthService.bearerToken())
       _           <- EitherT(rdsConnector.acknowledge(request, credentials.responseData))
-    yield ResponseWrapper(correlationId, ())
+    yield
+      interactionService.storeAcknowledgement(request)
+      ResponseWrapper(correlationId, ())
 
     result.value

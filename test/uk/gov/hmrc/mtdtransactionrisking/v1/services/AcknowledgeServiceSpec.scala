@@ -71,7 +71,7 @@ class AcknowledgeServiceSpec extends UnitSpec,
 
   "acknowledge" should:
 
-    "store the interaction, call auth and RDS, and return a successful outcome" in new Test:
+    "Call auth and RDS, store the interaction, and return a successful outcome" in new Test:
       MockInteractionService.storeAcknowledgement(request).returns(())
 
       MockRdsAuthService.bearerToken

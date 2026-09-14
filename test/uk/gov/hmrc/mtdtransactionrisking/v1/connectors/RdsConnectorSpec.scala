@@ -27,7 +27,7 @@ import uk.gov.hmrc.mtdtransactionrisking.support.{ConnectorSpec, MockAppConfig}
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.auth.RdsAuthCredentials
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.errors.{DownstreamError, ErrorWrapper, ServiceUnavailableError}
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.outcomes.ResponseWrapper
-import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.{AcknowledgeRequest, FraudPreventionHeader, ReportRequest}
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.{AcknowledgeRequest, FraudPreventionHeader, RdsAcknowledgeRequest, ReportRequest}
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.{AcknowledgeResponse, FeedbackResponse}
 import uk.gov.hmrc.mtdtransactionrisking.v1.services.ServiceOutcome
 
@@ -209,7 +209,7 @@ class RdsConnectorSpec extends ConnectorSpec, BeforeAndAfterAll, Injecting, Mock
 
   "RdsConnector.acknowledge" when:
 
-    "RDS acknowledges the report" should:
+    "RDS accepts the acknowledgement" should:
 
       "return the acknowledge response when the inner response code is 202" in new Test:
         stubAcknowledge(Some(acknowledgeJson(responseCode = Some(202)).toString), CREATED)
@@ -227,6 +227,7 @@ class RdsConnectorSpec extends ConnectorSpec, BeforeAndAfterAll, Injecting, Mock
           )
         )
 
+    "RDS rejects the acknowledgement or the response cannot be interpreted" should:
       "return DownstreamError when the inner response code is 401" in new Test:
         val responseJson: JsValue = acknowledgeJson(responseCode = Some(401), responseMessage = Some("Unauthorised"))
 
@@ -275,7 +276,7 @@ class RdsConnectorSpec extends ConnectorSpec, BeforeAndAfterAll, Injecting, Mock
 
     "RDS is unreachable" should:
       Seq(NOT_FOUND, REQUEST_TIMEOUT, SERVICE_UNAVAILABLE).foreach: status =>
-        s"return ServiceUnavailableError on $status" in new Test:
+        s"return ServiceUnavailableError on outer HTTP status $status" in new Test:
           stubAcknowledge(None, status)
 
           await(acknowledge()) shouldBe Left(ErrorWrapper(correlationId, ServiceUnavailableError))
@@ -320,7 +321,7 @@ class RdsConnectorSpec extends ConnectorSpec, BeforeAndAfterAll, Injecting, Mock
 
         wireMockServer.verify(
           postRequestedFor(acknowledgeUrlPattern)
-            .withRequestBody(equalToJson(Json.toJson(acknowledgeRequest).toString, true, false))
+            .withRequestBody(equalToJson(Json.toJson(RdsAcknowledgeRequest.from(acknowledgeRequest)).toString, true, false))
         )
 
       "send the correlation id and user agent" in new Test:

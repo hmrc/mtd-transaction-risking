@@ -20,14 +20,16 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import play.api.libs.json.Json
 
-class AcknowledgeRequestSpec extends AnyWordSpec with Matchers:
+class RdsAcknowledgeRequestSpec extends AnyWordSpec with Matchers:
 
-  private val request = AcknowledgeRequest(
+  private val acknowledgeRequest = AcknowledgeRequest(
     vrn = "123456789",
     reportId = "f2fb30e5-4ab6-4a29-b3c1-c00000000001",
     correlationId = "c75f40a6-a3df-4429-a697-471eeec46435",
     presentedDateTime = "2026-06-09T10:30:00Z"
   )
+
+  private val request = RdsAcknowledgeRequest.from(acknowledgeRequest)
 
   private val expectedJson = Json.obj(
     "inputs" -> Json.arr(
@@ -38,7 +40,14 @@ class AcknowledgeRequestSpec extends AnyWordSpec with Matchers:
     )
   )
 
-  "AcknowledgeRequest" when {
+  "RdsAcknowledgeRequest" when {
+
+    "building from the internal model" should {
+      "map reportId to feedbackId" in {
+        request.feedbackId shouldBe acknowledgeRequest.reportId
+      }
+    }
+
     "serialising to JSON" should {
       "match the expected RDS payload structure" in {
         Json.toJson(request) shouldBe expectedJson
@@ -58,3 +67,4 @@ class AcknowledgeRequestSpec extends AnyWordSpec with Matchers:
       }
     }
   }
+
