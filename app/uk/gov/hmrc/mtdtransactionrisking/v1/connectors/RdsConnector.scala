@@ -26,10 +26,15 @@ import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse, StringContextOps}
 import uk.gov.hmrc.mtdtransactionrisking.config.AppConfig
 import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.auth.RdsAuthCredentials
-import uk.gov.hmrc.mtdtransactionrisking.v1.models.errors.{DownstreamError, ErrorWrapper, ServiceUnavailableError}
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.errors.{
+  AcknowledgementValidationFailedError,
+  DownstreamError,
+  ErrorWrapper,
+  ServiceUnavailableError
+}
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.outcomes.ResponseWrapper
-import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.ReportRequest
-import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.{FeedbackResponse, ReportResponse, ReportResponseTransform}
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.{AcknowledgeRequest, RdsAcknowledgeRequest, ReportRequest}
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.*
 import uk.gov.hmrc.mtdtransactionrisking.v1.services.ServiceOutcome
 
 import javax.inject.{Inject, Singleton}
@@ -37,7 +42,59 @@ import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class RdsConnector @Inject() (httpClient: HttpClientV2, appConfig: AppConfig)(implicit ec: ExecutionContext) extends Logging:
-  
+
+  def acknowledge(request: AcknowledgeRequest, credentials: Option[RdsAuthCredentials])(implicit
+      hc: HeaderCarrier,
+      correlationId: CorrelationId): Future[ServiceOutcome[RdsAcknowledgeResponse]] =
+
+    logger.info(s"${correlationId.value}::[RdsConnector][acknowledge] sending acknowledge request to RDS")
+
+    httpClient
+      .post(url"${appConfig.rdsAcknowledgeUrl}")
+      .withBody(Json.toJson(RdsAcknowledgeRequest.from(request)))
+      .setHeader(buildHeaders(correlationId, appConfig.appName, credentials)*)
+      .withProxy
+      .execute[HttpResponse]
+      .map { response =>
+        response.status match
+          case CREATED =>
+            response.json
+              .validate[RdsAcknowledgeResponseWrapper]
+              .fold(
+                errors =>
+                  logger.error(s"${correlationId.value}::[RdsConnector][acknowledge] malformed response: ${response.body}")
+                  Left(ErrorWrapper(correlationId, DownstreamError))
+                ,
+                acknowledgeResponse =>
+                  acknowledgeResponse.output.responseCode match
+                    case Some(ACCEPTED) =>
+                      logger.info(s"${correlationId.value}::[RdsConnector][acknowledge] success")
+                      Right(ResponseWrapper(correlationId, acknowledgeResponse.output))
+
+                    case Some(UNAUTHORIZED) =>
+                      logger.error(
+                        s"${correlationId.value}::[RdsConnector][acknowledge] acknowledgement failed responseCode $UNAUTHORIZED, responseMessage: ${acknowledgeResponse.output.responseMessage
+                            .getOrElse("no message")}")
+                      Left(ErrorWrapper(correlationId, AcknowledgementValidationFailedError))
+
+                    case other =>
+                      logger.error(
+                        s"${correlationId.value}::[RdsConnector][acknowledge] unexpected or missing response code: ${other.getOrElse("missing")}")
+                      Left(ErrorWrapper(correlationId, AcknowledgementValidationFailedError))
+              )
+          case NOT_FOUND | REQUEST_TIMEOUT | SERVICE_UNAVAILABLE =>
+            logger.error(s"${correlationId.value}::[RdsConnector][acknowledge] RDS unavailable, status ${response.status}")
+            Left(ErrorWrapper(correlationId, ServiceUnavailableError))
+
+          case status =>
+            logger.error(s"${correlationId.value}::[RdsConnector][acknowledge] failed $status: ${response.body}")
+            Left(ErrorWrapper(correlationId, DownstreamError))
+      }
+      .recover:
+        case ex =>
+          logger.error(s"${correlationId.value}::[RdsConnector][acknowledge] unexpected exception", ex)
+          Left(ErrorWrapper(correlationId, DownstreamError))
+
   // A 201 means the call executed. The actual decision is in the report responseCode field
   def generateReport(vrn: String, request: ReportRequest, credentials: Option[RdsAuthCredentials])(implicit
       hc: HeaderCarrier,

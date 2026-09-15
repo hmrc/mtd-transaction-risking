@@ -18,6 +18,7 @@ package uk.gov.hmrc.mtdtransactionrisking.v1.connectors
 
 import play.api.Logging
 import play.api.libs.json.Json
+import play.api.http.Status.OK
 import play.api.libs.ws.writeableOf_JsValue
 import uk.gov.hmrc.http.HttpReads.Implicits.*
 import uk.gov.hmrc.http.client.HttpClientV2
@@ -51,7 +52,7 @@ class FeedbackConnector @Inject() (
       .execute[HttpResponse]
       .map { response =>
         response.status match
-          case 200 =>
+          case OK =>
             response.json.asOpt[FeedbackResponse] match
               case Some(feedback) =>
                 logger.info(s"${correlationId.value}::[FeedbackConnector][requestFeedback] success")
