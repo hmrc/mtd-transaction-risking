@@ -53,7 +53,7 @@ class VersionRoutingRequestHandlerSpec extends UnitSpec, Inside, MockAppConfig, 
     DefaultHandler
   }
 
-  private val v1Router = Router.from { case POST(p"/assist/123456789") =>
+  private val v1Router = Router.from { case POST(p"/feedback/123456789") =>
     V1Handler
   }
 
@@ -92,7 +92,7 @@ class VersionRoutingRequestHandlerSpec extends UnitSpec, Inside, MockAppConfig, 
     handleWithDefaultRoutes()
 
     "return 406 for an API path" in new Test:
-      val request: RequestHeader = buildRequest("/assist/123456789")
+      val request: RequestHeader = buildRequest("/feedback/123456789")
 
       inside(requestHandler.routeRequest(request)) { case Some(b: EssentialAction) =>
         val result = b.apply(request)
@@ -104,13 +104,13 @@ class VersionRoutingRequestHandlerSpec extends UnitSpec, Inside, MockAppConfig, 
     implicit val acceptHeader: Some[String] = Some("application/vnd.hmrc.1.0+json")
 
     handleWithDefaultRoutes()
-    handleWithVersionRoutes("/assist/123456789", V1Handler)
+    handleWithVersionRoutes("/feedback/123456789", V1Handler)
 
   "Routing requests with an unsupported version in the Accept header" should:
     implicit val acceptHeader: Some[String] = Some("application/vnd.hmrc.9.0+json")
 
     "return 406" in new Test:
-      val request: RequestHeader = buildRequest("/assist/123456789")
+      val request: RequestHeader = buildRequest("/feedback/123456789")
 
       inside(requestHandler.routeRequest(request)) { case Some(b: EssentialAction) =>
         val result = b.apply(request)
@@ -122,7 +122,7 @@ class VersionRoutingRequestHandlerSpec extends UnitSpec, Inside, MockAppConfig, 
     implicit val acceptHeader: Some[String] = Some("application/vnd.hmrc.1.0+json")
 
     "return 404 with UnsupportedVersionError" in new Test(disabledConfig):
-      val request: RequestHeader = buildRequest("/assist/123456789")
+      val request: RequestHeader = buildRequest("/feedback/123456789")
 
       inside(requestHandler.routeRequest(request)) { case Some(b: EssentialAction) =>
         val result = b.apply(request)

@@ -39,7 +39,7 @@ class GenerateFeedbackControllerStubISpec extends IntegrationBaseSpec:
 
   "GenerateFeedbackController feedback path" when:
 
-    "POST /assist/:vrn with feedback-stub configured" should:
+    "POST /feedback/:vrn with feedback-stub configured" should:
 
       // --- Success scenarios ---
 
@@ -159,7 +159,7 @@ class GenerateFeedbackControllerStubISpec extends IntegrationBaseSpec:
     def request(vrn: String): Future[Result] =
       setupStubs()
       app.injector.instanceOf[GenerateFeedbackController].generateFeedback(vrn)(
-        FakeRequest("POST", s"/assist/$vrn")
+        FakeRequest("POST", s"/feedback/$vrn")
           .withSession(authToken -> vrn)
           .withHeaders(
             "Authorization" -> "Bearer abc123",
