@@ -6,7 +6,7 @@ info:
     Use this API to get HMRC Assist feedback about potential inaccuracies in returns before they are formally submitted.
 
     The endpoints must be used in this order:
-    1. Use the *assist* endpoint to send draft return data, and receive HMRC Assist feedback messages about that data.
+    1. Use the *feedback* endpoint to send draft return data, and receive HMRC Assist feedback messages about that data.
     2. Use the *acknowledge* endpoint to confirm that your software has presented the HMRC Assist feedback messages to the user.
 
     Because this process operates on draft, unfinalised data, requesting feedback carries no formal declaration. Also, the process does not block formal declaration submission via the *returns* endpoint of the [VAT (MTD) API](https://developer.service.hmrc.gov.uk/api-documentation/docs/api/service/vat-api/). Your software must allow customers to submit their VAT return, irrespective of any HMRC Assist submission feedback.
@@ -20,7 +20,7 @@ servers:
   - url: https://api.service.hmrc.gov.uk
     description: Production
 paths:
-  /misc/transaction-risking/assist/{vrn}:
+  /organisations/vat-assist/feedback/{vrn}:
     post:
       tags:
         - Endpoints
@@ -320,7 +320,7 @@ paths:
         - userRestricted:
             - write:vat
 
-  /misc/transaction-risking/acknowledge/{vrn}/{reportId}/{correlationId}:
+  /organisations/vat-assist/acknowledge/{vrn}/{reportId}/{correlationId}:
     post:
       tags:
         - Endpoints
