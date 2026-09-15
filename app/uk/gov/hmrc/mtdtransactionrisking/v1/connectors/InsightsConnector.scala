@@ -18,6 +18,7 @@ package uk.gov.hmrc.mtdtransactionrisking.v1.connectors
 
 import play.api.Logging
 import play.api.libs.json.Json
+import play.api.http.Status.OK
 import play.api.libs.ws.writeableOf_JsValue
 import uk.gov.hmrc.http.HttpReads.Implicits.*
 import uk.gov.hmrc.http.client.HttpClientV2
@@ -41,7 +42,7 @@ class InsightsConnector @Inject() (
     extends Logging:
 
   def getRiskInsights(request: InsightsRequest)(implicit hc: HeaderCarrier, correlationId: CorrelationId): Future[ServiceOutcome[InsightsResponse]] =
-    logger.debug(s"${correlationId.value}::[InsightsConnector:getRiskInsights] calling insights API")
+    logger.info(s"${correlationId.value}::[InsightsConnector:getRiskInsights] calling insights API")
 
     httpClient
       .post(url"${appConfig.insightsProxyServiceBaseUrl}")
@@ -50,10 +51,10 @@ class InsightsConnector @Inject() (
       .execute[HttpResponse]
       .map { response =>
         response.status match
-          case 200 =>
+          case OK =>
             response.json.asOpt[InsightsResponse] match
               case Some(insights) =>
-                logger.debug(s"${correlationId.value}::[InsightsConnector:getRiskInsights] success")
+                logger.info(s"${correlationId.value}::[InsightsConnector:getRiskInsights] success")
                 Right(ResponseWrapper(correlationId, insights))
               case None =>
                 logger.error(s"${correlationId.value}::[InsightsConnector:getRiskInsights] malformed response")

@@ -25,10 +25,15 @@ import play.api.test.Injecting
 import uk.gov.hmrc.http.client.HttpClientV2
 import uk.gov.hmrc.mtdtransactionrisking.support.{ConnectorSpec, MockAppConfig}
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.auth.RdsAuthCredentials
-import uk.gov.hmrc.mtdtransactionrisking.v1.models.errors.{AcknowledgementValidationFailedError, DownstreamError, ErrorWrapper, ServiceUnavailableError}
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.errors.{
+  AcknowledgementValidationFailedError,
+  DownstreamError,
+  ErrorWrapper,
+  ServiceUnavailableError
+}
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.outcomes.ResponseWrapper
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.{AcknowledgeRequest, FraudPreventionHeader, RdsAcknowledgeRequest, ReportRequest}
-import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.{AcknowledgeResponse, FeedbackResponse}
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.{RdsAcknowledgeResponse, FeedbackResponse}
 import uk.gov.hmrc.mtdtransactionrisking.v1.services.ServiceOutcome
 
 import scala.concurrent.Future
@@ -36,7 +41,7 @@ import scala.concurrent.Future
 class RdsConnectorSpec extends ConnectorSpec, BeforeAndAfterAll, Injecting, MockAppConfig:
 
   val httpClient: HttpClientV2 = app.injector.instanceOf[HttpClientV2]
-  private val vrn        = "123456789"
+  private val vrn = "123456789"
 
   private val reportPath = "/microanalyticScore/modules/HMRC_ASSIST_VAT_FINSUB_FEEDBACK/steps/execute"
   private val reportUrlPattern = urlPathMatching(reportPath)
@@ -69,13 +74,13 @@ class RdsConnectorSpec extends ConnectorSpec, BeforeAndAfterAll, Injecting, Mock
   )
 
   private val acknowledgeRequest: AcknowledgeRequest = AcknowledgeRequest(
-      vrn = vrn,
-      reportId = feedbackId,
-      correlationId = rdsCorrelationId,
-      presentedDateTime = "2026-09-03T10:00:00Z"
-    )
+    vrn = vrn,
+    reportId = feedbackId,
+    correlationId = rdsCorrelationId,
+    presentedDateTime = "2026-09-03T10:00:00Z"
+  )
 
-  /** A report with no feedbackId, so the transform cannot build a response. */
+  // A report with no feedbackId, so the transform cannot build response
   private val reportWithoutFeedbackId: JsValue = Json.parse(
     s"""
        |{
@@ -97,7 +102,6 @@ class RdsConnectorSpec extends ConnectorSpec, BeforeAndAfterAll, Injecting, Mock
        |""".stripMargin
   )
 
-  // An acknowledge response with no response code.
   private val acknowledgeWithoutResponseCode: JsValue = Json.parse(
     s"""
        |{
@@ -132,7 +136,6 @@ class RdsConnectorSpec extends ConnectorSpec, BeforeAndAfterAll, Injecting, Mock
          |""".stripMargin
     )
 
-  /** A report as SAS returns it, with the inner response code and one message per language. */
   private def reportJson(responseCode: String = "201"): JsValue = Json.parse(
     s"""
        |{
@@ -193,7 +196,6 @@ class RdsConnectorSpec extends ConnectorSpec, BeforeAndAfterAll, Injecting, Mock
     def generateReport(credentials: Option[RdsAuthCredentials] = Some(credentials)): Future[ServiceOutcome[FeedbackResponse]] =
       connector.generateReport(vrn, rdsRequest, credentials)
 
-
     // Acknowledge stub helpers
     def stubAcknowledge(body: Option[String], status: Int): StubMapping =
       wireMockServer.stubFor:
@@ -204,20 +206,18 @@ class RdsConnectorSpec extends ConnectorSpec, BeforeAndAfterAll, Injecting, Mock
     def stubAcknowledgeFault(): StubMapping =
       wireMockServer.stubFor(post(acknowledgeUrlPattern).willReturn(aResponse().withFault(Fault.CONNECTION_RESET_BY_PEER)))
 
-    def acknowledge(credentials: Option[RdsAuthCredentials] = Some(credentials)): Future[ServiceOutcome[AcknowledgeResponse]] =
+    def acknowledge(credentials: Option[RdsAuthCredentials] = Some(credentials)): Future[ServiceOutcome[RdsAcknowledgeResponse]] =
       connector.acknowledge(acknowledgeRequest, credentials)
 
   "RdsConnector.acknowledge" when:
-
     "RDS accepts the acknowledgement" should:
-
       "return the acknowledge response when the inner response code is 202" in new Test:
         stubAcknowledge(Some(acknowledgeJson(responseCode = Some(202)).toString), CREATED)
 
         await(acknowledge()) shouldBe Right(
           ResponseWrapper(
             correlationId,
-            AcknowledgeResponse(
+            RdsAcknowledgeResponse(
               vrn = Some(vrn),
               feedbackId = Some(feedbackId),
               createdDttm = Some("2026-09-03T10:00:00Z"),
@@ -236,7 +236,7 @@ class RdsConnectorSpec extends ConnectorSpec, BeforeAndAfterAll, Injecting, Mock
         await(acknowledge()) shouldBe Left(
           ErrorWrapper(
             correlationId,
-            AcknowledgementValidationFailedError,
+            AcknowledgementValidationFailedError
           )
         )
 
@@ -248,7 +248,7 @@ class RdsConnectorSpec extends ConnectorSpec, BeforeAndAfterAll, Injecting, Mock
         await(acknowledge()) shouldBe Left(
           ErrorWrapper(
             correlationId,
-            AcknowledgementValidationFailedError,
+            AcknowledgementValidationFailedError
           )
         )
 
@@ -258,7 +258,7 @@ class RdsConnectorSpec extends ConnectorSpec, BeforeAndAfterAll, Injecting, Mock
         await(acknowledge()) shouldBe Left(
           ErrorWrapper(
             correlationId,
-            AcknowledgementValidationFailedError,
+            AcknowledgementValidationFailedError
           )
         )
 
@@ -281,14 +281,14 @@ class RdsConnectorSpec extends ConnectorSpec, BeforeAndAfterAll, Injecting, Mock
 
           await(acknowledge()) shouldBe Left(ErrorWrapper(correlationId, ServiceUnavailableError))
 
-    "RDS returns an unexpected status" should:
+    "RDS returns an unexpected HTTP status" should:
       "return DownstreamError" in new Test:
         stubAcknowledge(None, OK)
 
         await(acknowledge()) shouldBe Left(
           ErrorWrapper(
             correlationId,
-            DownstreamError,
+            DownstreamError
           )
         )
 
@@ -299,7 +299,6 @@ class RdsConnectorSpec extends ConnectorSpec, BeforeAndAfterAll, Injecting, Mock
         await(acknowledge()) shouldBe Left(ErrorWrapper(correlationId, DownstreamError))
 
     "making the request" should:
-
       "send the bearer token when credentials are supplied" in new Test:
         stubAcknowledge(Some(acknowledgeJson().toString), CREATED)
 
@@ -335,11 +334,8 @@ class RdsConnectorSpec extends ConnectorSpec, BeforeAndAfterAll, Injecting, Mock
             .withHeader("User-Agent", equalTo("mtd-transaction-risking"))
         )
 
-
   "RdsConnector.generateReport" when:
-
     "RDS returns a report" should:
-
       "return the transformed feedback when the inner response code is 201" in new Test:
         stubReport(Some(reportJson().toString), CREATED)
 
@@ -396,7 +392,6 @@ class RdsConnectorSpec extends ConnectorSpec, BeforeAndAfterAll, Injecting, Mock
         await(generateReport()) shouldBe Left(ErrorWrapper(correlationId, DownstreamError))
 
     "making the request" should:
-
       "send the bearer token when credentials are supplied" in new Test:
         stubReport(Some(reportJson().toString), CREATED)
 

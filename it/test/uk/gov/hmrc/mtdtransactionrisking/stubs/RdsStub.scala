@@ -22,13 +22,13 @@ import play.api.http.Status.*
 
 object RdsStub:
 
-  private val reportUrl = urlPathMatching("/microanalyticScore/modules/HMRC_ASSIST_VAT_FINSUB_FEEDBACK/steps/execute")
-  private val acknowledgeUrl = urlPathMatching("/microanalyticScore/modules/HMRC_ASSIST_VAT_FINSUB_FEEDBACK_ACK/steps/execute")
+  private val generateRdsUrl = urlPathMatching("/rds/assessments/generate")
+  private val acknowledgeRdsUrl = urlPathMatching(".rds/assessments/acknowledge")
 
-  /** A 201 carrying a report with one english and one welsh feedback message. */
+  // A report with inner 201 code and one english and one welsh feedback message
   def reportGenerated(): StubMapping =
     stubFor(
-      post(reportUrl).willReturn(
+      post(generateRdsUrl).willReturn(
         aResponse()
           .withStatus(CREATED)
           .withHeader("Content-Type", "application/json")
@@ -71,7 +71,7 @@ object RdsStub:
 
   def acknowledgeAccepted(): StubMapping =
     stubFor(
-      post(acknowledgeUrl).willReturn(
+      post(acknowledgeRdsUrl).willReturn(
         aResponse()
           .withStatus(CREATED)
           .withHeader("Content-Type", "application/json")
@@ -92,11 +92,11 @@ object RdsStub:
     )
 
   def acknowledgeUnavailable(): StubMapping =
-    stubFor(post(acknowledgeUrl).willReturn(aResponse().withStatus(SERVICE_UNAVAILABLE)))
+    stubFor(post(acknowledgeRdsUrl).willReturn(aResponse().withStatus(SERVICE_UNAVAILABLE)))
 
   def acknowledgeMalformedResponse(): StubMapping =
     stubFor(
-      post(acknowledgeUrl).willReturn(
+      post(acknowledgeRdsUrl).willReturn(
         aResponse()
           .withStatus(CREATED)
           .withHeader("Content-Type", "application/json")
@@ -104,18 +104,17 @@ object RdsStub:
       ))
 
   def acknowledgeBadRequest(): StubMapping =
-    stubFor(post(acknowledgeUrl).willReturn(aResponse().withStatus(BAD_REQUEST)))
-
+    stubFor(post(acknowledgeRdsUrl).willReturn(aResponse().withStatus(BAD_REQUEST)))
 
   def badRequest(): StubMapping =
-    stubFor(post(reportUrl).willReturn(aResponse().withStatus(BAD_REQUEST)))
+    stubFor(post(generateRdsUrl).willReturn(aResponse().withStatus(BAD_REQUEST)))
 
   def unavailable(): StubMapping =
-    stubFor(post(reportUrl).willReturn(aResponse().withStatus(SERVICE_UNAVAILABLE)))
+    stubFor(post(generateRdsUrl).willReturn(aResponse().withStatus(SERVICE_UNAVAILABLE)))
 
   def malformedReport(): StubMapping =
     stubFor(
-      post(reportUrl).willReturn(
+      post(generateRdsUrl).willReturn(
         aResponse()
           .withStatus(CREATED)
           .withHeader("Content-Type", "application/json")

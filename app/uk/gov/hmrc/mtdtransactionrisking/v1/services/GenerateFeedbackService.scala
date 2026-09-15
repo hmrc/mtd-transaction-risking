@@ -51,11 +51,8 @@ class GenerateFeedbackService @Inject() (
       correlationId: CorrelationId): Future[ServiceOutcome[FeedbackResponse]] =
 
     val result = for
-      obligation <- EitherT(vatApiConnector.validate(vrn, body)).map { validated =>
-        logger.info(s"${correlationId.value}::[GenerateFeedbackService][generateFeedback] VAT return validated")
-        validated
-      }
-
+      obligation <- EitherT(vatApiConnector.validate(vrn, body))
+      
       insights <- EitherT(insightsConnector.getRiskInsights(InsightsRequest(vrn)))
 
       reportRequest <- EitherT.fromOption[Future](

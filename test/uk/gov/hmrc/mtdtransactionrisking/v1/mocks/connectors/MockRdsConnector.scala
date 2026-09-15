@@ -24,7 +24,7 @@ import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
 import uk.gov.hmrc.mtdtransactionrisking.v1.connectors.RdsConnector
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.auth.RdsAuthCredentials
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.{AcknowledgeRequest, ReportRequest}
-import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.{AcknowledgeResponse, FeedbackResponse}
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.{RdsAcknowledgeResponse, FeedbackResponse}
 import uk.gov.hmrc.mtdtransactionrisking.v1.services.ServiceOutcome
 
 import scala.concurrent.Future
@@ -44,7 +44,7 @@ trait MockRdsConnector extends MockFactory:
     def acknowledge(
                      request: AcknowledgeRequest,
                      credentials: Option[RdsAuthCredentials]
-                   ): CallHandler[Future[ServiceOutcome[AcknowledgeResponse]]] =
+                   ): CallHandler[Future[ServiceOutcome[RdsAcknowledgeResponse]]] =
       (mockRdsConnector
         .acknowledge(_: AcknowledgeRequest, _: Option[RdsAuthCredentials])(_: HeaderCarrier, _: CorrelationId))
         .expects(request, credentials, *, *)

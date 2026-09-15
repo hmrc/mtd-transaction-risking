@@ -20,9 +20,9 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import play.api.libs.json.{JsSuccess, Json}
 
-class AcknowledgeResponseSpec extends AnyWordSpec with Matchers:
+class RdsAcknowledgeResponseSpec extends AnyWordSpec with Matchers:
 
-  private val response = AcknowledgeResponse(
+  private val response = RdsAcknowledgeResponse(
     vrn = Some("123456789"),
     feedbackId = Some("f2fb30e5-4ab6-4a29-b3c1-c00000000001"),
     createdDttm = Some("2026-06-09T10:30:00Z"),
@@ -30,7 +30,7 @@ class AcknowledgeResponseSpec extends AnyWordSpec with Matchers:
     responseMessage = Some("Accepted")
   )
 
-  "AcknowledgeResponse" when {
+  "RdsAcknowledgeResponse" when {
     "serialising to JSON" should {
       "produce the RDS acknowledge response fields" in {
         val json = Json.toJson(response)
@@ -46,17 +46,17 @@ class AcknowledgeResponseSpec extends AnyWordSpec with Matchers:
     "deserialising from JSON" should {
       "round-trip correctly" in {
         val json = Json.toJson(response)
-        val result = json.validate[AcknowledgeResponse]
+        val result = json.validate[RdsAcknowledgeResponse]
 
         result shouldBe JsSuccess(response)
       }
     }
   }
 
-  "AcknowledgeResponseWrapper" when {
+  "RdsAcknowledgeResponseWrapper" when {
     "serialising to JSON" should {
       "wrap the output object correctly" in {
-        val wrapper = AcknowledgeResponseWrapper(output = response)
+        val wrapper = RdsAcknowledgeResponseWrapper(output = response)
         val json = Json.toJson(wrapper)
 
         (json \ "output" \ "responseCode").as[Int] shouldBe 202
@@ -66,9 +66,9 @@ class AcknowledgeResponseSpec extends AnyWordSpec with Matchers:
 
     "deserialising from JSON" should {
       "round-trip correctly" in {
-        val wrapper = AcknowledgeResponseWrapper(output = response)
+        val wrapper = RdsAcknowledgeResponseWrapper(output = response)
         val json = Json.toJson(wrapper)
-        val result = json.validate[AcknowledgeResponseWrapper]
+        val result = json.validate[RdsAcknowledgeResponseWrapper]
 
         result shouldBe JsSuccess(wrapper)
       }
