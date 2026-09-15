@@ -97,6 +97,12 @@ class MtdErrorsSpec extends UnitSpec:
       )
       BadRequestError.httpStatus shouldBe BAD_REQUEST
 
+    "generate the correct JSON and status for AcknowledgementValidationFailedError" in:
+      Json.toJson(AcknowledgementValidationFailedError) shouldBe Json.parse(
+        """{"code": "ACKNOWLEDGEMENT_VALIDATION_FAILED", "message": "The acknowledgement request failed validation"}"""
+      )
+      AcknowledgementValidationFailedError.httpStatus shouldBe INTERNAL_SERVER_ERROR
+
     "generate the correct JSON and status for ServiceUnavailableError" in:
       Json.toJson(ServiceUnavailableError) shouldBe Json.parse(
         """{"code": "SERVICE_UNAVAILABLE", "message": "Internal server error"}"""

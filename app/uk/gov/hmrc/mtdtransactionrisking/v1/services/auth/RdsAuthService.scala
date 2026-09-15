@@ -38,11 +38,12 @@ class RdsAuthService @Inject() (connector: RdsAuthConnector, appConfig: AppConfi
 
   private val cachedToken = new AtomicReference[Option[CachedToken]](None)
 
-  /** The bearer token for RDS calls, None in environments that don't require auth. The token lives for four hours and is reused until shortly before
-    * it expires. SAS ask that callers avoid fetching one per request.
-    */
+  // The bearer token for RDS calls, None in environments that don't require auth. The token lives for four hours and is reused until shortly before
+  // it expires
   def bearerToken()(implicit hc: HeaderCarrier, correlationId: CorrelationId): Future[ServiceOutcome[Option[RdsAuthCredentials]]] =
-    if !appConfig.rdsAuthRequired then Future.successful(Right(ResponseWrapper(correlationId, None)))
+    if !appConfig.rdsAuthRequired then
+      logger.info(s"${correlationId.value}::[RdsAuthService][bearerToken] auth not required for this environment")
+      Future.successful(Right(ResponseWrapper(correlationId, None)))
     else cachedOrFresh()
 
   private def cachedOrFresh()(implicit hc: HeaderCarrier, correlationId: CorrelationId): Future[ServiceOutcome[Option[RdsAuthCredentials]]] =
@@ -50,12 +51,16 @@ class RdsAuthService @Inject() (connector: RdsAuthConnector, appConfig: AppConfi
 
     cachedToken.get().filter(_.isValid(now)) match
       case Some(token) =>
+        logger.info(s"${correlationId.value}::[RdsAuthService][bearerToken] reusing cached token, valid until ${token.expiresAt}")
         Future.successful(Right(ResponseWrapper(correlationId, Some(token.credentials))))
 
       case None =>
+        logger.info(s"${correlationId.value}::[RdsAuthService][bearerToken] no valid cached token, fetching a new one")
         connector.retrieveBearerToken().map {
           case Right(ResponseWrapper(_, credentials)) =>
-            cachedToken.set(Some(CachedToken(credentials, credentials.expiresAt(now, refreshMargin))))
+            val expiresAt = credentials.expiresAt(now, refreshMargin)
+            logger.info(s"${correlationId.value}::[RdsAuthService][bearerToken] fetched new token, valid until $expiresAt")
+            cachedToken.set(Some(CachedToken(credentials, expiresAt)))
             Right(ResponseWrapper(correlationId, Some(credentials)))
 
           case Left(errorWrapper) =>
