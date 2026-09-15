@@ -57,7 +57,7 @@ To bypass auth locally, set `auth.enabled = false` in `application.conf`.
 
 ### Endpoints
 
-#### `POST /assist/:vrn`
+#### `POST /feedback/:vrn`
 
 Requests VAT Assist feedback for a given VRN. The request body must contain the nine VAT
 return fields corresponding to boxes 1–9 on a paper VAT return.

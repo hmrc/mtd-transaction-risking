@@ -36,7 +36,7 @@ class GenerateFeedbackControllerISpec extends IntegrationBaseSpec:
 
   "GenerateFeedbackController" when:
 
-    "POST /assist/:vrn" should:
+    "POST /feedback/:vrn" should:
 
       "return 200" when:
         "every downstream responds successfully" in new Test:
@@ -250,7 +250,7 @@ class GenerateFeedbackControllerISpec extends IntegrationBaseSpec:
       app.injector
         .instanceOf[GenerateFeedbackController]
         .generateFeedback(vrn)(
-          FakeRequest("POST", s"/assist/$vrn")
+          FakeRequest("POST", s"/feedback/$vrn")
             .withSession(authToken -> vrn)
             .withHeaders(
               "Authorization" -> "Bearer abc123",
@@ -265,7 +265,7 @@ class GenerateFeedbackControllerISpec extends IntegrationBaseSpec:
       app.injector
         .instanceOf[GenerateFeedbackController]
         .generateFeedback(vrn)(
-          FakeRequest("POST", s"/assist/$vrn")
+          FakeRequest("POST", s"/feedback/$vrn")
             .withHeaders(
               "Accept" -> "application/vnd.hmrc.1.0+json",
               "Content-Type" -> "application/json"
