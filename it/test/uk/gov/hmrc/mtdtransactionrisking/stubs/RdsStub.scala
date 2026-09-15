@@ -23,7 +23,7 @@ import play.api.http.Status.*
 object RdsStub:
 
   private val generateRdsUrl = urlPathMatching("/rds/assessments/generate")
-  private val acknowledgeRdsUrl = urlPathMatching(".rds/assessments/acknowledge")
+  private val acknowledgeRdsUrl = urlPathMatching("/rds/assessments/acknowledge")
 
   // A report with inner 201 code and one english and one welsh feedback message
   def reportGenerated(): StubMapping =
