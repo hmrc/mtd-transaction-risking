@@ -33,7 +33,7 @@ class AcknowledgeControllerStubISpec extends IntegrationBaseSpec:
 
   private val vrn               = CommonTestData.simpleVrn
   private val reportId          = "f2fb30e5-4ab6-4a29-b3c1-c00000000001"
-  private val requestCorrId     = "c75f40a6-a3df-4429-a697-471eeec46435"
+  private val requestCorrId     = "E9F65715BBC9222477B27074804BBDD5C73CDE62F84D8B00CFD05B883534AF3D"
   private val presentedDateTime = "2026-06-09T10:30:00Z"
 
   private def uri: String =

@@ -18,26 +18,29 @@ package uk.gov.hmrc.mtdtransactionrisking.v1.controllers
 
 import play.api.mvc.*
 import uk.gov.hmrc.mtdtransactionrisking.config.AppConfig
-import uk.gov.hmrc.mtdtransactionrisking.utils.{IdGenerator, Logging}
 import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
+import uk.gov.hmrc.mtdtransactionrisking.utils.{IdGenerator, Logging}
 import uk.gov.hmrc.mtdtransactionrisking.v1.controllers.auth.VATAuthAction
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.errors.ErrorWrapper
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.AcknowledgeRequest
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.ResponseHandler
+import uk.gov.hmrc.mtdtransactionrisking.v1.requestParsers.AcknowledgeRequestParser
 import uk.gov.hmrc.mtdtransactionrisking.v1.services.AcknowledgeService
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
 
 import javax.inject.{Inject, Singleton}
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
 class AcknowledgeController @Inject() (
-                                        cc: ControllerComponents,
-                                        acknowledgeService: AcknowledgeService,
-                                        authAction: VATAuthAction,
-                                        appConfig: AppConfig
-                                      )(implicit ec: ExecutionContext)
-  extends BackendController(cc),
-    ResponseHandler, Logging:
+    cc: ControllerComponents,
+    acknowledgeService: AcknowledgeService,
+    authAction: VATAuthAction,
+    appConfig: AppConfig
+)(implicit ec: ExecutionContext)
+    extends BackendController(cc),
+      ResponseHandler,
+      Logging:
 
   def acknowledgeReport(vrn: String, reportId: String, correlationId: String): Action[AnyContent] =
     authAction
@@ -47,14 +50,17 @@ class AcknowledgeController @Inject() (
         given Request[AnyContent] = request
         given internalCorrelationId: CorrelationId = IdGenerator.generateId()
 
-        val presentedDateTime  = request.getQueryString("presentedDateTime").getOrElse("")
-        val acknowledgeRequest = AcknowledgeRequest(vrn, reportId, correlationId, presentedDateTime)
+        AcknowledgeRequestParser.parseRequest(vrn, reportId, correlationId) match
 
-        appConfig.acknowledgeStubBaseUrl match
-          // Acknowledge stub path used in external test while the real downstream is built
-          case Some(_) =>
-            logger.info(s"${internalCorrelationId.value}::[AcknowledgeController][acknowledgeReport] using stub path for reportId $reportId")
-            acknowledgeService.stubAcknowledge(acknowledgeRequest).map(handleOutcomeUnit)
+          case Left(error) =>
+            logger.warn(s"${internalCorrelationId.value}::[AcknowledgeController][acknowledgeReport] request failed validation: ${error.code}")
+            Future.successful(handleOutcomeUnit(Left(ErrorWrapper(internalCorrelationId, error))))
 
-          case None =>
-            acknowledgeService.acknowledge(acknowledgeRequest).map(handleOutcomeUnit)
+          case Right(acknowledgeRequest) =>
+            appConfig.acknowledgeStubBaseUrl match
+              case Some(_) =>
+                logger.info(s"${internalCorrelationId.value}::[AcknowledgeController][acknowledgeReport] using stub path for reportId $reportId")
+                acknowledgeService.stubAcknowledge(acknowledgeRequest).map(handleOutcomeUnit)
+
+              case None =>
+                acknowledgeService.acknowledge(acknowledgeRequest).map(handleOutcomeUnit)

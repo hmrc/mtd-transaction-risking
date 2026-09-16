@@ -18,7 +18,6 @@ package uk.gov.hmrc.mtdtransactionrisking.controllers
 
 import com.github.tomakehurst.wiremock.client.WireMock.{postRequestedFor, urlPathMatching}
 import com.github.tomakehurst.wiremock.stubbing.StubMapping
-import org.scalatest.concurrent.Eventually
 import play.api.http.Status.*
 import play.api.libs.json.{JsValue, Json}
 import play.api.mvc.Result
@@ -39,6 +38,7 @@ class GenerateFeedbackControllerISpec extends IntegrationBaseSpec:
     "POST /feedback/:vrn" should:
 
       "return 200" when:
+
         "every downstream responds successfully" in new Test:
           override def setupStubs(): StubMapping =
             AuthStub.successfulAuthWith(vrn)
@@ -57,14 +57,13 @@ class GenerateFeedbackControllerISpec extends IntegrationBaseSpec:
           feedback.englishFeedback should have size 1
           feedback.welshFeedback should have size 1
 
-          // Since rsd call is fire and forget the response doesn't confirm storage happened.
-          // This confirms the call was actually made
+          // Since rsd call is fire and forget this confirms the call was actually made
           eventually {
             wireMockServer.verify(postRequestedFor(urlPathMatching("/rsd/receive-and-store")))
           }
 
         "the interactions datastore is unavailable" in new Test:
-          // Storage is fire and forget so the vendor still gets a 200
+          // Storage is fire and forget, so the vendor still gets a 200
           override def setupStubs(): StubMapping =
             AuthStub.successfulAuthWith(vrn)
             VatApiStub.validationPasses(periodKey, fromDate, toDate)
@@ -76,12 +75,12 @@ class GenerateFeedbackControllerISpec extends IntegrationBaseSpec:
 
           status(response) shouldBe OK
 
-          // Confirms the store call was actually attempted before the response
           eventually {
             wireMockServer.verify(postRequestedFor(urlPathMatching("/rsd/receive-and-store")))
           }
 
       "return 400" when:
+
         "the VRN in the request is invalid" in new Test:
           override def setupStubs(): StubMapping = InsightsRiskStub.successResponse(vrn)
 
@@ -189,7 +188,7 @@ class GenerateFeedbackControllerISpec extends IntegrationBaseSpec:
 
           status(response) shouldBe INTERNAL_SERVER_ERROR
 
-        "RDS returns 201 with a malformed report" in new Test:
+        "RDS returns 201 with a malformed report, and does not store an interaction" in new Test:
           override def setupStubs(): StubMapping =
             AuthStub.successfulAuthWith(vrn)
             VatApiStub.validationPasses(periodKey, fromDate, toDate)
@@ -197,6 +196,8 @@ class GenerateFeedbackControllerISpec extends IntegrationBaseSpec:
             RdsStub.malformedReport()
 
           status(request(vrn)) shouldBe INTERNAL_SERVER_ERROR
+
+          wireMockServer.verify(0, postRequestedFor(urlPathMatching("/rsd/receive-and-store")))
 
       "return 503" when:
 
@@ -209,7 +210,7 @@ class GenerateFeedbackControllerISpec extends IntegrationBaseSpec:
 
           status(response) shouldBe SERVICE_UNAVAILABLE
 
-        "RDS is unavailable" in new Test:
+        "RDS is unavailable, and does not store an interaction" in new Test:
           override def setupStubs(): StubMapping =
             AuthStub.successfulAuthWith(vrn)
             VatApiStub.validationPasses(periodKey, fromDate, toDate)
@@ -217,6 +218,8 @@ class GenerateFeedbackControllerISpec extends IntegrationBaseSpec:
             RdsStub.unavailable()
 
           status(request(vrn)) shouldBe SERVICE_UNAVAILABLE
+
+          wireMockServer.verify(0, postRequestedFor(urlPathMatching("/rsd/receive-and-store")))
 
   private trait Test:
 
