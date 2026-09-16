@@ -39,6 +39,14 @@ object VrnFormatError extends MtdError("VRN_INVALID", "The provided VRN is inval
 
 object PeriodKeyFormatError extends MtdError("PERIOD_KEY_INVALID", "The provided period key is invalid", BAD_REQUEST)
 
+// Acknowledge request format errors
+object ReportIdFormatError extends MtdError("REPORT_ID_INVALID", "The provided report ID is invalid", BAD_REQUEST)
+
+object RdsCorrelationIdFormatError extends MtdError("CORRELATION_ID_INVALID", "The provided correlation ID is invalid", BAD_REQUEST)
+
+object PresentedDateTimeFormatError
+    extends MtdError("PRESENTED_DATE_TIME_INVALID", "The presentedDateTime query parameter is missing or invalid", BAD_REQUEST)
+
 // Rule Errors
 object RuleIncorrectOrEmptyBodyError
     extends MtdError("RULE_INCORRECT_OR_EMPTY_BODY_SUBMITTED", "An empty or non-matching body was submitted", BAD_REQUEST)

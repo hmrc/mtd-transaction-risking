@@ -72,6 +72,11 @@ trait IntegrationBaseSpec
     super.beforeAll()
     startWireMock()
 
+  override def beforeEach(): Unit = {
+    super.beforeEach()
+    wireMockServer.resetAll()
+  }
+
   override def afterAll(): Unit =
     stopWireMock()
     super.afterAll()
