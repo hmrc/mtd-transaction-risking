@@ -5,3 +5,5 @@ This API allows your software to:
 Before using the API to request HMRC Assist feedback for VAT, you must call the [obligations endpoint](/api-documentation/docs/api/service/vat-api/1.0/oas/page#tag/organisations/operation/RetrieveVATobligations) on the VAT (MTD) API to identify the VAT period (by retrieving the period key).
 
 For further information about HMRC Assist for VAT, and how to connect to the VAT MTD APIs, see the [VAT MTD end-to-end service guide](/guides/vat-mtd-end-to-end-service-guide/).
+
+**Note:** To request access for alpha testing in the sandbox environment, please contact <a href="mailto:hmrcassist@hmrc.gov.uk">hmrcassist@hmrc.gov.uk</a>. Quote your company name, contact details, sandbox application name and ID.
