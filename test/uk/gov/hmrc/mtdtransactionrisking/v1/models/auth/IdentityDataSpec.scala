@@ -16,7 +16,7 @@
 
 package uk.gov.hmrc.mtdtransactionrisking.v1.models.auth
 
-import play.api.libs.json.Json
+import play.api.libs.json.{Json, OFormat}
 import uk.gov.hmrc.auth.core.retrieve.*
 import uk.gov.hmrc.auth.core.User
 import uk.gov.hmrc.auth.core.{AffinityGroup, ConfidenceLevel, CredentialRole}
@@ -73,8 +73,11 @@ class IdentityDataSpec extends UnitSpec:
 
     "serialised to JSON" should:
 
-      "write all VAT API-equivalent identity fields" in:
-        Json.toJson(identityData) shouldBe Json.parse(
+      "write and read all VAT API-equivalent identity fields" in:
+        val identityDataFormat = summon[OFormat[IdentityData]]
+          val json = identityDataFormat.writes(identityData)
+
+          json shouldBe Json.parse(
           """
             |{
             |  "internalId": "internal-id",
@@ -124,6 +127,53 @@ class IdentityDataSpec extends UnitSpec:
             |  }
             |}
             |""".stripMargin
+        )
+
+        identityDataFormat.reads(json).get shouldBe identityData
+
+    "deserialised from JSON" should :
+
+      "read a minimal Auth identity response with missing optional fields" in :
+        val identityDataFormat = summon[OFormat[IdentityData]]
+
+        val json = Json.parse(
+          """
+            |{
+            |  "internalId": "internal-id",
+            |  "confidenceLevel": 200,
+            |  "agentInformation": {},
+            |  "credentialRole": null,
+            |  "itmpName": {},
+            |  "itmpAddress": {},
+            |  "affinityGroup": "Organisation",
+            |  "loginTimes": {
+            |    "currentLogin": "2026-09-20T10:00:00Z"
+            |  }
+            |}
+            |""".stripMargin
+        )
+
+        identityDataFormat.reads(json).get shouldBe IdentityData(
+          internalId = Some("internal-id"),
+          confidenceLevel = ConfidenceLevel.L200,
+          agentInformation = AgentInformation(None, None, None),
+          credentialRole = None,
+          itmpName = ItmpName(None, None, None),
+          itmpAddress = ItmpAddress(
+            line1 = None,
+            line2 = None,
+            line3 = None,
+            line4 = None,
+            line5 = None,
+            postCode = None,
+            countryName = None,
+            countryCode = None
+          ),
+          affinityGroup = Some(AffinityGroup.Organisation),
+          loginTimes = LoginTimes(
+            currentLogin = Instant.parse("2026-09-20T10:00:00Z"),
+            previousLogin = None
+          )
         )
 
     "used for an organisation or agent" should:
