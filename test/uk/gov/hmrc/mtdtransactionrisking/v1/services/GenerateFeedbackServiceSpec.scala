@@ -102,7 +102,7 @@ class GenerateFeedbackServiceSpec
           body = "VAT body",
           action = Some("VAT action"),
           links = Some(List(FeedbackLink(title = "VAT", url = "https://www.gov.uk/vat"))),
-          path = "/guidance"
+          path = Some("/guidance")
         )),
       welshFeedback = List(
         FeedbackMessage(
@@ -111,7 +111,7 @@ class GenerateFeedbackServiceSpec
           body = "Corff TAW",
           action = Some("Gweithred TAW"),
           links = Some(List(FeedbackLink(title = "TAW", url = "https://www.gov.uk/vat"))),
-          path = "/guidance"
+          path = Some("/guidance")
         )),
       correlationId = "E9F65715BBC9222477B27074804BBDD5C73CDE62F84D8B00CFD05B883534AF3D"
     )

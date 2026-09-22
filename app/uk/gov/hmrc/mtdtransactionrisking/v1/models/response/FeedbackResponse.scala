@@ -34,7 +34,7 @@ case class FeedbackMessage(
     body: String,
     action: Option[String],
     links: Option[List[FeedbackLink]],
-    path: String
+    path: Option[String]
 )
 
 object FeedbackMessage:

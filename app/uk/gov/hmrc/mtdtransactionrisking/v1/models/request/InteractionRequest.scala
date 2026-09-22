@@ -129,7 +129,7 @@ final case class InteractionAction(
     body: String,
     action: String,
     links: Seq[InteractionLink],
-    path: String
+    path: Option[String]
 )
 
 object InteractionAction:

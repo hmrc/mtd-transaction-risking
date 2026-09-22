@@ -29,7 +29,7 @@ class FeedbackResponseSpec extends AnyWordSpec with Matchers:
     body = "VAT body",
     action = Some("VAT action"),
     links = Some(List(link)),
-    path = "/guidance"
+    path = Some("/guidance")
   )
   val messageNoOptionals = FeedbackMessage(
     itemNumber = "2",
@@ -37,7 +37,7 @@ class FeedbackResponseSpec extends AnyWordSpec with Matchers:
     body = "VAT body",
     action = None,
     links = None,
-    path = "/guidance"
+    path = None
   )
 
   val response = FeedbackResponse(
@@ -79,10 +79,11 @@ class FeedbackResponseSpec extends AnyWordSpec with Matchers:
     }
 
     "optional fields are absent" should {
-      "omit action and links from JSON" in {
+      "omit action, links and path from JSON" in {
         val json = Json.toJson(messageNoOptionals)
         (json \ "action").asOpt[String] shouldBe None
         (json \ "links").isDefined shouldBe false
+        (json \ "path").isDefined shouldBe false
       }
     }
   }
