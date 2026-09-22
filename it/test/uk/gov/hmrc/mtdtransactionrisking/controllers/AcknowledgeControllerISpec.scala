@@ -60,6 +60,21 @@ class AcknowledgeControllerISpec extends IntegrationBaseSpec:
         val response: WSResponse = await(buildRequest(uri).post(EmptyBody))
         response.status shouldBe NO_CONTENT
 
+      "return 204 and store the interaction when Auth returns an Organisation identity-data response" in new Test:
+
+        override def setupStubs(): StubMapping =
+          AuthStub.successfulAuthWithOrganisation(vrn)
+          InteractionStub.stores()
+          RdsStub.acknowledgeAccepted()
+
+        val response: WSResponse = await(buildRequest(uri).post(EmptyBody))
+        response.status shouldBe NO_CONTENT
+
+        eventually {
+          wireMockServer.verify(postRequestedFor(urlPathMatching("/rds/assessments/acknowledge")))
+          wireMockServer.verify(postRequestedFor(urlPathMatching("/rsd/receive-and-store")))
+        }  
+
     "the request fails validation" should:
 
       "return 400 when the report id is not a valid UUID" in new Test:

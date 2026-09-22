@@ -16,7 +16,7 @@
 
 package uk.gov.hmrc.mtdtransactionrisking.controllers
 
-import com.github.tomakehurst.wiremock.client.WireMock.{postRequestedFor, urlPathMatching}
+import com.github.tomakehurst.wiremock.client.WireMock.{postRequestedFor, urlPathMatching, matchingJsonPath, equalTo}
 import com.github.tomakehurst.wiremock.stubbing.StubMapping
 import play.api.http.Status.*
 import play.api.libs.json.{JsValue, Json}
@@ -77,6 +77,43 @@ class GenerateFeedbackControllerISpec extends IntegrationBaseSpec:
 
           eventually {
             wireMockServer.verify(postRequestedFor(urlPathMatching("/rsd/receive-and-store")))
+          }
+          
+        "Auth returns an Organisation identity-data response" in new Test:
+
+          override def setupStubs(): StubMapping =
+            AuthStub.successfulAuthWithOrganisation(vrn)
+            VatApiStub.validationPasses(periodKey, fromDate, toDate)
+            InsightsRiskStub.successResponse(vrn)
+            RdsStub.reportGenerated()
+            InteractionStub.stores()
+
+          status(request(vrn)) shouldBe OK
+
+        "Auth returns an Agent identity-data response and preserves the existing ARN journey" in new Test:
+
+          val arn = "LARN0085901"
+
+          override def setupStubs(): StubMapping =
+            AuthStub.successfulAuthWithAgent(vrn, arn)
+            VatApiStub.validationPasses(periodKey, fromDate, toDate)
+            InsightsRiskStub.successResponse(vrn)
+            RdsStub.reportGenerated()
+            InteractionStub.stores()
+
+
+          status(request(vrn)) shouldBe OK
+
+          eventually {
+            wireMockServer.verify(
+              postRequestedFor(urlPathMatching("/rds/assessments/generate"))
+                .withRequestBody(
+                  matchingJsonPath(
+                    "$.agentReferenceNumber",
+                    equalTo(arn)
+                  )
+                )
+            )
           }
 
       "return 400" when:
