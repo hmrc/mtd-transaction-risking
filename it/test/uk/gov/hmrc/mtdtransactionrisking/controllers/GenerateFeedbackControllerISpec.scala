@@ -62,6 +62,38 @@ class GenerateFeedbackControllerISpec extends IntegrationBaseSpec:
             wireMockServer.verify(postRequestedFor(urlPathMatching("/rsd/receive-and-store")))
           }
 
+        "RDS returns no-feedback messages without path" in new Test:
+          override def setupStubs(): StubMapping =
+            AuthStub.successfulAuthWith(vrn)
+            VatApiStub.validationPasses(periodKey, fromDate, toDate)
+            InsightsRiskStub.successResponse(vrn)
+            RdsStub.noFeedbackWithoutPath()
+            InteractionStub.stores()
+
+          val response: Future[Result] = request(vrn)
+
+          status(response) shouldBe OK
+          headers(response).get("X-CorrelationId") shouldBe defined
+
+          val json = contentAsJson(response)
+          val feedback = json.as[FeedbackResponse]
+          
+          feedback.englishFeedback should have size 1
+          feedback.welshFeedback should have size 1
+          
+          feedback.englishFeedback.head.itemNumber shouldBe "0"
+          feedback.englishFeedback.head.path shouldBe None
+          
+          feedback.welshFeedback.head.itemNumber shouldBe "0"
+          feedback.welshFeedback.head.path shouldBe None
+          
+          (json \ "englishFeedback" \ 0 \ "path").toOption shouldBe None
+          (json \ "welshFeedback" \ 0 \ "path").toOption shouldBe None
+          
+          eventually {
+            wireMockServer.verify(postRequestedFor(urlPathMatching("/rsd/receive-and-store")))
+          }
+
         "the interactions datastore is unavailable" in new Test:
           // Storage is fire and forget, so the vendor still gets a 200
           override def setupStubs(): StubMapping =

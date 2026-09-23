@@ -69,6 +69,69 @@ object RdsStub:
       )
     )
 
+  def noFeedbackWithoutPath(): StubMapping =
+    stubFor(
+      post(generateRdsUrl).willReturn(
+        aResponse()
+          .withStatus(CREATED)
+          .withHeader("Content-Type", "application/json")
+          .withBody(
+            """
+              |{
+              |  "outputs": [
+              |    { "name": "correlationId", "value": "E9F65715BBC9222477B27074804BBDD5C73CDE62F84D8B00CFD05B883534AF3D" },
+              |    { "name": "feedbackId", "value": "f2fb30e5-4ab6-4a29-b3c1-c7264259ff1c" },
+              |    { "name": "responseCode", "value": "201" },
+              |    { "name": "responseMessage", "value": "No feedback available" },
+              |    {
+              |      "name": "englishActions",
+              |      "value": [
+              |        {
+              |          "metadata": [
+              |            { "itemNumber": "0" },
+              |            { "message": "HMRC Assist has not returned any messages." },
+              |            { "title": "HMRC feedback" }
+              |          ]
+              |        },
+              |        {
+              |          "data": [
+              |            [
+              |              "0",
+              |              "HMRC Assist has not returned any messages.",
+              |              "HMRC feedback"
+              |            ]
+              |          ]
+              |        }
+              |      ]
+              |    },
+              |    {
+              |      "name": "welshActions",
+              |      "value": [
+              |        {
+              |          "metadata": [
+              |            { "itemNumber": "0" },
+              |            { "message": "Nid yw HMRC Assist wedi dychwelyd unrhyw negeseuon." },
+              |            { "title": "Adborth HMRC" }
+              |          ]
+              |        },
+              |        {
+              |          "data": [
+              |            [
+              |              "0",
+              |              "Nid yw HMRC Assist wedi dychwelyd unrhyw negeseuon.",
+              |              "Adborth HMRC"
+              |            ]
+              |          ]
+              |        }
+              |      ]
+              |    }
+              |  ]
+              |}
+              |""".stripMargin
+          )
+      )
+    )
+
   def acknowledgeAccepted(): StubMapping =
     stubFor(
       post(acknowledgeRdsUrl).willReturn(

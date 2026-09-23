@@ -76,7 +76,7 @@ class ReportResponseTransformSpec extends UnitSpec:
           body = "Please review your VAT return figures.",
           action = Some("Check your sales records for the period."),
           links = Some(List(FeedbackLink("VAT guidance", "https://www.gov.uk/vat-returns"))),
-          path = "vatDueSales"
+          path = Some("vatDueSales")
         )
 
       "map the welsh grid as well as the english" in:
@@ -121,7 +121,7 @@ class ReportResponseTransformSpec extends UnitSpec:
           body = "Please review.",
           action = None,
           links = None,
-          path = "vatDueSales"
+          path = Some("vatDueSales")
         )
 
     "a row is missing its optional columns" should:
@@ -148,6 +148,82 @@ class ReportResponseTransformSpec extends UnitSpec:
 
         message.action shouldBe None
         message.links shouldBe None
+
+    "a row is missing path" should :
+      "retain the feedback message with no path" in :
+        val noPath = Json.arr(
+          Json.obj(
+            "metadata" -> Json.arr(
+              Json.obj("itemNumber" -> "0"),
+              Json.obj("message" -> "HMRC Assist has not returned any messages."),
+              Json.obj("title" -> "HMRC feedback")
+            )),
+          Json.obj(
+            "data" -> Json.arr(
+              Json.arr(
+                "0",
+                "HMRC Assist has not returned any messages.",
+                "HMRC feedback"
+              )
+            )
+          )
+        )
+
+        val report = reportWith(
+          "feedbackId" -> Json.toJson(feedbackId),
+          "correlationId" -> Json.toJson(correlationId),
+          "englishActions" -> noPath,
+          "welshActions" -> Json.arr()
+        )
+
+        ReportResponseTransform
+          .toFeedbackResponse(report)
+          .value
+          .englishFeedback
+          .head shouldBe FeedbackMessage(
+          itemNumber = "0",
+          title = "HMRC feedback",
+          body = "HMRC Assist has not returned any messages.",
+          action = None,
+          links = None,
+          path = None
+        )
+
+    "a row has an empty path" should :
+      "retain the feedback message without surfacing path" in :
+        val emptyPath = Json.arr(
+          Json.obj(
+            "metadata" -> Json.arr(
+              Json.obj("itemNumber" -> "0"),
+              Json.obj("message" -> "HMRC Assist has not returned any messages."),
+              Json.obj("title" -> "HMRC feedback"),
+              Json.obj("path" -> "p")
+            )),
+          Json.obj(
+            "data" -> Json.arr(
+              Json.arr(
+                "0",
+                "HMRC Assist has not returned any messages.",
+                "HMRC feedback",
+                ""
+              )
+            )
+          )
+        )
+
+        val report = reportWith(
+          "feedbackId" -> Json.toJson(feedbackId),
+          "correlationId" -> Json.toJson(correlationId),
+          "englishActions" -> emptyPath,
+          "welshActions" -> Json.arr()
+        )
+
+        ReportResponseTransform
+          .toFeedbackResponse(report)
+          .value
+          .englishFeedback
+          .head
+          .path shouldBe None    
 
     "a row is missing a mandatory column" should:
       "drop that message rather than failing the whole report" in:

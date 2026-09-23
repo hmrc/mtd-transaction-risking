@@ -63,14 +63,13 @@ object ReportResponseTransform:
       itemNumber <- string(itemNumberColumn)
       body <- string(messageColumn)
       title <- string(titleColumn)
-      path <- string(pathColumn)
     yield FeedbackMessage(
       itemNumber = itemNumber,
       title = title,
       body = body,
       action = string(actionColumn),
       links = fields.get(linksColumn).flatMap(toLinks),
-      path = path
+      path = string(pathColumn).filter(_.nonEmpty)
     )
 
   private def toLinks(value: JsValue): Option[List[FeedbackLink]] =

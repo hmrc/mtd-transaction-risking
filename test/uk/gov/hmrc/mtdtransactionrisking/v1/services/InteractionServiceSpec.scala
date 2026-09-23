@@ -72,7 +72,7 @@ class InteractionServiceSpec extends UnitSpec, MockInteractionConnector, LogCapt
     body = "VAT body",
     action = Some("VAT action"),
     links = Some(List(FeedbackLink("VAT", "https://www.gov.uk/vat"))),
-    path = "/guidance"
+    path = Some("/guidance")
   )
 
   private val welshMessage = englishMessage.copy(title = "Teitl TAW", body = "Corff TAW")

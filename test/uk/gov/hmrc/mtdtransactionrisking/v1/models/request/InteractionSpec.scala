@@ -59,7 +59,7 @@ class InteractionSpec extends UnitSpec:
     body = "VAT body",
     action = Some("VAT action"),
     links = Some(List(FeedbackLink("VAT guidance", "https://www.gov.uk/vat-returns"))),
-    path = "/guidance"
+    path = Some("/guidance")
   )
 
   private def welshMessage(itemNumber: String) = FeedbackMessage(
@@ -68,7 +68,7 @@ class InteractionSpec extends UnitSpec:
     body = "Corff TAW",
     action = Some("Gweithred TAW"),
     links = Some(List(FeedbackLink("Canllawiau TAW", "https://www.gov.uk/ffurflenni-taw"))),
-    path = "/guidance"
+    path = Some("/guidance")
   )
 
   "Interaction.forGeneratedReport" when:
@@ -149,6 +149,31 @@ class InteractionSpec extends UnitSpec:
         )
 
         Interaction.forGeneratedReport(feedback, obligation, vrn, vendorBody, now).payload.messages.get should have size 2
+
+    "a feedback message has no path" should :
+      "preserve the missing path in the interaction payload" in:
+        val english = englishMessage("0").copy(path = None)
+        val welsh = welshMessage("0").copy(path = None)
+
+        val feedback = FeedbackResponse(
+          reportId = "report-1",
+          englishFeedback = List(english),
+          welshFeedback = List(welsh),
+          correlationId = "rds-corr-id"
+        )
+
+        val interaction = Interaction.forGeneratedReport(
+          feedback,
+          obligation,
+          vrn,
+          vendorBody,
+          now
+        )
+
+        val englishAction =
+          interaction.payload.messages.value.head.englishActions
+
+        englishAction.path shouldBe None    
 
   "Interaction.forAcknowledgement" when:
 
