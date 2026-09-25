@@ -21,14 +21,16 @@ import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.mtdtransactionrisking.support.UnitSpec
 import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
 import uk.gov.hmrc.mtdtransactionrisking.v1.mocks.connectors.{MockFeedbackConnector, MockInsightsConnector, MockRdsConnector, MockVatApiConnector}
-import uk.gov.hmrc.mtdtransactionrisking.v1.mocks.services.{MockInteractionService, MockRdsAuthService}
-import uk.gov.hmrc.mtdtransactionrisking.v1.models.auth.RdsAuthCredentials
+import uk.gov.hmrc.mtdtransactionrisking.v1.mocks.services.{MockInteractionService, MockNrsService, MockRdsAuthService}
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.auth.{IdentityData, RdsAuthCredentials}
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.errors.{DownstreamError, ErrorWrapper, ServiceUnavailableError}
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.outcomes.ResponseWrapper
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.InsightsRequest
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.nrs.{AssistReportGenerated, AssistRequestFeedback}
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.*
-import scala.concurrent.ExecutionContext.Implicits.global
 
+import java.time.Instant
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
 class GenerateFeedbackServiceSpec
@@ -38,7 +40,8 @@ class GenerateFeedbackServiceSpec
       MockFeedbackConnector,
       MockRdsConnector,
       MockRdsAuthService,
-      MockInteractionService:
+      MockInteractionService,
+      MockNrsService:
 
   implicit val hc: HeaderCarrier = HeaderCarrier()
   implicit val correlationId: CorrelationId = CorrelationId("test-correlation-id")
@@ -51,6 +54,10 @@ class GenerateFeedbackServiceSpec
     "Gov-Client-Timezone" -> "UTC+00:00",
     "Accept" -> "application/vnd.hmrc.1.0+json"
   )
+
+  private val identityData: Option[IdentityData] = None
+  private val userAuthToken = Some("Bearer vendor-token")
+  private val submissionTimestamp = Instant.parse("2026-09-24T10:15:30Z")
 
   private val validReturnBody: JsValue = Json.parse(
     """
@@ -116,10 +123,26 @@ class GenerateFeedbackServiceSpec
       correlationId = "E9F65715BBC9222477B27074804BBDD5C73CDE62F84D8B00CFD05B883534AF3D"
     )
 
+  private val noFeedbackResponse: FeedbackResponse =
+    feedbackResponse.copy(
+      englishFeedback = List(
+        FeedbackMessage(
+          itemNumber = "0",
+          title = "HMRC feedback",
+          body = "No feedback was returned",
+          action = None,
+          links = None,
+          path = None
+        )
+      ),
+      welshFeedback = Nil
+    )  
+
   trait Test:
     val service = new GenerateFeedbackService(
       mockRdsAuthService,
       mockInteractionService,
+      mockNrsService,
       mockVatApiConnector,
       mockInsightsConnector,
       mockFeedbackConnector,
@@ -145,22 +168,79 @@ class GenerateFeedbackServiceSpec
         .store(feedbackResponse, obligation, vrn, validReturnBody)
         .returns(())
 
+    def requestFeedbackNrsSubmissionIsMade(body: JsValue = validReturnBody): Unit =
+      MockNrsService
+        .submit(
+          evidence = validReturnBody,
+          vrn = vrn,
+          reportId = correlationId.value,
+          submissionTimestamp = submissionTimestamp,
+          identityData = identityData,
+          userAuthToken = userAuthToken,
+          requestHeaders = requestHeaders,
+          notableEventType = AssistRequestFeedback
+        )
+        .returns(())
+
+    def generateReportNrsSubmissionIsMade(feedback: FeedbackResponse = feedbackResponse): Unit =
+      MockNrsService
+        .submit(
+          evidence = Json.toJson(feedbackResponse),
+          vrn = vrn,
+          reportId = correlationId.value,
+          submissionTimestamp = submissionTimestamp,
+          identityData = identityData,
+          userAuthToken = userAuthToken,
+          requestHeaders = requestHeaders,
+          notableEventType = AssistReportGenerated
+        )
+        .returns(())
+
     def generate(body: JsValue = validReturnBody): Future[ServiceOutcome[FeedbackResponse]] =
-      service.generateFeedback(vrn, body, agentReferenceNumber, requestHeaders)
+      service.generateFeedback(
+        vrn = vrn,
+        body = body,
+        agentReferenceNumber = agentReferenceNumber,
+        requestHeaders = requestHeaders,
+        identityData = identityData,
+        userAuthToken = userAuthToken,
+        submissionTimestamp = submissionTimestamp
+      )
 
   "generateFeedback" when:
 
-    "every downstream responds successfully" should:
-      "return the feedback report and store the interaction" in new Test:
+    "every downstream responds successfully with actual feedback" should:
+      "return the feedback report, store the interaction, and submit two independent NRS events" in new Test:
         vatApiReturnsObligation()
         insightsSucceed()
         authSucceeds()
 
-        MockRdsConnector.generateReport(vrn).returns(Future.successful(Right(ResponseWrapper(correlationId, feedbackResponse))))
+        MockRdsConnector
+          .generateReport(vrn)
+          .returns(Future.successful(Right(ResponseWrapper(correlationId, feedbackResponse))))
 
         interactionIsStored()
 
+        requestFeedbackNrsSubmissionIsMade()
+        generateReportNrsSubmissionIsMade()
+
         await(generate()) shouldBe Right(ResponseWrapper(correlationId, feedbackResponse))
+
+    "RDS returns No Feedback" should:
+      "not submit Request Feedback or Generate Report evidence to NRS" in new Test:
+        vatApiReturnsObligation()
+        insightsSucceed()
+        authSucceeds()
+
+        MockRdsConnector
+          .generateReport(vrn)
+          .returns(Future.successful(Right(ResponseWrapper(correlationId, noFeedbackResponse))))
+
+        MockInteractionService
+          .store(noFeedbackResponse, obligation, vrn, validReturnBody)
+          .returns(())
+
+        await(generate()) shouldBe Right(ResponseWrapper(correlationId, noFeedbackResponse))
 
     "vat-api returns an error" should:
       "pass the ErrorWrapper through without calling insights or storing an interaction" in new Test:
