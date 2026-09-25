@@ -18,20 +18,23 @@ package uk.gov.hmrc.mtdtransactionrisking.v1.services
 
 import controllers.Execution.trampoline
 import play.api.http.Status.BAD_REQUEST
+import play.api.libs.json.Json
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.mtdtransactionrisking.support.UnitSpec
 import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
 import uk.gov.hmrc.mtdtransactionrisking.v1.mocks.connectors.{MockAcknowledgeConnector, MockRdsConnector}
-import uk.gov.hmrc.mtdtransactionrisking.v1.mocks.services.{MockInteractionService, MockRdsAuthService}
-import uk.gov.hmrc.mtdtransactionrisking.v1.models.auth.RdsAuthCredentials
+import uk.gov.hmrc.mtdtransactionrisking.v1.mocks.services.{MockInteractionService, MockRdsAuthService, MockNrsService}
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.auth.{IdentityData,RdsAuthCredentials}
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.errors.{DownstreamError, ErrorWrapper}
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.outcomes.ResponseWrapper
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.AcknowledgeRequest
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.RdsAcknowledgeResponse
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.nrs.AssistReportAcknowledged
 
+import java.time.Instant
 import scala.concurrent.Future
 
-class AcknowledgeServiceSpec extends UnitSpec, MockAcknowledgeConnector, MockInteractionService, MockRdsAuthService, MockRdsConnector:
+class AcknowledgeServiceSpec extends UnitSpec, MockAcknowledgeConnector, MockInteractionService, MockRdsAuthService, MockNrsService, MockRdsConnector:
 
   implicit private val hc: HeaderCarrier = HeaderCarrier()
   implicit private val correlationId: CorrelationId = CorrelationId("test-correlation-id")
@@ -42,6 +45,11 @@ class AcknowledgeServiceSpec extends UnitSpec, MockAcknowledgeConnector, MockInt
     correlationId = "9EEB55EF4FA9A24954BC982DF1D59B3D02BC097F6B1377B8B335C7583D92B959",
     presentedDateTime = "2026-06-09T10:30:00Z"
   )
+
+  private val identityData: Option[IdentityData] = None
+  private val userAuthToken = Some("Bearer vendor-token")
+  private val requestHeaders = Seq("Accept" -> "application/vnd.hmrc.1.0+json")
+  private val submissionTimestamp = Instant.parse("2026-09-24T10:15:30Z")
 
   private val credentials = RdsAuthCredentials(
     access_token = "a-bearer-token",
@@ -62,6 +70,7 @@ class AcknowledgeServiceSpec extends UnitSpec, MockAcknowledgeConnector, MockInt
       mockRdsAuthService,
       mockRdsConnector,
       mockInteractionService,
+      mockNrsService,
       mockAcknowledgeConnector
     )
 
@@ -70,6 +79,19 @@ class AcknowledgeServiceSpec extends UnitSpec, MockAcknowledgeConnector, MockInt
     "call auth and RDS and store the interaction and return a successful outcome" in new Test:
       MockInteractionService.storeAcknowledgement(request).returns(())
 
+      MockNrsService
+        .submit(
+          evidence = Json.toJson(request),
+          vrn = request.vrn,
+          reportId = request.correlationId,
+          submissionTimestamp = submissionTimestamp,
+          identityData = identityData,
+          userAuthToken = userAuthToken,
+          requestHeaders = requestHeaders,
+          notableEventType = AssistReportAcknowledged
+        )
+        .returns(())
+
       MockRdsAuthService.bearerToken
         .returns(Future.successful(Right(ResponseWrapper(correlationId, Some(credentials)))))
 
@@ -77,7 +99,15 @@ class AcknowledgeServiceSpec extends UnitSpec, MockAcknowledgeConnector, MockInt
         .acknowledge(request, Some(credentials))
         .returns(Future.successful(Right(ResponseWrapper(correlationId, response))))
 
-      await(service.acknowledge(request)) shouldBe Right(ResponseWrapper(correlationId, ()))
+      await(
+        service.acknowledge(
+          request = request,
+          identityData = identityData,
+          userAuthToken = userAuthToken,
+          requestHeaders = requestHeaders,
+          submissionTimestamp = submissionTimestamp
+        )
+      ) shouldBe Right(ResponseWrapper(correlationId, ()))
 
     "call RDS with no credentials when auth is not required" in new Test:
       MockRdsAuthService.bearerToken
@@ -89,7 +119,28 @@ class AcknowledgeServiceSpec extends UnitSpec, MockAcknowledgeConnector, MockInt
 
       MockInteractionService.storeAcknowledgement(request).returns(())
 
-      await(service.acknowledge(request)) shouldBe Right(ResponseWrapper(correlationId, ()))
+      MockNrsService
+        .submit(
+          evidence = Json.toJson(request),
+          vrn = request.vrn,
+          reportId = request.correlationId,
+          submissionTimestamp = submissionTimestamp,
+          identityData = identityData,
+          userAuthToken = userAuthToken,
+          requestHeaders = requestHeaders,
+          notableEventType = AssistReportAcknowledged
+        )
+        .returns(())
+
+      await(
+        service.acknowledge(
+          request = request,
+          identityData = identityData,
+          userAuthToken = userAuthToken,
+          requestHeaders = requestHeaders,
+          submissionTimestamp = submissionTimestamp
+        )
+      ) shouldBe Right(ResponseWrapper(correlationId, ()))
 
     "pass through the error and skip RDS and the interaction store when auth fails" in new Test:
       private val errorWrapper = ErrorWrapper(correlationId, DownstreamError)
@@ -97,7 +148,15 @@ class AcknowledgeServiceSpec extends UnitSpec, MockAcknowledgeConnector, MockInt
       MockRdsAuthService.bearerToken
         .returns(Future.successful(Left(errorWrapper)))
 
-      await(service.acknowledge(request)) shouldBe Left(errorWrapper)
+      await(
+        service.acknowledge(
+          request = request,
+          identityData = identityData,
+          userAuthToken = userAuthToken,
+          requestHeaders = requestHeaders,
+          submissionTimestamp = submissionTimestamp
+        )
+      ) shouldBe Left(errorWrapper)
 
     "pass through the error and skip the interaction store when RDS rejects the acknowledgement" in new Test:
       private val errorWrapper = ErrorWrapper(correlationId, DownstreamError)
@@ -109,7 +168,15 @@ class AcknowledgeServiceSpec extends UnitSpec, MockAcknowledgeConnector, MockInt
         .acknowledge(request, Some(credentials))
         .returns(Future.successful(Left(errorWrapper)))
 
-      await(service.acknowledge(request)) shouldBe Left(errorWrapper)
+      await(
+        service.acknowledge(
+          request = request,
+          identityData = identityData,
+          userAuthToken = userAuthToken,
+          requestHeaders = requestHeaders,
+          submissionTimestamp = submissionTimestamp
+        )
+      ) shouldBe Left(errorWrapper)
 
   "requestStubAcknowledge" should:
 

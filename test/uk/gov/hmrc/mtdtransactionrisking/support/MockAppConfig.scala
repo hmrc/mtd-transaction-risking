@@ -83,3 +83,9 @@ trait MockAppConfig extends MockFactory:
 
     def interactionCredentials: CallHandler[InteractionCredentials] =
       (() => mockAppConfig.interactionCredentials).expects()
+
+    def nrsSubmissionUrl: CallHandler[String] =
+      (() => mockAppConfig.nrsSubmissionUrl).expects()
+
+    def nrsApiKey: CallHandler[String] =
+      (() => mockAppConfig.nrsApiKey).expects()  

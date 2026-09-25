@@ -28,6 +28,7 @@ import uk.gov.hmrc.mtdtransactionrisking.v1.requestParsers.AcknowledgeRequestPar
 import uk.gov.hmrc.mtdtransactionrisking.v1.services.AcknowledgeService
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
 
+import java.time.{Clock, Instant}
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -36,7 +37,8 @@ class AcknowledgeController @Inject() (
     cc: ControllerComponents,
     acknowledgeService: AcknowledgeService,
     authAction: VATAuthAction,
-    appConfig: AppConfig
+    appConfig: AppConfig,
+    clock: Clock
 )(implicit ec: ExecutionContext)
     extends BackendController(cc),
       ResponseHandler,
@@ -49,6 +51,8 @@ class AcknowledgeController @Inject() (
 
         given Request[AnyContent] = request
         given internalCorrelationId: CorrelationId = IdGenerator.generateId()
+
+        val submissionTimestamp = Instant.now(clock)
 
         AcknowledgeRequestParser.parseRequest(vrn, reportId, correlationId) match
 
@@ -63,4 +67,12 @@ class AcknowledgeController @Inject() (
                 acknowledgeService.stubAcknowledge(acknowledgeRequest).map(handleOutcomeUnit)
 
               case None =>
-                acknowledgeService.acknowledge(acknowledgeRequest).map(handleOutcomeUnit)
+                acknowledgeService
+                  .acknowledge(
+                    request = acknowledgeRequest,
+                    identityData = request.identityData,
+                    userAuthToken = request.headers.get("Authorization"),
+                    requestHeaders = request.headers.headers,
+                    submissionTimestamp = submissionTimestamp
+                  )
+                  .map(handleOutcomeUnit)

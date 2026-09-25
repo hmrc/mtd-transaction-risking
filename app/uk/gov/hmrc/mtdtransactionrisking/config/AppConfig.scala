@@ -57,6 +57,10 @@ trait AppConfig:
   def interactionsBaseUrl: String
   def interactionCredentials: InteractionCredentials
 
+  // NRS
+  def nrsSubmissionUrl: String
+  def nrsApiKey: String
+
 @Singleton
 class AppConfigImpl @Inject() (config: ServicesConfig, configuration: Configuration) extends AppConfig:
 
@@ -108,3 +112,19 @@ class AppConfigImpl @Inject() (config: ServicesConfig, configuration: Configurat
     clientId = interactionsConfig.get[String]("clientId"),
     clientSecret = interactionsConfig.get[String]("clientSecret")
   )
+
+  private val nrsConfig = configuration.get[Configuration]("microservice.services.nrs-orchestrator")
+  private val nrsSubmissionEnabled = FeatureSwitch(featureSwitch).isEnabled(NrsSubmissionFeature)
+  val nrsSubmissionUrl: String = config.baseUrl("nrs-orchestrator") + nrsConfig.get[String]("submission-url")
+  val nrsApiKey: String =
+    if nrsSubmissionEnabled then
+      nrsConfig
+        .getOptional[String]("api-key")
+        .filter(_.trim.nonEmpty)
+        .getOrElse(
+          throw new IllegalStateException(
+            "NRS is enabled but microservice.services.nrs-orchestrator.api-key is not configured"
+          )
+        )
+    else
+      ""
