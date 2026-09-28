@@ -18,14 +18,18 @@ package uk.gov.hmrc.mtdtransactionrisking.v1.services
 
 import cats.data.EitherT
 import cats.implicits.*
+import play.api.libs.json.Json
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
 import uk.gov.hmrc.mtdtransactionrisking.utils.Logging
 import uk.gov.hmrc.mtdtransactionrisking.v1.connectors.{AcknowledgeConnector, RdsConnector}
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.auth.IdentityData
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.outcomes.ResponseWrapper
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.AcknowledgeRequest
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.nrs.AssistReportAcknowledged
 import uk.gov.hmrc.mtdtransactionrisking.v1.services.auth.RdsAuthService
 
+import java.time.Instant
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -33,13 +37,19 @@ import scala.concurrent.{ExecutionContext, Future}
 class AcknowledgeService @Inject() (rdsAuthService: RdsAuthService,
                                     rdsConnector: RdsConnector,
                                     interactionService: InteractionService,
+                                    nrsService: NrsService,
                                     acknowledgeConnector: AcknowledgeConnector)(implicit ec: ExecutionContext)
     extends Logging:
 
   def stubAcknowledge(request: AcknowledgeRequest)(implicit hc: HeaderCarrier, correlationId: CorrelationId): Future[ServiceOutcome[Unit]] =
     acknowledgeConnector.acknowledge(request)
 
-  def acknowledge(request: AcknowledgeRequest)(implicit hc: HeaderCarrier, correlationId: CorrelationId): Future[ServiceOutcome[Unit]] =
+  def acknowledge(
+                   request: AcknowledgeRequest,
+                   identityData: Option[IdentityData],
+                   userAuthToken: Option[String],
+                   requestHeaders: Seq[(String, String)],
+                   submissionTimestamp: Instant)(implicit hc: HeaderCarrier, correlationId: CorrelationId): Future[ServiceOutcome[Unit]] =
 
     logger.info(s"${correlationId.value}::[AcknowledgeService][acknowledge] acknowledgement received for reportId ${request.reportId}")
 
@@ -47,6 +57,16 @@ class AcknowledgeService @Inject() (rdsAuthService: RdsAuthService,
       credentials <- EitherT(rdsAuthService.bearerToken())
       _ <- EitherT(rdsConnector.acknowledge(request, credentials.responseData))
       _ = interactionService.storeAcknowledgement(request)
+      _ = nrsService.submit(
+          evidence = Json.toJson(request),
+          vrn = request.vrn,
+          reportId = request.correlationId,
+          submissionTimestamp = submissionTimestamp,
+          identityData = identityData,
+          userAuthToken = userAuthToken,
+          requestHeaders = requestHeaders,
+          notableEventType = AssistReportAcknowledged
+      )
     yield ResponseWrapper(correlationId, ())
 
     result.value

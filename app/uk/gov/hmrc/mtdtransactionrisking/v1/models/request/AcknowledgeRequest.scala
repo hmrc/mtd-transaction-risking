@@ -16,4 +16,9 @@
 
 package uk.gov.hmrc.mtdtransactionrisking.v1.models.request
 
+import play.api.libs.json.{Json, OFormat}
+
 case class AcknowledgeRequest(vrn: String, reportId: String, correlationId: String, presentedDateTime: String)
+
+object AcknowledgeRequest:
+  given OFormat[AcknowledgeRequest] = Json.format[AcknowledgeRequest]

@@ -26,6 +26,7 @@ import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.{FeedbackResponse, R
 import uk.gov.hmrc.mtdtransactionrisking.v1.services.GenerateFeedbackService
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
 
+import java.time.{Clock, Instant}
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.ExecutionContext
 
@@ -33,7 +34,7 @@ import scala.concurrent.ExecutionContext
 class GenerateFeedbackController @Inject() (cc: ControllerComponents,
                                             generateFeedbackService: GenerateFeedbackService,
                                             authAction: VATAuthAction,
-                                            appConfig: AppConfig)(implicit ec: ExecutionContext)
+                                            appConfig: AppConfig, clock: Clock)(implicit ec: ExecutionContext)
     extends BackendController(cc),
       Logging,
       ResponseHandler:
@@ -46,6 +47,8 @@ class GenerateFeedbackController @Inject() (cc: ControllerComponents,
         given Request[JsValue] = request
         given internalCorrelationId: CorrelationId = IdGenerator.generateId()
 
+        val submissionTimestamp = Instant.now(clock)
+
         appConfig.feedbackStubBaseUrl match
           // Feedback stub path used in external test while the real downstream is built
           case Some(_) =>
@@ -57,6 +60,9 @@ class GenerateFeedbackController @Inject() (cc: ControllerComponents,
                 vrn = vrn,
                 body = request.body,
                 agentReferenceNumber = request.arn,
-                requestHeaders = request.headers.headers
+                requestHeaders = request.headers.headers,
+                identityData = request.identityData,
+                userAuthToken = request.headers.get("Authorization"),
+                submissionTimestamp = submissionTimestamp
               )
               .map(handleOutcome)

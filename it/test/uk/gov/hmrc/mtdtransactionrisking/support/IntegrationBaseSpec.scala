@@ -58,7 +58,14 @@ trait IntegrationBaseSpec
     "microservice.services.interactions-datastore.host"       -> mockHost,
     "microservice.services.interactions-datastore.port"       -> mockPort,
     "microservice.services.interactions-datastore.protocol"   -> "http",
-    "microservice.services.interactions-datastore.submit-url" -> "/rsd/receive-and-store"
+    "microservice.services.interactions-datastore.submit-url" -> "/rsd/receive-and-store",
+    "feature-switch.nrs-submission.enabled"                   -> true,
+    "feature-switch.nrs-submission.enabled"                   -> true,
+    "microservice.services.nrs-orchestrator.host"             -> mockHost,
+    "microservice.services.nrs-orchestrator.port"             -> mockPort,
+    "microservice.services.nrs-orchestrator.protocol"         -> "http",
+    "microservice.services.nrs-orchestrator.submission-url"   -> "/nrs-orchestrator/submission",
+    "microservice.services.nrs-orchestrator.api-key"          -> "nrs-test-api-key"
   )
 
   override implicit lazy val app: Application =

@@ -14,13 +14,16 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.mtdtransactionrisking.config
+package uk.gov.hmrc.mtdtransactionrisking.v1.models.request.nrs
 
-sealed trait Feature:
-  val name: String
+sealed trait NotableEventType:
+  def value: String
 
-case object AuthFeature extends Feature:
-  override val name: String = "auth"
+object AssistRequestFeedback extends NotableEventType:
+  override val value: String = "vaa-request-feedback"
 
-case object NrsSubmissionFeature extends Feature:
-  override val name: String = "nrs-submission" 
+object AssistReportGenerated extends NotableEventType:
+  override val value: String = "vaa-report-generated"
+
+object AssistReportAcknowledged extends NotableEventType:
+  override val value: String = "vaa-report-acknowledged"

@@ -16,11 +16,11 @@
 
 package uk.gov.hmrc.mtdtransactionrisking.controllers
 
-import com.github.tomakehurst.wiremock.client.WireMock.{postRequestedFor, urlPathMatching}
+import com.github.tomakehurst.wiremock.client.WireMock.{equalTo, matchingJsonPath, postRequestedFor, urlPathMatching}
 import com.github.tomakehurst.wiremock.stubbing.StubMapping
 import play.api.libs.ws.{EmptyBody, WSResponse, writeableOf_WsBody}
 import play.api.test.Helpers.*
-import uk.gov.hmrc.mtdtransactionrisking.stubs.{AuthStub, CommonTestData, InteractionStub, RdsStub}
+import uk.gov.hmrc.mtdtransactionrisking.stubs.{AuthStub, CommonTestData, InteractionStub, NrsStub, RdsStub}
 import uk.gov.hmrc.mtdtransactionrisking.support.IntegrationBaseSpec
 
 class AcknowledgeControllerISpec extends IntegrationBaseSpec:
@@ -42,6 +42,7 @@ class AcknowledgeControllerISpec extends IntegrationBaseSpec:
           AuthStub.successfulAuthWith(vrn)
           InteractionStub.stores()
           RdsStub.acknowledgeAccepted()
+          NrsStub.accepts()
 
         val response: WSResponse = await(buildRequest(uri).post(EmptyBody))
         response.status shouldBe NO_CONTENT
@@ -49,6 +50,11 @@ class AcknowledgeControllerISpec extends IntegrationBaseSpec:
         eventually {
           wireMockServer.verify(postRequestedFor(urlPathMatching("/rsd/receive-and-store")))
           wireMockServer.verify(postRequestedFor(urlPathMatching("/rds/assessments/acknowledge")))
+          wireMockServer.verify(postRequestedFor(urlPathMatching("/nrs-orchestrator/submission"))
+              .withRequestBody(matchingJsonPath("$.metadata.notableEvent", equalTo("vaa-report-acknowledged")))
+              .withRequestBody(matchingJsonPath("$.metadata.searchKeys.vrn", equalTo(vrn)))
+              .withRequestBody(matchingJsonPath("$.metadata.searchKeys.reportId", equalTo(requestCorrelationId)))
+          )
         }
 
       "return 204 even when the interactions datastore is unavailable" in new Test:
@@ -56,11 +62,24 @@ class AcknowledgeControllerISpec extends IntegrationBaseSpec:
           AuthStub.successfulAuthWith(vrn)
           InteractionStub.unavailable()
           RdsStub.acknowledgeAccepted()
+          NrsStub.accepts()
 
         val response: WSResponse = await(buildRequest(uri).post(EmptyBody))
         response.status shouldBe NO_CONTENT
 
-      "return 204 and store the interaction when Auth returns an Organisation identity-data response" in new Test:
+        eventually {
+          wireMockServer.verify(
+            postRequestedFor(urlPathMatching("/nrs-orchestrator/submission"))
+              .withRequestBody(
+                matchingJsonPath(
+                  "$.metadata.notableEvent",
+                  equalTo("vaa-report-acknowledged")
+                )
+              )
+          )
+        }
+
+      "return 204 and submit NRS evidence when Auth returns an Organisation identity-data response" in new Test:
 
         override def setupStubs(): StubMapping =
           AuthStub.successfulAuthWithOrganisation(vrn)
@@ -73,7 +92,27 @@ class AcknowledgeControllerISpec extends IntegrationBaseSpec:
         eventually {
           wireMockServer.verify(postRequestedFor(urlPathMatching("/rds/assessments/acknowledge")))
           wireMockServer.verify(postRequestedFor(urlPathMatching("/rsd/receive-and-store")))
-        }  
+          wireMockServer.verify(postRequestedFor(urlPathMatching("/nrs-orchestrator/submission"))
+              .withRequestBody(matchingJsonPath("$.metadata.notableEvent", equalTo("vaa-report-acknowledged")))
+          )
+        }
+
+      "return 204 when NRS is unavailable after RDS accepts the acknowledgement" in new Test:
+          override def setupStubs(): StubMapping =
+            AuthStub.successfulAuthWith(vrn)
+            InteractionStub.stores()
+            RdsStub.acknowledgeAccepted()
+            NrsStub.unavailable()
+
+          val response: WSResponse = await(buildRequest(uri).post(EmptyBody))
+
+          response.status shouldBe NO_CONTENT
+
+          eventually {
+            wireMockServer.verify(
+              postRequestedFor(urlPathMatching("/nrs-orchestrator/submission"))
+            )
+          }
 
     "the request fails validation" should:
 
@@ -86,6 +125,8 @@ class AcknowledgeControllerISpec extends IntegrationBaseSpec:
         response.status shouldBe BAD_REQUEST
         (document(response) \ "code").as[String] shouldBe "REPORT_ID_INVALID"
 
+        wireMockServer.verify(0, postRequestedFor(urlPathMatching("/nrs-orchestrator/submission")))
+
       "return 400 when the correlation id is not 64 hex characters" in new Test:
         override def setupStubs(): StubMapping = AuthStub.successfulAuthWith(vrn)
 
@@ -95,6 +136,8 @@ class AcknowledgeControllerISpec extends IntegrationBaseSpec:
         response.status shouldBe BAD_REQUEST
         (document(response) \ "code").as[String] shouldBe "CORRELATION_ID_INVALID"
 
+        wireMockServer.verify(0, postRequestedFor(urlPathMatching("/nrs-orchestrator/submission")))
+
       "return 400 when presentedDateTime is missing" in new Test:
         override def setupStubs(): StubMapping = AuthStub.successfulAuthWith(vrn)
 
@@ -102,6 +145,8 @@ class AcknowledgeControllerISpec extends IntegrationBaseSpec:
 
         response.status shouldBe BAD_REQUEST
         (document(response) \ "code").as[String] shouldBe "PRESENTED_DATE_TIME_INVALID"
+
+        wireMockServer.verify(0, postRequestedFor(urlPathMatching("/nrs-orchestrator/submission")))
 
       "return 400 when presentedDateTime is not a valid date-time" in new Test:
         override def setupStubs(): StubMapping = AuthStub.successfulAuthWith(vrn)
@@ -112,6 +157,8 @@ class AcknowledgeControllerISpec extends IntegrationBaseSpec:
         response.status shouldBe BAD_REQUEST
         (document(response) \ "code").as[String] shouldBe "PRESENTED_DATE_TIME_INVALID"
 
+        wireMockServer.verify(0, postRequestedFor(urlPathMatching("/nrs-orchestrator/submission")))
+
       "not call RDS or the interaction store" in new Test:
         override def setupStubs(): StubMapping = AuthStub.successfulAuthWith(vrn)
 
@@ -119,6 +166,7 @@ class AcknowledgeControllerISpec extends IntegrationBaseSpec:
 
         wireMockServer.verify(0, postRequestedFor(urlPathMatching("/rds/assessments/acknowledge")))
         wireMockServer.verify(0, postRequestedFor(urlPathMatching("/rsd/receive-and-store")))
+        wireMockServer.verify(0, postRequestedFor(urlPathMatching("/nrs-orchestrator/submission")))
 
     "RDS rejects or fails to process the acknowledgement" should:
 
@@ -132,8 +180,9 @@ class AcknowledgeControllerISpec extends IntegrationBaseSpec:
         response.status shouldBe SERVICE_UNAVAILABLE
 
         wireMockServer.verify(0, postRequestedFor(urlPathMatching("/rsd/receive-and-store")))
+        wireMockServer.verify(0, postRequestedFor(urlPathMatching("/nrs-orchestrator/submission")))
 
-      "return 500 and not store the interaction when RDS returns a malformed response" in new Test:
+      "return 500 and not store the interaction or submit NRS evidence when RDS returns a malformed response" in new Test:
         override def setupStubs(): StubMapping =
           AuthStub.successfulAuthWith(vrn)
           InteractionStub.stores()
@@ -143,6 +192,7 @@ class AcknowledgeControllerISpec extends IntegrationBaseSpec:
         response.status shouldBe INTERNAL_SERVER_ERROR
 
         wireMockServer.verify(0, postRequestedFor(urlPathMatching("/rsd/receive-and-store")))
+        wireMockServer.verify(0, postRequestedFor(urlPathMatching("/nrs-orchestrator/submission")))
 
   private trait Test:
     def setupStubs(): StubMapping
