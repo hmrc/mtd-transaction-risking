@@ -68,12 +68,12 @@ class GenerateFeedbackControllerISpec extends IntegrationBaseSpec:
             wireMockServer.verify(postRequestedFor(urlPathMatching("/rsd/receive-and-store")))
 
             wireMockServer.verify(postRequestedFor(urlPathMatching("/nrs-orchestrator/submission"))
-                .withRequestBody(matchingJsonPath("$.metadata.notableEvent", equalTo("vaa-request-feedback")))
+                .withRequestBody(matchingJsonPath("$.metadata.notableEvent", equalTo("vata-request-feedback")))
                 .withRequestBody(matchingJsonPath("$.metadata.searchKeys.vrn", equalTo(vrn)))
                 .withRequestBody(matchingJsonPath("$.metadata.searchKeys.reportId", equalTo(txrReportId))))
 
             wireMockServer.verify(postRequestedFor(urlPathMatching("/nrs-orchestrator/submission"))
-                .withRequestBody(matchingJsonPath("$.metadata.notableEvent", equalTo("vaa-report-generated")))
+                .withRequestBody(matchingJsonPath("$.metadata.notableEvent", equalTo("vata-report-generated")))
                 .withRequestBody(matchingJsonPath("$.metadata.searchKeys.vrn", equalTo(vrn)))
                 .withRequestBody(matchingJsonPath("$.metadata.searchKeys.reportId", equalTo(txrReportId))))
           }

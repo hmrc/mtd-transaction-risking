@@ -97,7 +97,7 @@ class NrsService @Inject() (
       NrsSubmission(
         payload = Base64.getEncoder.encodeToString(evidenceBytes),
         metadata = Metadata(
-          businessId = "vaa",
+          businessId = "vata",
           notableEvent = notableEventType.value,
           payloadContentType = "application/json",
           payloadSha256Checksum = sha256(evidenceBytes),
