@@ -101,8 +101,8 @@ class NrsServiceSpec extends UnitSpec, MockAppConfig, MockNrsConnector:
           .map("%02x".format(_))
           .mkString
 
-      submission.metadata.businessId shouldBe "vaa"
-      submission.metadata.notableEvent shouldBe "vaa-request-feedback"
+      submission.metadata.businessId shouldBe "vata"
+      submission.metadata.notableEvent shouldBe "vata-request-feedback"
       submission.metadata.searchKeys.vrn shouldBe "123456789"
       submission.metadata.searchKeys.reportId shouldBe "a1e8057e-fbbc-47a8-a8b4-78d9f015c253"
       submission.metadata.userSubmissionTimestamp shouldBe timestamp.toString

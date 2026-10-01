@@ -20,10 +20,10 @@ sealed trait NotableEventType:
   def value: String
 
 object AssistRequestFeedback extends NotableEventType:
-  override val value: String = "vaa-request-feedback"
+  override val value: String = "vata-request-feedback"
 
 object AssistReportGenerated extends NotableEventType:
-  override val value: String = "vaa-report-generated"
+  override val value: String = "vata-report-generated"
 
 object AssistReportAcknowledged extends NotableEventType:
-  override val value: String = "vaa-report-acknowledged"
+  override val value: String = "vata-report-acknowledged"

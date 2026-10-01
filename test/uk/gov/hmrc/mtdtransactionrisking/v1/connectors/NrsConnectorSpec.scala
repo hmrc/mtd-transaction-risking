@@ -30,8 +30,8 @@ class NrsConnectorSpec extends ConnectorSpec, MockAppConfig, BeforeAndAfterAll:
   private val submission = NrsSubmission(
     payload = "eyJwZXJpb2RLZXkiOiJBQjEyIn0=",
     metadata = Metadata(
-      businessId = "vaa",
-      notableEvent = "vaa-request-feedback",
+      businessId = "vata",
+      notableEvent = "vata-request-feedback",
       payloadContentType = "application/json",
       payloadSha256Checksum = "checksum",
       userSubmissionTimestamp = "2026-09-24T10:15:30Z",
