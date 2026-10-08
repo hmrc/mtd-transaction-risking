@@ -22,6 +22,7 @@ import uk.gov.hmrc.mtdtransactionrisking.support.UnitSpec
 class ReportRequestSpec extends UnitSpec:
 
   private val correlationId = "2dd537bc-4244-4ebf-bac9-96321be13cdc"
+  private val vrn = "123456789"
   private val periodKey = "#001"
   private val startDate = "2026-01-01"
   private val endDate = "2026-03-31"
@@ -58,6 +59,7 @@ class ReportRequestSpec extends UnitSpec:
                     requestHeaders: Seq[(String, String)] = requestHeaders): Option[ReportRequest] =
     ReportRequest.from(
       correlationId = correlationId,
+      vrn = vrn,
       vendorBody = vendorBody,
       agentReferenceNumber = agentReferenceNumber,
       periodKey = periodKey,
@@ -85,29 +87,30 @@ class ReportRequestSpec extends UnitSpec:
       "map the VAT figures to the downstream's field names" in:
         val request = build().value
 
+        request.vrn shouldBe vrn
         request.vatDueSales shouldBe BigDecimal("100.00")
         request.vatDueAcquisitions shouldBe BigDecimal("100.00")
-        request.vatDueTotal shouldBe BigDecimal("200.00")
+        request.totalVatDue shouldBe BigDecimal("200.00")
         request.vatReclaimedCurrPeriod shouldBe BigDecimal("100.00")
-        request.vatDueNet shouldBe BigDecimal("100.00")
+        request.netVatDue shouldBe BigDecimal("100.00")
         request.totalValueSalesExVAT shouldBe BigDecimal(500)
         request.totalValuePurchasesExVAT shouldBe BigDecimal(400)
         request.totalValueGoodsSuppliedExVAT shouldBe BigDecimal(300)
-        request.totalAllAcquisitionsExVAT shouldBe BigDecimal(200)
+        request.totalAcquisitionsExVAT shouldBe BigDecimal(200)
 
     "an agent reference number is supplied" should:
       "set the customer type to agent" in:
         val request = build(agentReferenceNumber = Some(agentReferenceNumber)).value
 
         request.customerType shouldBe "A"
-        request.agentReferenceNumber shouldBe Some(agentReferenceNumber)
+        request.agentReferenceNumber shouldBe agentReferenceNumber
 
     "no agent reference number is supplied" should:
       "set the customer type to taxpayer" in:
         val request = build().value
 
         request.customerType shouldBe "T"
-        request.agentReferenceNumber shouldBe None
+        request.agentReferenceNumber shouldBe ""
 
     "the request carries fraud prevention headers" should:
 
@@ -159,18 +162,19 @@ class ReportRequestSpec extends UnitSpec:
         val json = Json.toJson(build(agentReferenceNumber = Some(agentReferenceNumber)).value)
 
         (json \ "fixedId").as[String] shouldBe correlationId
+        (json \ "vrn").as[String] shouldBe vrn
         (json \ "customerType").as[String] shouldBe "A"
         (json \ "agentReferenceNumber").as[String] shouldBe agentReferenceNumber
-        (json \ "vatDueTotal").as[BigDecimal] shouldBe BigDecimal("200.00")
-        (json \ "vatDueNet").as[BigDecimal] shouldBe BigDecimal("100.00")
-        (json \ "totalAllAcquisitionsExVAT").as[BigDecimal] shouldBe BigDecimal(200)
+        (json \ "totalVatDue").as[BigDecimal] shouldBe BigDecimal("200.00")
+        (json \ "netVatDue").as[BigDecimal] shouldBe BigDecimal("100.00")
+        (json \ "totalAcquisitionsExVAT").as[BigDecimal] shouldBe BigDecimal(200)
 
       "write the fraud prevention headers as key/value pairs" in:
         val json = Json.toJson(build().value)
 
         (json \ "fraudPreventionHeaders").as[Seq[JsObject]] should contain(Json.obj("key" -> "gov-vendor-version", "value" -> "my-desktop-app=2.2.2"))
 
-      "omit the agent reference number when absent" in:
+      "write an empty agent reference number when absent" in :
         val json = Json.toJson(build().value)
 
-        (json \ "agentReferenceNumber").isDefined shouldBe false
+        (json \ "agentReferenceNumber").as[String] shouldBe ""

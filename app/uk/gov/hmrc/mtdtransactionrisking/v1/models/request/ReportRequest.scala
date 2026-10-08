@@ -25,23 +25,24 @@ object FraudPreventionHeader:
 
 case class ReportRequest(
     fixedId: String,
+    vrn: String,
     periodKey: String,
     startDate: String,
     endDate: String,
     customerType: String,
-    agentReferenceNumber: Option[String],
+    agentReferenceNumber: String,
     fraudRiskReportScore: Double,
     fraudRiskReportReasons: Seq[String],
     fraudPreventionHeaders: Seq[FraudPreventionHeader],
     vatDueSales: BigDecimal,
     vatDueAcquisitions: BigDecimal,
-    vatDueTotal: BigDecimal,
+    totalVatDue: BigDecimal,
     vatReclaimedCurrPeriod: BigDecimal,
-    vatDueNet: BigDecimal,
+    netVatDue: BigDecimal,
     totalValueSalesExVAT: BigDecimal,
     totalValuePurchasesExVAT: BigDecimal,
     totalValueGoodsSuppliedExVAT: BigDecimal,
-    totalAllAcquisitionsExVAT: BigDecimal
+    totalAcquisitionsExVAT: BigDecimal
 )
 object ReportRequest:
 
@@ -50,9 +51,10 @@ object ReportRequest:
   private val govHeaderPrefixes = Seq("gov-client-", "gov-vendor-")
 
   given writes: OWrites[ReportRequest] = Json.writes[ReportRequest]
-  
+
   def from(
       correlationId: String,
+      vrn: String,
       vendorBody: JsValue,
       agentReferenceNumber: Option[String],
       periodKey: String,
@@ -68,20 +70,21 @@ object ReportRequest:
     for
       vatDueSales <- amount("vatDueSales")
       vatDueAcquisitions <- amount("vatDueAcquisitions")
-      vatDueTotal <- amount("totalVatDue")
+      totalVatDue <- amount("totalVatDue")
       vatReclaimedCurrPeriod <- amount("vatReclaimedCurrPeriod")
-      vatDueNet <- amount("netVatDue")
+      netVatDue <- amount("netVatDue")
       totalValueSalesExVAT <- amount("totalValueSalesExVAT")
       totalValuePurchasesExVAT <- amount("totalValuePurchasesExVAT")
       totalValueGoodsSuppliedExVAT <- amount("totalValueGoodsSuppliedExVAT")
-      totalAllAcquisitionsExVAT <- amount("totalAcquisitionsExVAT")
+      totalAcquisitionsExVAT <- amount("totalAcquisitionsExVAT")
     yield ReportRequest(
       fixedId = correlationId,
+      vrn = vrn,
       periodKey = periodKey,
       startDate = startDate,
       endDate = endDate,
       customerType = if agentReferenceNumber.isDefined then agent else taxPayer,
-      agentReferenceNumber = agentReferenceNumber,
+      agentReferenceNumber = agentReferenceNumber.getOrElse(""),
       fraudRiskReportScore = fraudRiskReportScore,
       fraudRiskReportReasons = fraudRiskReportReasons,
       fraudPreventionHeaders = requestHeaders.collect {
@@ -90,11 +93,11 @@ object ReportRequest:
       },
       vatDueSales = vatDueSales,
       vatDueAcquisitions = vatDueAcquisitions,
-      vatDueTotal = vatDueTotal,
+      totalVatDue = totalVatDue,
       vatReclaimedCurrPeriod = vatReclaimedCurrPeriod,
-      vatDueNet = vatDueNet,
+      netVatDue = netVatDue,
       totalValueSalesExVAT = totalValueSalesExVAT,
       totalValuePurchasesExVAT = totalValuePurchasesExVAT,
       totalValueGoodsSuppliedExVAT = totalValueGoodsSuppliedExVAT,
-      totalAllAcquisitionsExVAT = totalAllAcquisitionsExVAT
+      totalAcquisitionsExVAT = totalAcquisitionsExVAT
     )

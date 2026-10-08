@@ -26,8 +26,8 @@ import uk.gov.hmrc.mtdtransactionrisking.v1.connectors.{FeedbackConnector, Insig
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.auth.IdentityData
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.errors.{DownstreamError, ErrorWrapper}
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.outcomes.ResponseWrapper
-import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.{InsightsRequest, ReportRequest}
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.nrs.{AssistReportGenerated, AssistRequestFeedback}
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.{InsightsRequest, ReportRequest}
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.{FeedbackResponse, InsightsResponse, Obligation}
 import uk.gov.hmrc.mtdtransactionrisking.v1.services.auth.RdsAuthService
 
@@ -36,26 +36,26 @@ import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
-class GenerateFeedbackService @Inject() (
-                                          rdsAuthService: RdsAuthService,
-                                          interactionService: InteractionService,
-                                          nrsService: NrsService,
-                                          vatApiConnector: VatApiConnector,
-                                          insightsConnector: InsightsConnector,
-                                          feedbackStubConnector: FeedbackConnector,
-                                          rdsConnector: RdsConnector)(implicit ec: ExecutionContext) extends Logging:
+class GenerateFeedbackService @Inject() (rdsAuthService: RdsAuthService,
+                                         interactionService: InteractionService,
+                                         nrsService: NrsService,
+                                         vatApiConnector: VatApiConnector,
+                                         insightsConnector: InsightsConnector,
+                                         feedbackStubConnector: FeedbackConnector,
+                                         rdsConnector: RdsConnector)(implicit ec: ExecutionContext)
+    extends Logging:
 
   def requestStubFeedback(vrn: String)(implicit hc: HeaderCarrier, correlationId: CorrelationId): Future[ServiceOutcome[FeedbackResponse]] =
     feedbackStubConnector.requestFeedback(InsightsRequest(vrn))
 
   def generateFeedback(
-                        vrn: String,
-                        body: JsValue,
-                        agentReferenceNumber: Option[String],
-                        requestHeaders: Seq[(String, String)],
-                        identityData: Option[IdentityData],
-                        userAuthToken: Option[String],
-                        submissionTimestamp: Instant)(implicit hc: HeaderCarrier, correlationId: CorrelationId): Future[ServiceOutcome[FeedbackResponse]] =
+      vrn: String,
+      body: JsValue,
+      agentReferenceNumber: Option[String],
+      requestHeaders: Seq[(String, String)],
+      identityData: Option[IdentityData],
+      userAuthToken: Option[String],
+      submissionTimestamp: Instant)(implicit hc: HeaderCarrier, correlationId: CorrelationId): Future[ServiceOutcome[FeedbackResponse]] =
 
     val result = for
       /*
@@ -67,7 +67,7 @@ class GenerateFeedbackService @Inject() (
       insights <- EitherT(insightsConnector.getRiskInsights(InsightsRequest(vrn)))
 
       reportRequest <- EitherT.fromOption[Future](
-        buildReportRequest(obligation.responseData, insights.responseData, body, agentReferenceNumber, requestHeaders),
+        buildReportRequest(vrn, obligation.responseData, insights.responseData, body, agentReferenceNumber, requestHeaders),
         reportRequestFailure
       )
 
@@ -94,15 +94,15 @@ class GenerateFeedbackService @Inject() (
     result.value
 
   private def submitNrsEvents(
-                               requestFeedbackEvidence: JsValue,
-                               generateReportEvidence: FeedbackResponse,
-                               vrn: String,
-                               reportId: String,
-                               submissionTimestamp: Instant,
-                               identityData: Option[IdentityData],
-                               userAuthToken: Option[String],
-                               requestHeaders: Seq[(String, String)]
-                             ): Unit =
+      requestFeedbackEvidence: JsValue,
+      generateReportEvidence: FeedbackResponse,
+      vrn: String,
+      reportId: String,
+      submissionTimestamp: Instant,
+      identityData: Option[IdentityData],
+      userAuthToken: Option[String],
+      requestHeaders: Seq[(String, String)]
+  ): Unit =
     nrsService.submit(
       evidence = requestFeedbackEvidence,
       vrn = vrn,
@@ -129,16 +129,18 @@ class GenerateFeedbackService @Inject() (
     (feedbackResponse.englishFeedback ++ feedbackResponse.welshFeedback)
       .exists(_.itemNumber != "0")
 
-  private def buildReportRequest(obligation: Obligation,
-                                  insights: InsightsResponse,
-                                  vendorBody: JsValue,
-                                  agentReferenceNumber: Option[String],
-                                  requestHeaders: Seq[(String, String)])(implicit correlationId: CorrelationId): Option[ReportRequest] =
+  private def buildReportRequest(vrn: String,
+                                 obligation: Obligation,
+                                 insights: InsightsResponse,
+                                 vendorBody: JsValue,
+                                 agentReferenceNumber: Option[String],
+                                 requestHeaders: Seq[(String, String)])(implicit correlationId: CorrelationId): Option[ReportRequest] =
 
     val strategicRisk = insights.insights.strategicRisk
 
     ReportRequest.from(
       correlationId = correlationId.value,
+      vrn = vrn,
       vendorBody = vendorBody,
       agentReferenceNumber = agentReferenceNumber,
       periodKey = obligation.periodKey,

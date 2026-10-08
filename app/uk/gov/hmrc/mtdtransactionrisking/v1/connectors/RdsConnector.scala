@@ -26,14 +26,9 @@ import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse, StringContextOps}
 import uk.gov.hmrc.mtdtransactionrisking.config.AppConfig
 import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.auth.RdsAuthCredentials
-import uk.gov.hmrc.mtdtransactionrisking.v1.models.errors.{
-  AcknowledgementValidationFailedError,
-  DownstreamError,
-  ErrorWrapper,
-  ServiceUnavailableError
-}
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.errors.{AcknowledgementValidationFailedError, DownstreamError, ErrorWrapper, ServiceUnavailableError}
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.outcomes.ResponseWrapper
-import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.{AcknowledgeRequest, RdsAcknowledgeRequest, ReportRequest}
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.{AcknowledgeRequest, RdsAcknowledgeRequest, MasEnvelope, ReportRequest}
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.*
 import uk.gov.hmrc.mtdtransactionrisking.v1.services.ServiceOutcome
 
@@ -104,7 +99,7 @@ class RdsConnector @Inject() (httpClient: HttpClientV2, appConfig: AppConfig)(im
 
     httpClient
       .post(url"${appConfig.rdsSubmitUrl}")
-      .withBody(Json.toJson(request))
+      .withBody(MasEnvelope(request))
       .setHeader(buildHeaders(correlationId, appConfig.appName, credentials)*)
       .withProxy
       .execute[HttpResponse]
