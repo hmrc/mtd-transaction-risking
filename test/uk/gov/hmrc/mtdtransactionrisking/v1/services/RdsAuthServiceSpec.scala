@@ -38,6 +38,7 @@ class RdsAuthServiceSpec extends UnitSpec, MockRdsAuthConnector, MockAppConfig:
 
   // tokens live for around four hours so the service refreshes five minutes early
   private val tokenLifetimeSeconds = 14399
+  // must match refreshMargin in RdsAuthService
   private val refreshMarginSeconds = 300
 
   private val credentials = RdsAuthCredentials("a-bearer-token", "bearer", tokenLifetimeSeconds)
@@ -139,3 +140,13 @@ class RdsAuthServiceSpec extends UnitSpec, MockRdsAuthConnector, MockAppConfig:
         connectorFails()
 
         await(service.bearerToken()) shouldBe Left(ErrorWrapper(correlationId, DownstreamError))
+
+      "recover after a failed fetch" in new Test:
+        authIsRequired()
+        connectorFails()
+
+        await(service.bearerToken()) shouldBe Left(ErrorWrapper(correlationId, DownstreamError))
+
+        connectorReturns(credentials)
+
+        await(service.bearerToken()) shouldBe Right(ResponseWrapper(correlationId, Some(credentials)))

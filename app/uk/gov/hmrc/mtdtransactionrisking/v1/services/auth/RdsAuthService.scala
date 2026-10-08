@@ -38,8 +38,7 @@ class RdsAuthService @Inject() (connector: RdsAuthConnector, appConfig: AppConfi
 
   private val cachedToken = new AtomicReference[Option[CachedToken]](None)
 
-  // The bearer token for RDS calls, None in environments that don't require auth. The token lives for four hours and is reused until shortly before
-  // it expires
+  // The bearer token for RDS calls, None in environments that don't require auth. The token is reused until shortly before it expires
   def bearerToken()(implicit hc: HeaderCarrier, correlationId: CorrelationId): Future[ServiceOutcome[Option[RdsAuthCredentials]]] =
     if !appConfig.rdsAuthRequired then
       logger.info(s"${correlationId.value}::[RdsAuthService][bearerToken] auth not required for this environment")
@@ -51,15 +50,17 @@ class RdsAuthService @Inject() (connector: RdsAuthConnector, appConfig: AppConfi
 
     cachedToken.get().filter(_.isValid(now)) match
       case Some(token) =>
-        logger.info(s"${correlationId.value}::[RdsAuthService][bearerToken] reusing cached token, valid until ${token.expiresAt}")
+        logger.debug(
+          s"${correlationId.value}::[RdsAuthService][bearerToken] reusing cached token, ${Duration.between(now, token.expiresAt).toMinutes}m remaining")
         Future.successful(Right(ResponseWrapper(correlationId, Some(token.credentials))))
 
       case None =>
-        logger.info(s"${correlationId.value}::[RdsAuthService][bearerToken] no valid cached token, fetching a new one")
         connector.retrieveBearerToken().map {
           case Right(ResponseWrapper(_, credentials)) =>
             val expiresAt = credentials.expiresAt(now, refreshMargin)
-            logger.info(s"${correlationId.value}::[RdsAuthService][bearerToken] fetched new token, valid until $expiresAt")
+            logger.info(
+              s"${correlationId.value}::[RdsAuthService][bearerToken] fetched new token, expires_in=${credentials.expires_in}s, " +
+                s"valid for ${Duration.between(now, expiresAt).toMinutes}m")
             cachedToken.set(Some(CachedToken(credentials, expiresAt)))
             Right(ResponseWrapper(correlationId, Some(credentials)))
 
