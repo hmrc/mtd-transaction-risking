@@ -73,7 +73,7 @@ class GenerateFeedbackControllerISpec extends IntegrationBaseSpec:
                 .withRequestBody(matchingJsonPath("$.metadata.searchKeys.reportId", equalTo(txrReportId))))
 
             wireMockServer.verify(postRequestedFor(urlPathMatching("/nrs-orchestrator/submission"))
-                .withRequestBody(matchingJsonPath("$.metadata.notableEvent", equalTo("vata-report-generated")))
+                .withRequestBody(matchingJsonPath("$.metadata.notableEvent", equalTo("vata-generate-report")))
                 .withRequestBody(matchingJsonPath("$.metadata.searchKeys.vrn", equalTo(vrn)))
                 .withRequestBody(matchingJsonPath("$.metadata.searchKeys.reportId", equalTo(txrReportId))))
           }

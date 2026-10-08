@@ -14,16 +14,11 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.mtdtransactionrisking.config
+package uk.gov.hmrc.mtdtransactionrisking.v1.models.request.nrs
 
-sealed trait Feature:
-  val name: String
+sealed trait NrsSubmissionResult
 
-case object AuthFeature extends Feature:
-  override val name: String = "auth"
-
-case object NrsSubmissionFeature extends Feature:
-  override val name: String = "nrs-submission"
-
-case object NrsRetryFeature extends Feature:
-  override val name: String = "nrs-retry"
+object NrsSubmissionResult:
+  case object Success extends NrsSubmissionResult
+  case object RetryableFailure extends NrsSubmissionResult
+  case object PermanentFailure extends NrsSubmissionResult

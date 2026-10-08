@@ -14,16 +14,13 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.mtdtransactionrisking.config
+package uk.gov.hmrc.mtdtransactionrisking.v1.models.request.nrs
 
-sealed trait Feature:
-  val name: String
+import play.api.libs.json.{Json, OFormat}
 
-case object AuthFeature extends Feature:
-  override val name: String = "auth"
+final case class NrsSubmissionWorkItem(
+                                        nrsSubmission: NrsSubmission
+                                      )
 
-case object NrsSubmissionFeature extends Feature:
-  override val name: String = "nrs-submission"
-
-case object NrsRetryFeature extends Feature:
-  override val name: String = "nrs-retry"
+object NrsSubmissionWorkItem:
+  given format: OFormat[NrsSubmissionWorkItem] = Json.format[NrsSubmissionWorkItem]

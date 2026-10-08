@@ -23,7 +23,7 @@ object AssistRequestFeedback extends NotableEventType:
   override val value: String = "vata-request-feedback"
 
 object AssistReportGenerated extends NotableEventType:
-  override val value: String = "vata-report-generated"
+  override val value: String = "vata-generate-report"
 
 object AssistReportAcknowledged extends NotableEventType:
-  override val value: String = "vata-report-acknowledged"
+  override val value: String = "vata-acknowledge-report"
