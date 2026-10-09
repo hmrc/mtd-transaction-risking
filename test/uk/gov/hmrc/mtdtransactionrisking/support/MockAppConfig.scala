@@ -77,6 +77,9 @@ trait MockAppConfig extends MockFactory:
 
     def rdsCredentials: CallHandler[RdsCredentials] =
       (() => mockAppConfig.rdsCredentials).expects()
+    
+    def rdsLogPayloads: CallHandler[Boolean] = 
+      (() => mockAppConfig.rdsLogPayloads).expects()
 
     def interactionsBaseUrl: CallHandler[String] =
       (() => mockAppConfig.interactionsBaseUrl).expects()
