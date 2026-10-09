@@ -95,6 +95,13 @@ class RdsConnector @Inject() (httpClient: HttpClientV2, appConfig: AppConfig)(im
           logger.error(s"${correlationId.value}::[RdsConnector][acknowledge] unexpected exception", ex)
           Left(ErrorWrapper(correlationId, DownstreamError))
 
+  private def buildHeaders(correlationId: CorrelationId, appName: String, credentials: Option[RdsAuthCredentials]): Seq[(String, String)] =
+    Seq(
+      "User-Agent" -> appName,
+      "Content-Type" -> "application/json",
+      "X-CorrelationId" -> correlationId.value
+    ) ++ credentials.map(_.bearerHeader)
+
   // A 201 means the call executed. The actual decision is in the report responseCode field
   def generateReport(vrn: String, request: ReportRequest, credentials: Option[RdsAuthCredentials])(implicit
       hc: HeaderCarrier,
@@ -159,10 +166,3 @@ class RdsConnector @Inject() (httpClient: HttpClientV2, appConfig: AppConfig)(im
           case None =>
             logger.error(s"${correlationId.value}::[RdsConnector][generateReport] report has no responseCode")
             Left(ErrorWrapper(correlationId, DownstreamError))
-
-  private def buildHeaders(correlationId: CorrelationId, appName: String, credentials: Option[RdsAuthCredentials]): Seq[(String, String)] =
-    Seq(
-      "User-Agent" -> appName,
-      "Content-Type" -> "application/json",
-      "X-CorrelationId" -> correlationId.value
-    ) ++ credentials.map(_.bearerHeader)
