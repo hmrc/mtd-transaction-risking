@@ -100,7 +100,12 @@ class RdsConnector @Inject() (httpClient: HttpClientV2, appConfig: AppConfig)(im
       hc: HeaderCarrier,
       correlationId: CorrelationId): Future[ServiceOutcome[FeedbackResponse]] =
 
+    val body = Json.toJson(request)
+
     logger.info(s"${correlationId.value}::[RdsConnector][generateReport] requesting report for VRN $vrn")
+
+    if appConfig.rdsLogPayloads then
+      logger.info(s"${correlationId.value}::[RdsConnector][generateReport] request body: ${Json.stringify(body)}")
 
     httpClient
       .post(url"${appConfig.rdsSubmitUrl}")
