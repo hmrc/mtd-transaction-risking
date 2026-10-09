@@ -116,6 +116,8 @@ class RdsConnector @Inject() (httpClient: HttpClientV2, appConfig: AppConfig)(im
       .withProxy
       .execute[HttpResponse]
       .map { response =>
+        if appConfig.rdsLogPayloads then
+          logger.info(s"${correlationId.value}::[RdsConnector][generateReport] response status ${response.status}, body: ${response.body}")
         response.status match
           case CREATED =>
             handleReport(response)
