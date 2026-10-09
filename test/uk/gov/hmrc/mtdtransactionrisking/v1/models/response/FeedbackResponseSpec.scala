@@ -44,7 +44,7 @@ class FeedbackResponseSpec extends AnyWordSpec with Matchers:
     reportId = "f2fb30e5-4ab6-4a29-b3c1-c00000000001",
     englishFeedback = List(message),
     welshFeedback = List(message),
-    correlationId = "a1e8057e-fbbc-47a8-a8b4-78d9f015c253"
+    correlationId = Some("a1e8057e-fbbc-47a8-a8b4-78d9f015c253")
   )
 
   "FeedbackResponse" when {

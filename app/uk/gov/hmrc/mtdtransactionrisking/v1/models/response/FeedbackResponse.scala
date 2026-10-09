@@ -22,7 +22,7 @@ case class FeedbackResponse(
     reportId: String,
     englishFeedback: List[FeedbackMessage],
     welshFeedback: List[FeedbackMessage],
-    correlationId: String
+    correlationId: Option[String]
 )
 
 object FeedbackResponse:

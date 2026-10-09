@@ -120,7 +120,7 @@ class GenerateFeedbackServiceSpec
           links = Some(List(FeedbackLink(title = "TAW", url = "https://www.gov.uk/vat"))),
           path = Some("/guidance")
         )),
-      correlationId = "E9F65715BBC9222477B27074804BBDD5C73CDE62F84D8B00CFD05B883534AF3D"
+      correlationId = Some("E9F65715BBC9222477B27074804BBDD5C73CDE62F84D8B00CFD05B883534AF3D")
     )
 
   private val noFeedbackResponse: FeedbackResponse =
