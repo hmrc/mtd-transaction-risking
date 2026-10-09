@@ -59,10 +59,10 @@ class RdsConnectorSpec extends ConnectorSpec, BeforeAndAfterAll, Injecting, Mock
     startDate = "2026-01-01",
     endDate = "2026-03-31",
     customerType = "T",
-    agentReferenceNumber = "",
-    fraudRiskReportScore = 4.7,
+    agentReferenceNumber = None,
+    fraudRiskReportScore = BigDecimal("4.7"),                                      
     fraudRiskReportReasons = Seq("VRN 123456789 is 3.7 hops away from something risky."),
-    fraudPreventionHeaders = Seq(FraudPreventionHeader("gov-client-timezone", "UTC+00:00")),
+    fraudPreventionHeaders = Seq(FraudPreventionHeader("Gov-Client-Timezone", "UTC+00:00")),
     vatDueSales = BigDecimal("100.00"),
     vatDueAcquisitions = BigDecimal("100.00"),
     totalVatDue = BigDecimal("200.00"),
@@ -412,8 +412,8 @@ class RdsConnectorSpec extends ConnectorSpec, BeforeAndAfterAll, Injecting, Mock
 
         await(generateReport())
 
-        wireMockServer.verify(postRequestedFor(reportUrlPattern).withRequestBody(equalToJson(MasEnvelope(rdsRequest).toString, true, false)))
-
+        wireMockServer.verify(postRequestedFor(reportUrlPattern).withRequestBody(equalToJson(Json.toJson(rdsRequest).toString, true, false)))
+      
       "send the correlation id and user agent" in new Test:
         stubReport(Some(reportJson().toString), CREATED)
 
