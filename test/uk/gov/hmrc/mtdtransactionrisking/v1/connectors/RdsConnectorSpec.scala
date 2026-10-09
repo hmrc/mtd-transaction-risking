@@ -180,6 +180,7 @@ class RdsConnectorSpec extends ConnectorSpec, BeforeAndAfterAll, Injecting, Mock
     MockedAppConfig.rdsSubmitUrl.returns(s"http://localhost:$port$reportPath").anyNumberOfTimes()
     MockedAppConfig.rdsAcknowledgeUrl.returns(s"http://localhost:$port$acknowledgePath").anyNumberOfTimes()
     MockedAppConfig.appName.returns("mtd-transaction-risking").anyNumberOfTimes()
+    MockedAppConfig.rdsLogPayloads.returns(false).anyNumberOfTimes()
 
     val connector = new RdsConnector(httpClient, mockAppConfig)
 
