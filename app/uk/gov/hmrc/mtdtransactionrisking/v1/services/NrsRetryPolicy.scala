@@ -17,6 +17,7 @@
 package uk.gov.hmrc.mtdtransactionrisking.v1.services
 
 import uk.gov.hmrc.mtdtransactionrisking.config.AppConfig
+import java.util.concurrent.ThreadLocalRandom
 
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.duration.FiniteDuration
@@ -39,10 +40,39 @@ class ConfiguredNrsRetryPolicy @Inject()(appConfig: AppConfig) extends NrsRetryP
       s"Retry number $retryNumber must be between 1 and $maxRetries"
     )
 
-    val multiplier =
-      Math.pow(appConfig.nrsRetryBackoffMultiplier, retryNumber - 1)
+    require(
+      appConfig.nrsRetryJitterFactor >= 0.0 &&
+        appConfig.nrsRetryJitterFactor <= 1.0,
+      "NRS retry jitter factor must be between 0.0 and 1.0"
+    )
 
-    (appConfig.nrsRetryInitialBackoff.toMillis * multiplier).toLong.millis
+    val exponentialBackoffMillis =
+      appConfig.nrsRetryInitialBackoff.toMillis *
+        Math.pow(
+          appConfig.nrsRetryBackoffMultiplier,
+          retryNumber - 1
+        )
 
-  def isExhaustedAfterFailure(failureCount: Int): Boolean =
-    failureCount >= maxRetries
+    val cappedBackoffMillis =
+      Math.min(
+        exponentialBackoffMillis,
+        appConfig.nrsRetryMaxBackoff.toMillis.toDouble
+      )
+
+    val jitterFactor =
+      appConfig.nrsRetryJitterFactor
+
+    val jitter =
+      (ThreadLocalRandom.current().nextDouble() * 2 * jitterFactor) -
+        jitterFactor
+
+    val jitteredBackoffMillis =
+      cappedBackoffMillis * (1.0 + jitter)
+
+    Math.min(
+      jitteredBackoffMillis,
+      appConfig.nrsRetryMaxBackoff.toMillis.toDouble
+    ).toLong.millis
+
+  override def isExhaustedAfterFailure(retriesCompleted: Int): Boolean =
+    retriesCompleted >= maxRetries

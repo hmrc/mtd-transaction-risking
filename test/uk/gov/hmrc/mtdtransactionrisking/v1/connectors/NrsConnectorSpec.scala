@@ -21,6 +21,7 @@ import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import play.api.libs.json.Json
 import uk.gov.hmrc.http.client.HttpClientV2
 import uk.gov.hmrc.mtdtransactionrisking.support.{ConnectorSpec, MockAppConfig}
+import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.nrs.{Metadata, NrsSubmission, NrsSubmissionResult, SearchKeys}
 
 class NrsConnectorSpec
@@ -34,6 +35,9 @@ class NrsConnectorSpec
 
   private val apiKey =
     "nrs-test-api-key"
+
+  private val correlationId =
+    CorrelationId("bd6c0972-34e7-11f1-9715-f35b3eb40b52")
 
   private val submission =
     NrsSubmission(
@@ -92,7 +96,7 @@ class NrsConnectorSpec
 
   "NrsConnector.submit" should:
 
-    "send the NRS submission with an API key and generated correlation ID, and accept HTTP 202" in new Test:
+    "send the supplied correlation ID unchanged and accept HTTP 202" in new Test:
       val submissionJson =
         Json.stringify(
           Json.toJson(submission)
@@ -106,7 +110,7 @@ class NrsConnectorSpec
           )
           .withHeader(
             "X-Correlation-Id",
-            matching("[0-9a-fA-F-]{36}")
+            equalTo(correlationId.value)
           )
           .withHeader(
             "Content-Type",
@@ -122,7 +126,7 @@ class NrsConnectorSpec
       )
 
       await(
-        connector.submit(submission)
+        connector.submit(submission, correlationId)
       ) shouldBe NrsSubmissionResult.Success
 
       wireMockServer.verify(
@@ -133,7 +137,7 @@ class NrsConnectorSpec
           )
           .withHeader(
             "X-Correlation-Id",
-            matching("[0-9a-fA-F-]{36}")
+            equalTo(correlationId.value)
           )
           .withHeader(
             "Content-Type",
@@ -154,7 +158,7 @@ class NrsConnectorSpec
       )
 
       await(
-        connector.submit(submission)
+        connector.submit(submission, correlationId)
       ) shouldBe NrsSubmissionResult.RetryableFailure
 
     "classify HTTP 499 as retryable" in new Test:
@@ -167,7 +171,7 @@ class NrsConnectorSpec
       )
 
       await(
-        connector.submit(submission)
+        connector.submit(submission, correlationId)
       ) shouldBe NrsSubmissionResult.RetryableFailure
 
     Seq(500, 503, 599).foreach { status =>
@@ -181,7 +185,7 @@ class NrsConnectorSpec
         )
 
         await(
-          connector.submit(submission)
+          connector.submit(submission, correlationId)
         ) shouldBe NrsSubmissionResult.RetryableFailure
     }
 
@@ -195,7 +199,7 @@ class NrsConnectorSpec
       )
 
       await(
-        connector.submit(submission)
+        connector.submit(submission, correlationId)
       ) shouldBe NrsSubmissionResult.PermanentFailure
 
     Seq(400, 401, 403, 404).foreach { status =>
@@ -209,6 +213,35 @@ class NrsConnectorSpec
         )
 
         await(
-          connector.submit(submission)
+          connector.submit(submission, correlationId)
         ) shouldBe NrsSubmissionResult.PermanentFailure
     }
+
+    "reuse the supplied correlation ID for repeated attempts" in new Test:
+      wireMockServer.stubFor(
+        post(urlPathEqualTo(path))
+          .willReturn(
+            aResponse()
+              .withStatus(503)
+          )
+      )
+
+      await(
+        connector.submit(submission, correlationId)
+      ) shouldBe NrsSubmissionResult.RetryableFailure
+
+      await(
+        connector.submit(submission, correlationId)
+      ) shouldBe NrsSubmissionResult.RetryableFailure
+
+      wireMockServer.verify(
+        2,
+        postRequestedFor(urlPathEqualTo(path))
+          .withHeader(
+            "X-Correlation-Id",
+            equalTo(correlationId.value)
+          )
+          .withRequestBody(
+            equalToJson(Json.stringify(Json.toJson(submission)))
+          )
+      )

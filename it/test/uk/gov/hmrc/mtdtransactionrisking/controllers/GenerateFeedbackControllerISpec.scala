@@ -54,29 +54,26 @@ class GenerateFeedbackControllerISpec extends IntegrationBaseSpec:
           headers(response).get("X-CorrelationId") shouldBe defined
 
           val feedback: FeedbackResponse = contentAsJson(response).as[FeedbackResponse]
-          feedback.reportId shouldBe "f2fb30e5-4ab6-4a29-b3c1-c7264259ff1c"
+
+          val rdsReportId = "f2fb30e5-4ab6-4a29-b3c1-c7264259ff1c"
+
+          feedback.reportId shouldBe rdsReportId
           feedback.englishFeedback should have size 1
           feedback.welshFeedback should have size 1
-
-          val txrReportId: String = headers(response).getOrElse(
-            "X-CorrelationId",
-            fail("Expected X-CorrelationId response header")
-          )
 
           // Since rsd call is fire and forget this confirms the call was actually made
           eventually {
             wireMockServer.verify(postRequestedFor(urlPathMatching("/rsd/receive-and-store")))
 
-            wireMockServer.verify(
-              postRequestedFor(urlPathMatching("/nrs-orchestrator/submission"))
+            wireMockServer.verify(postRequestedFor(urlPathMatching("/nrs-orchestrator/submission"))
                 .withRequestBody(matchingJsonPath("$.metadata.notableEvent", equalTo("vata-request-feedback")))
                 .withRequestBody(matchingJsonPath("$.metadata.searchKeys.vrn", equalTo(vrn)))
-                .withRequestBody(matchingJsonPath("$.metadata.searchKeys.reportId", equalTo(txrReportId))))
+                .withRequestBody(matchingJsonPath("$.metadata.searchKeys.reportId", equalTo(rdsReportId))))
 
             wireMockServer.verify(postRequestedFor(urlPathMatching("/nrs-orchestrator/submission"))
                 .withRequestBody(matchingJsonPath("$.metadata.notableEvent", equalTo("vata-generate-report")))
                 .withRequestBody(matchingJsonPath("$.metadata.searchKeys.vrn", equalTo(vrn)))
-                .withRequestBody(matchingJsonPath("$.metadata.searchKeys.reportId", equalTo(txrReportId))))
+                .withRequestBody(matchingJsonPath("$.metadata.searchKeys.reportId", equalTo(rdsReportId))))
           }
 
         "RDS returns no-feedback messages without path" in new Test:
@@ -98,16 +95,16 @@ class GenerateFeedbackControllerISpec extends IntegrationBaseSpec:
 
           feedback.englishFeedback should have size 1
           feedback.welshFeedback should have size 1
-
+          
           feedback.englishFeedback.head.itemNumber shouldBe "0"
           feedback.englishFeedback.head.path shouldBe None
-
+          
           feedback.welshFeedback.head.itemNumber shouldBe "0"
           feedback.welshFeedback.head.path shouldBe None
-
+          
           (json \ "englishFeedback" \ 0 \ "path").toOption shouldBe None
           (json \ "welshFeedback" \ 0 \ "path").toOption shouldBe None
-
+          
           eventually {
             wireMockServer.verify(postRequestedFor(urlPathMatching("/rsd/receive-and-store")))
             wireMockServer.verify(0, postRequestedFor(urlPathMatching("/nrs-orchestrator/submission")))
@@ -129,7 +126,8 @@ class GenerateFeedbackControllerISpec extends IntegrationBaseSpec:
 
           eventually {
             wireMockServer.verify(postRequestedFor(urlPathMatching("/rsd/receive-and-store")))
-            wireMockServer.verify(2, postRequestedFor(urlPathMatching("/nrs-orchestrator/submission")))
+            wireMockServer.verify(2, postRequestedFor(urlPathMatching("/nrs-orchestrator/submission"))
+            )
           }
 
         "NRS is unavailable after RDS returns actual feedback" in new Test:
@@ -152,7 +150,7 @@ class GenerateFeedbackControllerISpec extends IntegrationBaseSpec:
              */
             wireMockServer.verify(2, postRequestedFor(urlPathMatching("/nrs-orchestrator/submission")))
           }
-
+          
         "Auth returns an Organisation identity-data response" in new Test:
 
           override def setupStubs(): StubMapping =
@@ -165,7 +163,9 @@ class GenerateFeedbackControllerISpec extends IntegrationBaseSpec:
 
           status(request(vrn)) shouldBe OK
 
-          eventually { wireMockServer.verify(2, postRequestedFor(urlPathMatching("/nrs-orchestrator/submission"))) }
+          eventually {wireMockServer.verify(2, postRequestedFor(urlPathMatching("/nrs-orchestrator/submission")))
+          }
+
 
         "Auth returns an Agent identity-data response and preserves the existing ARN journey" in new Test:
 
@@ -178,6 +178,7 @@ class GenerateFeedbackControllerISpec extends IntegrationBaseSpec:
             RdsStub.reportGenerated()
             InteractionStub.stores()
             NrsStub.accepts()
+
 
           status(request(vrn)) shouldBe OK
 
@@ -211,7 +212,10 @@ class GenerateFeedbackControllerISpec extends IntegrationBaseSpec:
           status(response) shouldBe BAD_REQUEST
           (contentAsJson(response) \ "code").as[String] shouldBe "INVALID_REQUEST"
 
-          wireMockServer.verify(0, postRequestedFor(urlPathMatching("/nrs-orchestrator/submission")))
+          wireMockServer.verify(
+            0,
+            postRequestedFor(urlPathMatching("/nrs-orchestrator/submission"))
+          )
 
         "vat-api reports that the tax period has not ended" in new Test:
           override def setupStubs(): StubMapping =

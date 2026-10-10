@@ -32,6 +32,8 @@ import uk.gov.hmrc.mtdtransactionrisking.config.AppConfig
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.nrs.{Metadata, NrsSubmission, NrsSubmissionWorkItem, SearchKeys}
 import uk.gov.hmrc.mtdtransactionrisking.v1.repositories.NrsSubmissionWorkItemRepository
 import uk.gov.hmrc.mtdtransactionrisking.v1.services.NrsRetryPolicy
+import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
+import uk.gov.hmrc.mtdtransactionrisking.support.CryptoSupport
 
 import java.time.{Clock, Instant, ZoneId, ZoneOffset}
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -45,6 +47,7 @@ class NrsSubmissionWorkItemRepositoryISpec
     with ScalaFutures
     with BeforeAndAfterEach
     with DefaultPlayMongoRepositorySupport[WorkItem[NrsSubmissionWorkItem]]
+    with CryptoSupport
     with MockFactory:
 
   /*
@@ -147,9 +150,13 @@ class NrsSubmissionWorkItemRepositoryISpec
       )
     )
 
+  private val correlationId =
+    CorrelationId("bd6c0972-34e7-11f1-9715-f35b3eb40b52")
+
   private val nrsSubmissionWorkItem =
     NrsSubmissionWorkItem(
-      nrsSubmission = submission
+      nrsSubmission = submission,
+      correlationId = correlationId
     )
 
   override protected def beforeEach(): Unit =
@@ -176,10 +183,12 @@ class NrsSubmissionWorkItemRepositoryISpec
     "persist an initial retryable failure for retry 1 after ten minutes" in:
       val persisted =
         repository
-          .enqueueRetryableFailure(submission)
+          .enqueueRetryableFailure(submission = submission, correlationId = correlationId)
           .futureValue
 
       persisted.item shouldBe nrsSubmissionWorkItem
+      persisted.item.nrsSubmission shouldBe submission
+      persisted.item.correlationId shouldBe correlationId
       persisted.status shouldBe ProcessingStatus.ToDo
       persisted.failureCount shouldBe 0
       persisted.availableAt shouldBe
@@ -194,10 +203,12 @@ class NrsSubmissionWorkItemRepositoryISpec
     "persist an initial permanent failure without scheduling automatic retry" in:
       val persisted =
         repository
-          .enqueuePermanentFailure(submission)
+          .enqueuePermanentFailure(submission = submission, correlationId = correlationId)
           .futureValue
 
       persisted.item shouldBe nrsSubmissionWorkItem
+      persisted.item.nrsSubmission shouldBe submission
+      persisted.item.correlationId shouldBe correlationId
       persisted.status shouldBe ProcessingStatus.PermanentlyFailed
       persisted.failureCount shouldBe 0
       persisted.updatedAt shouldBe initialNow
@@ -399,6 +410,56 @@ class NrsSubmissionWorkItemRepositoryISpec
         .futureValue shouldBe true
 
       findStored(claimed.id) shouldBe None
+
+  "NrsSubmissionWorkItem" should :
+
+    "encrypt the persisted NRS submission and restore it when read" in :
+      val submission =
+        NrsSubmission(
+          payload = "base64-evidence-payload",
+          metadata = Metadata(
+            businessId = "vata",
+            notableEvent = "vata-request-feedback",
+            payloadContentType = "application/json",
+            payloadSha256Checksum = "checksum",
+            userSubmissionTimestamp = "2026-10-10T12:00:00Z",
+            identityData = Json.obj(
+              "internalId" -> "internal-id"
+            ),
+            userAuthToken = "Bearer sensitive-token",
+            headerData = Json.obj(
+              "Accept" -> "application/vnd.hmrc.1.0+json"
+            ),
+            searchKeys = SearchKeys(
+              vrn = "123456789",
+              reportId = "report-id"
+            )
+          )
+        )
+
+      val correlationId =
+        CorrelationId(
+          "bd6c0972-34e7-11f1-9715-f35b3eb40b52"
+        )
+
+      val workItem =
+        NrsSubmissionWorkItem(
+          nrsSubmission = submission,
+          correlationId = correlationId
+        )
+
+      val persistedJson =
+        Json.toJson(workItem)
+
+      Json.stringify(persistedJson) should not include "Bearer sensitive-token"
+      Json.stringify(persistedJson) should not include "base64-evidence-payload"
+
+      val restoredWorkItem =
+        persistedJson.as[NrsSubmissionWorkItem]
+
+      restoredWorkItem.nrsSubmission shouldBe submission
+      restoredWorkItem.correlationId shouldBe correlationId
+
 
   private def createAndClaimDueWorkItem()
   : WorkItem[NrsSubmissionWorkItem] =

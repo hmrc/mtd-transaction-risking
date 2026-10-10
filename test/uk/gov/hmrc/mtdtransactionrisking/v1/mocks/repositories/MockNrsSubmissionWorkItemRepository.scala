@@ -22,6 +22,7 @@ import org.scalatest.TestSuite
 import uk.gov.hmrc.mongo.workitem.WorkItem
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.nrs.{NrsSubmission, NrsSubmissionWorkItem}
 import uk.gov.hmrc.mtdtransactionrisking.v1.repositories.NrsSubmissionWorkItemRepository
+import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
 
 import scala.concurrent.Future
 import org.bson.types.ObjectId
@@ -35,16 +36,18 @@ trait MockNrsSubmissionWorkItemRepository extends MockFactory:
   object MockNrsSubmissionWorkItemRepository:
 
     def enqueueRetryableFailure(
-                                 nrsSubmission: NrsSubmission
+                                 nrsSubmission: NrsSubmission,
+                                 correlationId: CorrelationId
                                ): CallHandler[Future[WorkItem[NrsSubmissionWorkItem]]] =
-      (mockNrsSubmissionWorkItemRepository.enqueueRetryableFailure(_: NrsSubmission))
-        .expects(nrsSubmission)
+      (mockNrsSubmissionWorkItemRepository.enqueueRetryableFailure(_: NrsSubmission, _: CorrelationId))
+        .expects(nrsSubmission, correlationId)
 
     def enqueuePermanentFailure(
-                                 nrsSubmission: NrsSubmission
+                                 nrsSubmission: NrsSubmission,
+                                 correlationId: CorrelationId
                                ): CallHandler[Future[WorkItem[NrsSubmissionWorkItem]]] =
-      (mockNrsSubmissionWorkItemRepository.enqueuePermanentFailure(_: NrsSubmission))
-        .expects(nrsSubmission)
+      (mockNrsSubmissionWorkItemRepository.enqueuePermanentFailure(_: NrsSubmission, _: CorrelationId))
+        .expects(nrsSubmission, correlationId)
 
     def pullDue(): CallHandler[Future[Option[WorkItem[NrsSubmissionWorkItem]]]] =
       (() => mockNrsSubmissionWorkItemRepository.pullDue())

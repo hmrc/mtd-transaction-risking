@@ -173,12 +173,13 @@ class GenerateFeedbackServiceSpec
         .submit(
           evidence = validReturnBody,
           vrn = vrn,
-          reportId = correlationId.value,
+          reportId = feedbackResponse.reportId,
           submissionTimestamp = submissionTimestamp,
           identityData = identityData,
           userAuthToken = userAuthToken,
           requestHeaders = requestHeaders,
-          notableEventType = AssistRequestFeedback
+          notableEventType = AssistRequestFeedback,
+          correlationId = correlationId
         )
         .returns(())
 
@@ -187,12 +188,13 @@ class GenerateFeedbackServiceSpec
         .submit(
           evidence = Json.toJson(feedbackResponse),
           vrn = vrn,
-          reportId = correlationId.value,
+          reportId = feedbackResponse.reportId,
           submissionTimestamp = submissionTimestamp,
           identityData = identityData,
           userAuthToken = userAuthToken,
           requestHeaders = requestHeaders,
-          notableEventType = AssistReportGenerated
+          notableEventType = AssistReportGenerated,
+          correlationId = correlationId
         )
         .returns(())
 

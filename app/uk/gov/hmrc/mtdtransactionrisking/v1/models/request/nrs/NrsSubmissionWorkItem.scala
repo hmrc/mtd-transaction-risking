@@ -16,11 +16,66 @@
 
 package uk.gov.hmrc.mtdtransactionrisking.v1.models.request.nrs
 
-import play.api.libs.json.{Json, OFormat}
+import play.api.libs.functional.syntax.*
+import play.api.libs.json.{Format, Json, OFormat, __}
+import uk.gov.hmrc.crypto.{Decrypter, Encrypter}
+import uk.gov.hmrc.crypto.Sensitive.SensitiveString
+import uk.gov.hmrc.crypto.json.JsonEncryption
+import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
 
-final case class NrsSubmissionWorkItem(
-                                        nrsSubmission: NrsSubmission
-                                      )
+final case class NrsSubmissionWorkItem private(
+                                                private val encryptedNrsSubmission: SensitiveString,
+                                                correlationId: CorrelationId
+                                              ):
+
+  lazy val nrsSubmission: NrsSubmission =
+    Json
+      .parse(encryptedNrsSubmission.decryptedValue)
+      .as[NrsSubmission]
 
 object NrsSubmissionWorkItem:
-  given format: OFormat[NrsSubmissionWorkItem] = Json.format[NrsSubmissionWorkItem]
+
+  private val EncryptedNrsSubmission =
+    "encryptedNrsSubmission"
+
+  def apply(
+             nrsSubmission: NrsSubmission,
+             correlationId: CorrelationId
+           ): NrsSubmissionWorkItem =
+    new NrsSubmissionWorkItem(
+      encryptedNrsSubmission = SensitiveString(
+        Json.stringify(
+          Json.toJson(nrsSubmission)
+        )
+      ),
+      correlationId = correlationId
+    )
+
+  private def fromEncrypted(
+                             encryptedNrsSubmission: SensitiveString,
+                             correlationId: CorrelationId
+                           ): NrsSubmissionWorkItem =
+    new NrsSubmissionWorkItem(
+      encryptedNrsSubmission = encryptedNrsSubmission,
+      correlationId = correlationId
+    )
+
+  given format(
+                using crypto: Encrypter & Decrypter
+              ): OFormat[NrsSubmissionWorkItem] =
+
+    given Format[SensitiveString] =
+      JsonEncryption.sensitiveEncrypterDecrypter(
+        SensitiveString.apply
+      )
+
+    (
+      (__ \ EncryptedNrsSubmission).format[SensitiveString] and
+        (__ \ "correlationId").format[CorrelationId]
+      )(
+      fromEncrypted,
+      workItem => (
+        workItem.encryptedNrsSubmission,
+        workItem.correlationId
+      )
+    )

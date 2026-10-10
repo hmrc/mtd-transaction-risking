@@ -88,7 +88,8 @@ class AcknowledgeServiceSpec extends UnitSpec, MockAcknowledgeConnector, MockInt
           identityData = identityData,
           userAuthToken = userAuthToken,
           requestHeaders = requestHeaders,
-          notableEventType = AssistReportAcknowledged
+          notableEventType = AssistReportAcknowledged,
+          correlationId = correlationId
         )
         .returns(())
 
@@ -128,7 +129,8 @@ class AcknowledgeServiceSpec extends UnitSpec, MockAcknowledgeConnector, MockInt
           identityData = identityData,
           userAuthToken = userAuthToken,
           requestHeaders = requestHeaders,
-          notableEventType = AssistReportAcknowledged
+          notableEventType = AssistReportAcknowledged,
+          correlationId = correlationId
         )
         .returns(())
 

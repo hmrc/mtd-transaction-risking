@@ -27,6 +27,7 @@ import uk.gov.hmrc.mtdtransactionrisking.v1.mocks.connectors.MockNrsConnector
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.auth.IdentityData
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.nrs.{AssistRequestFeedback, NrsSubmission, NrsSubmissionResult}
 import uk.gov.hmrc.mtdtransactionrisking.v1.repositories.NrsSubmissionWorkItemStore
+import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
 
 import java.nio.charset.StandardCharsets.UTF_8
 import java.security.MessageDigest
@@ -50,6 +51,9 @@ class NrsServiceSpec extends UnitSpec, MockAppConfig, MockNrsConnector:
 
   private val timestamp =
     Instant.parse("2026-09-24T10:15:30Z")
+
+  private val correlationId =
+    CorrelationId("bd6c0972-34e7-11f1-9715-f35b3eb40b52")  
 
   private val identityData =
     IdentityData(
@@ -144,7 +148,8 @@ class NrsServiceSpec extends UnitSpec, MockAppConfig, MockNrsConnector:
         identityData = identity,
         userAuthToken = userAuthToken,
         requestHeaders = requestHeaders,
-        notableEventType = AssistRequestFeedback
+        notableEventType = AssistRequestFeedback,
+        correlationId = correlationId
       )
 
   "NrsService.buildNrsSubmission" should:
@@ -240,7 +245,7 @@ class NrsServiceSpec extends UnitSpec, MockAppConfig, MockNrsConnector:
         .anyNumberOfTimes()
 
       MockNrsConnector
-        .submit(expectedSubmission())
+        .submit(expectedSubmission(), correlationId)
         .onCall { _ =>
           connectorCalled.success(())
           Future.successful(NrsSubmissionResult.Success)
@@ -273,7 +278,7 @@ class NrsServiceSpec extends UnitSpec, MockAppConfig, MockNrsConnector:
         .anyNumberOfTimes()
 
       MockNrsConnector
-        .submit(expectedSubmission())
+        .submit(expectedSubmission(), correlationId)
         .onCall { _ =>
           connectorCalled.success(())
           Future.successful(NrsSubmissionResult.Success)

@@ -64,10 +64,13 @@ trait AppConfig:
   def nrsApiKey: String
   def nrsRetryInitialDelay: FiniteDuration
   def nrsRetryInterval: FiniteDuration
+  def nrsRetryBatchSize: Int
   def nrsRetryInProgressRetryAfter: FiniteDuration
   def nrsRetryMaxRetries: Int
   def nrsRetryInitialBackoff: FiniteDuration
   def nrsRetryBackoffMultiplier: Double
+  def nrsRetryMaxBackoff: FiniteDuration
+  def nrsRetryJitterFactor: Double
   def nrsRetryRetention: FiniteDuration
 
 @Singleton
@@ -146,6 +149,9 @@ class AppConfigImpl @Inject() (config: ServicesConfig, configuration: Configurat
   def nrsRetryInterval: FiniteDuration =
     configuration.get[FiniteDuration]("nrs-retry.interval")
 
+  def nrsRetryBatchSize: Int =
+    configuration.get[Int]("nrs-retry.batch-size")
+
   def nrsRetryInProgressRetryAfter: FiniteDuration =
     configuration.get[FiniteDuration]("nrs-retry.in-progress-retry-after")
 
@@ -157,6 +163,12 @@ class AppConfigImpl @Inject() (config: ServicesConfig, configuration: Configurat
 
   def nrsRetryBackoffMultiplier: Double =
     configuration.get[Double]("nrs-retry.backoff-multiplier")
+
+  def nrsRetryMaxBackoff: FiniteDuration =
+    configuration.get[FiniteDuration]("nrs-retry.max-backoff")
+
+  def nrsRetryJitterFactor: Double =
+    configuration.get[Double]("nrs-retry.jitter-factor")
 
   def nrsRetryRetention: FiniteDuration =
     configuration.get[FiniteDuration]("nrs-retry.retention")

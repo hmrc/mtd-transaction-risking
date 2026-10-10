@@ -19,6 +19,7 @@ package uk.gov.hmrc.mtdtransactionrisking.v1.repositories
 import com.google.inject.ImplementedBy
 import org.bson.types.ObjectId
 import uk.gov.hmrc.mongo.workitem.WorkItem
+import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.nrs.{NrsSubmission, NrsSubmissionWorkItem}
 
 import scala.concurrent.Future
@@ -26,11 +27,13 @@ import scala.concurrent.Future
 @ImplementedBy(classOf[NrsSubmissionWorkItemRepository])
 trait NrsSubmissionWorkItemStore:
   def enqueueRetryableFailure(
-                               submission: NrsSubmission
+                               submission: NrsSubmission,
+                               correlationId: CorrelationId
                              ): Future[WorkItem[NrsSubmissionWorkItem]]
 
   def enqueuePermanentFailure(
-                               submission: NrsSubmission
+                               submission: NrsSubmission,
+                               correlationId: CorrelationId
                              ): Future[WorkItem[NrsSubmissionWorkItem]]
 
   def pullDue(): Future[Option[WorkItem[NrsSubmissionWorkItem]]]

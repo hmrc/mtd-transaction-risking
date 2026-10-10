@@ -24,7 +24,7 @@ import uk.gov.hmrc.http.HttpReads.Implicits.*
 import uk.gov.hmrc.http.client.HttpClientV2
 import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse, StringContextOps}
 import uk.gov.hmrc.mtdtransactionrisking.config.AppConfig
-import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator
+import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.nrs.{NrsSubmission, NrsSubmissionResult}
 
 import java.io.IOException
@@ -40,17 +40,15 @@ class NrsConnector @Inject()(
                             )(implicit ec: ExecutionContext)
   extends Logging:
 
-  def submit(nrsSubmission: NrsSubmission): Future[NrsSubmissionResult] =
+  def submit(nrsSubmission: NrsSubmission, correlationId: CorrelationId): Future[NrsSubmissionResult] =
     given HeaderCarrier = HeaderCarrier()
-
-    val nrsCorrelationId = IdGenerator.generateId()
 
     httpClient
       .post(url"${appConfig.nrsSubmissionUrl}")
       .withBody(Json.toJson(nrsSubmission))
       .setHeader(
         "X-API-Key" -> appConfig.nrsApiKey,
-        "X-Correlation-Id" -> nrsCorrelationId.value,
+        "X-Correlation-Id" -> correlationId.value,
         "Content-Type" -> "application/json"
       )
       .execute[HttpResponse]
@@ -58,28 +56,28 @@ class NrsConnector @Inject()(
         response.status match
           case ACCEPTED =>
             logger.info(
-              s"${nrsCorrelationId.value}::[NrsConnector][submit] " +
+              s"${correlationId.value}::[NrsConnector][submit] " +
                 "NRS submission accepted"
             )
             NrsSubmissionResult.Success
 
           case TOO_MANY_REQUESTS | 499 =>
             logger.warn(
-              s"${nrsCorrelationId.value}::[NrsConnector][submit] " +
+              s"${correlationId.value}::[NrsConnector][submit] " +
                 s"NRS submission received retryable status ${response.status}"
             )
             NrsSubmissionResult.RetryableFailure
 
           case status if status >= 500 && status <= 599 =>
             logger.warn(
-              s"${nrsCorrelationId.value}::[NrsConnector][submit] " +
+              s"${correlationId.value}::[NrsConnector][submit] " +
                 s"NRS submission received retryable status $status"
             )
             NrsSubmissionResult.RetryableFailure
 
           case status =>
             logger.warn(
-              s"${nrsCorrelationId.value}::[NrsConnector][submit] " +
+              s"${correlationId.value}::[NrsConnector][submit] " +
                 s"NRS submission received permanent status $status"
             )
             NrsSubmissionResult.PermanentFailure
@@ -87,7 +85,7 @@ class NrsConnector @Inject()(
       .recoverWith {
         case error if NrsConnector.isRetryableTransportFailure(error) =>
           logger.warn(
-            s"${nrsCorrelationId.value}::[NrsConnector][submit] " +
+            s"${correlationId.value}::[NrsConnector][submit] " +
               "NRS submission failed with a retryable transport error",
             error
           )

@@ -20,11 +20,14 @@ import org.bson.conversions.Bson
 import org.mongodb.scala.model.Filters
 import org.mongodb.scala.model.Indexes
 import org.mongodb.scala.model.{IndexModel, IndexOptions, Updates}
+import play.api.libs.json.OFormat
 import uk.gov.hmrc.mongo.MongoComponent
 import uk.gov.hmrc.mongo.workitem.{ProcessingStatus, WorkItem, WorkItemFields, WorkItemRepository}
 import uk.gov.hmrc.mtdtransactionrisking.config.AppConfig
+import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.nrs.{NrsSubmission, NrsSubmissionWorkItem}
 import uk.gov.hmrc.mtdtransactionrisking.v1.services.NrsRetryPolicy
+import uk.gov.hmrc.crypto.{Decrypter, Encrypter}
 
 import java.time.{Clock, Duration, Instant}
 import java.util.Date
@@ -38,11 +41,11 @@ class NrsSubmissionWorkItemRepository @Inject()(
                                                  appConfig: AppConfig,
                                                  retryPolicy: NrsRetryPolicy,
                                                  clock: Clock
-                                               )(using ec: ExecutionContext)
+                                               )(using ec: ExecutionContext, crypto: Encrypter & Decrypter)
   extends WorkItemRepository[NrsSubmissionWorkItem](
     collectionName = "nrs-submission-work-items",
     mongoComponent = mongoComponent,
-    itemFormat = NrsSubmissionWorkItem.format,
+    itemFormat = summon[OFormat[NrsSubmissionWorkItem]],
     workItemFields = WorkItemFields.default,
     extraIndexes = Seq(
       IndexModel(
@@ -64,18 +67,20 @@ class NrsSubmissionWorkItemRepository @Inject()(
     true
 
   def enqueueRetryableFailure(
-                               nrsSubmission: NrsSubmission
+                               submission: NrsSubmission,
+                               correlationId: CorrelationId
                              ): Future[WorkItem[NrsSubmissionWorkItem]] =
     pushNew(
-      item = NrsSubmissionWorkItem(nrsSubmission),
+      item = NrsSubmissionWorkItem(nrsSubmission = submission, correlationId = correlationId),
       availableAt = now().plusMillis(retryPolicy.delayForRetry(1).toMillis)
     )
 
   def enqueuePermanentFailure(
-                               nrsSubmission: NrsSubmission
+                               submission: NrsSubmission,
+                               correlationId: CorrelationId
                              ): Future[WorkItem[NrsSubmissionWorkItem]] =
     pushNew(
-      item = NrsSubmissionWorkItem(nrsSubmission),
+      item = NrsSubmissionWorkItem(nrsSubmission = submission, correlationId = correlationId),
       availableAt = now(),
       initialState = _ => ProcessingStatus.PermanentlyFailed
     )
@@ -103,7 +108,7 @@ class NrsSubmissionWorkItemRepository @Inject()(
       Seq[Bson](
         Updates.set(WorkItemFields.default.status, status),
         Updates.set(WorkItemFields.default.updatedAt, Date.from(now())),
-        Updates.inc(WorkItemFields.default.failureCount, 1L)
+        Updates.inc(WorkItemFields.default.failureCount, 1)
       ) ++
         Option.when(!retriesExhausted) {
           val nextRetryNumber =

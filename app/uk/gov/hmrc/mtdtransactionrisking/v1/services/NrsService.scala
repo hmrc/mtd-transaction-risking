@@ -19,6 +19,7 @@ package uk.gov.hmrc.mtdtransactionrisking.v1.services
 import play.api.libs.json.{JsObject, JsValue, Json}
 import uk.gov.hmrc.mongo.workitem.WorkItem
 import uk.gov.hmrc.mtdtransactionrisking.config.{AppConfig, FeatureSwitch, NrsSubmissionFeature}
+import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
 import uk.gov.hmrc.mtdtransactionrisking.utils.Logging
 import uk.gov.hmrc.mtdtransactionrisking.v1.connectors.NrsConnector
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.auth.IdentityData
@@ -53,7 +54,8 @@ class NrsService @Inject()(
               identityData: Option[IdentityData],
               userAuthToken: Option[String],
               requestHeaders: Seq[(String, String)],
-              notableEventType: NotableEventType
+              notableEventType: NotableEventType,
+              correlationId: CorrelationId
             ): Unit =
     if !FeatureSwitch(appConfig.featureSwitch).isEnabled(NrsSubmissionFeature) then
       logger.debug(
@@ -75,21 +77,34 @@ class NrsService @Inject()(
           logger.warn(s"[NrsService][submit] NRS submission skipped: $reason")
 
         case Right(nrsSubmission) =>
-          submitInitial(nrsSubmission)
+          submitInitial(nrsSubmission = nrsSubmission, correlationId = correlationId)
 
   def processDueWorkItems(): Future[Unit] =
 
-    def processNext(): Future[Unit] =
-      nrsSubmissionWorkItemRepository.pullDue().flatMap {
-        case None =>
-          Future.unit
+    def processNext(
+                     processedCount: Int
+                   ): Future[Unit] =
+      if processedCount >= appConfig.nrsRetryBatchSize then
+        logger.info(
+          s"[NrsService][processDueWorkItems] reached configured retry batch " +
+            s"size ${appConfig.nrsRetryBatchSize}"
+        )
+        Future.unit
+      else
+        nrsSubmissionWorkItemRepository
+          .pullDue()
+          .flatMap {
+            case None =>
+              Future.unit
 
-        case Some(workItem) =>
-          processWorkItem(workItem)
-            .flatMap(_ => processNext())
-      }
+            case Some(workItem) =>
+              processWorkItem(workItem)
+                .flatMap(
+                  _ => processNext(processedCount + 1)
+                )
+          }
 
-    processNext()
+    processNext(processedCount = 0)
 
   def buildNrsSubmission(
                           evidence: JsValue,
@@ -131,10 +146,20 @@ class NrsService @Inject()(
       )
 
   private def submitInitial(
-                             nrsSubmission: NrsSubmission
+                             nrsSubmission: NrsSubmission,
+                             correlationId: CorrelationId
                            ): Unit =
     connector
-      .submit(nrsSubmission)
+      .submit(nrsSubmission = nrsSubmission, correlationId = correlationId)
+      .recover { case NonFatal(error) =>
+        logger.warn(
+          s"${correlationId.value}::[NrsService][submitInitial] " +
+            s"NRS submission failed unexpectedly for " +
+            s"${nrsSubmission.metadata.notableEvent}; scheduling retry",
+          error
+        )
+        NrsSubmissionResult.RetryableFailure
+      }
       .flatMap {
         case NrsSubmissionResult.Success =>
           logger.info(
@@ -145,7 +170,7 @@ class NrsService @Inject()(
 
         case NrsSubmissionResult.RetryableFailure =>
           nrsSubmissionWorkItemRepository
-            .enqueueRetryableFailure(nrsSubmission)
+            .enqueueRetryableFailure(submission = nrsSubmission, correlationId = correlationId)
             .map { workItem =>
               logger.warn(
                 s"[NrsService][submitInitial] Retryable NRS failure for " +
@@ -158,20 +183,23 @@ class NrsService @Inject()(
 
         case NrsSubmissionResult.PermanentFailure =>
           nrsSubmissionWorkItemRepository
-            .enqueuePermanentFailure(nrsSubmission)
+            .enqueuePermanentFailure(submission = nrsSubmission, correlationId = correlationId)
             .map { workItem =>
               logger.warn(
                 s"[NrsService][submitInitial] Permanent NRS failure for " +
                   s"${nrsSubmission.metadata.notableEvent}; " +
-                  s"persisted work item ${workItem.id} for 28-day retention"
+                  s"persisted work item ${workItem.id} for " +
+                  s"${appConfig.nrsRetryRetention} retention"
               )
               ()
             }
       }
       .recover { case NonFatal(error) =>
         logger.error(
-          s"[NrsService][submitInitial] Unexpected NRS submission or " +
-            "retry-persistence failure; VAT Assist response is unaffected",
+          s"${correlationId.value}::[NrsService][submitInitial] " +
+            s"Failed to persist NRS submission for " +
+            s"${nrsSubmission.metadata.notableEvent}; " +
+            "VAT Assist response is unaffected",
           error
         )
         ()
@@ -180,7 +208,22 @@ class NrsService @Inject()(
   private def processWorkItem(
                                workItem: WorkItem[NrsSubmissionWorkItem]
                              ): Future[Unit] =
-    connector.submit(workItem.item.nrsSubmission).flatMap {
+    connector
+      .submit(
+        nrsSubmission = workItem.item.nrsSubmission,
+        correlationId = workItem.item.correlationId
+      )
+      .recover {
+        case NonFatal(error) =>
+          logger.error(
+            s"${workItem.item.correlationId.value}::" +
+              s"[NrsService][processWorkItem] unexpected NRS connector failure " +
+              s"for work item ${workItem.id}; treating it as retryable",
+            error
+          )
+          NrsSubmissionResult.RetryableFailure
+      }
+      .flatMap {
       case NrsSubmissionResult.Success =>
         nrsSubmissionWorkItemRepository
           .completeAndDelete(workItem.id)
@@ -192,6 +235,7 @@ class NrsService @Inject()(
             ()
           }
 
+
       case NrsSubmissionResult.RetryableFailure =>
         val retryNumber = workItem.failureCount + 1
 
@@ -202,7 +246,8 @@ class NrsService @Inject()(
               logger.warn(
                 s"[NrsService][processDueWorkItems] NRS work item " +
                   s"${workItem.id} exhausted retry $retryNumber/" +
-                  s"${retryPolicy.maxRetries}; retained for 28 days; " +
+                  s"${retryPolicy.maxRetries}; retained for " +
+                  s"${appConfig.nrsRetryRetention}; " +
                   s"updated=$updated"
               )
             else
@@ -222,7 +267,8 @@ class NrsService @Inject()(
           .map { updated =>
             logger.warn(
               s"[NrsService][processDueWorkItems] Permanent NRS failure for " +
-                s"work item ${workItem.id}; retained for 28 days; " +
+                s"work item ${workItem.id}; retained for " +
+                s"${appConfig.nrsRetryRetention}; " +
                 s"updated=$updated"
             )
             ()
