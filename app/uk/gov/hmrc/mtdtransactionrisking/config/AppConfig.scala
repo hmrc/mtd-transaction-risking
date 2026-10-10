@@ -53,6 +53,7 @@ trait AppConfig:
   def rdsAuthRequired: Boolean
   def rdsAuthUrl: String
   def rdsCredentials: RdsCredentials
+  def rdsLogPayloads: Boolean
 
   // RSD interaction datastore
   def interactionsBaseUrl: String
@@ -113,6 +114,8 @@ class AppConfigImpl @Inject() (config: ServicesConfig, configuration: Configurat
     clientId = rdsConfig.get[String]("sas.clientId"),
     clientSecret = rdsConfig.get[String]("sas.clientSecret")
   )
+  val rdsLogPayloads: Boolean =
+    configuration.getOptional[Boolean]("microservice.services.rds.logPayloads").getOrElse(false)
 
   private val interactionsConfig = configuration.get[Configuration]("microservice.services.interactions-datastore")
   val interactionsBaseUrl: String = config.baseUrl("interactions-datastore") + interactionsConfig.get[String]("submit-url")

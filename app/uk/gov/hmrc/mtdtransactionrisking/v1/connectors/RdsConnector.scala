@@ -95,12 +95,24 @@ class RdsConnector @Inject() (httpClient: HttpClientV2, appConfig: AppConfig)(im
           logger.error(s"${correlationId.value}::[RdsConnector][acknowledge] unexpected exception", ex)
           Left(ErrorWrapper(correlationId, DownstreamError))
 
+  private def buildHeaders(correlationId: CorrelationId, appName: String, credentials: Option[RdsAuthCredentials]): Seq[(String, String)] =
+    Seq(
+      "User-Agent" -> appName,
+      "Content-Type" -> "application/json",
+      "X-CorrelationId" -> correlationId.value
+    ) ++ credentials.map(_.bearerHeader)
+
   // A 201 means the call executed. The actual decision is in the report responseCode field
   def generateReport(vrn: String, request: ReportRequest, credentials: Option[RdsAuthCredentials])(implicit
       hc: HeaderCarrier,
       correlationId: CorrelationId): Future[ServiceOutcome[FeedbackResponse]] =
 
+    val body = Json.toJson(request)
+
     logger.info(s"${correlationId.value}::[RdsConnector][generateReport] requesting report for VRN $vrn")
+
+    if appConfig.rdsLogPayloads then
+      logger.info(s"${correlationId.value}::[RdsConnector][generateReport] request body: ${Json.stringify(body)}")
 
     httpClient
       .post(url"${appConfig.rdsSubmitUrl}")
@@ -109,6 +121,8 @@ class RdsConnector @Inject() (httpClient: HttpClientV2, appConfig: AppConfig)(im
       .withProxy
       .execute[HttpResponse]
       .map { response =>
+        if appConfig.rdsLogPayloads then
+          logger.info(s"${correlationId.value}::[RdsConnector][generateReport] response status ${response.status}, body: ${response.body}")
         response.status match
           case CREATED =>
             handleReport(response)
@@ -154,10 +168,3 @@ class RdsConnector @Inject() (httpClient: HttpClientV2, appConfig: AppConfig)(im
           case None =>
             logger.error(s"${correlationId.value}::[RdsConnector][generateReport] report has no responseCode")
             Left(ErrorWrapper(correlationId, DownstreamError))
-
-  private def buildHeaders(correlationId: CorrelationId, appName: String, credentials: Option[RdsAuthCredentials]): Seq[(String, String)] =
-    Seq(
-      "User-Agent" -> appName,
-      "Content-Type" -> "application/json",
-      "X-CorrelationId" -> correlationId.value
-    ) ++ credentials.map(_.bearerHeader)

@@ -32,8 +32,8 @@ import uk.gov.hmrc.mtdtransactionrisking.v1.models.errors.{
   ServiceUnavailableError
 }
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.outcomes.ResponseWrapper
-import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.{AcknowledgeRequest, FraudPreventionHeader, RdsAcknowledgeRequest, ReportRequest}
-import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.{RdsAcknowledgeResponse, FeedbackResponse}
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.*
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.{FeedbackResponse, RdsAcknowledgeResponse}
 import uk.gov.hmrc.mtdtransactionrisking.v1.services.ServiceOutcome
 
 import scala.concurrent.Future
@@ -54,23 +54,24 @@ class RdsConnectorSpec extends ConnectorSpec, BeforeAndAfterAll, Injecting, Mock
 
   private val rdsRequest: ReportRequest = ReportRequest(
     fixedId = "2dd537bc-4244-4ebf-bac9-96321be13cdc",
+    vrn = vrn,
     periodKey = "AB12",
     startDate = "2026-01-01",
     endDate = "2026-03-31",
     customerType = "T",
     agentReferenceNumber = None,
-    fraudRiskReportScore = 4.7,
+    fraudRiskReportScore = BigDecimal("4.7"),                                      
     fraudRiskReportReasons = Seq("VRN 123456789 is 3.7 hops away from something risky."),
-    fraudPreventionHeaders = Seq(FraudPreventionHeader("gov-client-timezone", "UTC+00:00")),
+    fraudPreventionHeaders = Seq(FraudPreventionHeader("Gov-Client-Timezone", "UTC+00:00")),
     vatDueSales = BigDecimal("100.00"),
     vatDueAcquisitions = BigDecimal("100.00"),
-    vatDueTotal = BigDecimal("200.00"),
+    totalVatDue = BigDecimal("200.00"),
     vatReclaimedCurrPeriod = BigDecimal("100.00"),
-    vatDueNet = BigDecimal("100.00"),
+    netVatDue = BigDecimal("100.00"),
     totalValueSalesExVAT = BigDecimal(500),
     totalValuePurchasesExVAT = BigDecimal(400),
     totalValueGoodsSuppliedExVAT = BigDecimal(300),
-    totalAllAcquisitionsExVAT = BigDecimal(200)
+    totalAcquisitionsExVAT = BigDecimal(200)
   )
 
   private val acknowledgeRequest: AcknowledgeRequest = AcknowledgeRequest(
@@ -180,6 +181,7 @@ class RdsConnectorSpec extends ConnectorSpec, BeforeAndAfterAll, Injecting, Mock
     MockedAppConfig.rdsSubmitUrl.returns(s"http://localhost:$port$reportPath").anyNumberOfTimes()
     MockedAppConfig.rdsAcknowledgeUrl.returns(s"http://localhost:$port$acknowledgePath").anyNumberOfTimes()
     MockedAppConfig.appName.returns("mtd-transaction-risking").anyNumberOfTimes()
+    MockedAppConfig.rdsLogPayloads.returns(false).anyNumberOfTimes()
 
     val connector = new RdsConnector(httpClient, mockAppConfig)
 
@@ -406,13 +408,13 @@ class RdsConnectorSpec extends ConnectorSpec, BeforeAndAfterAll, Injecting, Mock
 
         wireMockServer.verify(postRequestedFor(reportUrlPattern).withoutHeader("Authorization"))
 
-      "send the report request as JSON" in new Test:
+      "send the report request in the MAS inputs envelope" in new Test:
         stubReport(Some(reportJson().toString), CREATED)
 
         await(generateReport())
 
         wireMockServer.verify(postRequestedFor(reportUrlPattern).withRequestBody(equalToJson(Json.toJson(rdsRequest).toString, true, false)))
-
+      
       "send the correlation id and user agent" in new Test:
         stubReport(Some(reportJson().toString), CREATED)
 

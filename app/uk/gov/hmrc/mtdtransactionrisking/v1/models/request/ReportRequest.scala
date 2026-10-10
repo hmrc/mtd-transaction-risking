@@ -16,49 +16,110 @@
 
 package uk.gov.hmrc.mtdtransactionrisking.v1.models.request
 
-import play.api.libs.json.{JsValue, Json, OWrites}
+import play.api.libs.json.*
 
 case class FraudPreventionHeader(key: String, value: String)
 
-object FraudPreventionHeader:
-  given writes: OWrites[FraudPreventionHeader] = Json.writes[FraudPreventionHeader]
-
 case class ReportRequest(
     fixedId: String,
+    vrn: String,
     periodKey: String,
     startDate: String,
     endDate: String,
     customerType: String,
     agentReferenceNumber: Option[String],
-    fraudRiskReportScore: Double,
-    fraudRiskReportReasons: Seq[String],
-    fraudPreventionHeaders: Seq[FraudPreventionHeader],
     vatDueSales: BigDecimal,
     vatDueAcquisitions: BigDecimal,
-    vatDueTotal: BigDecimal,
+    totalVatDue: BigDecimal,
     vatReclaimedCurrPeriod: BigDecimal,
-    vatDueNet: BigDecimal,
+    netVatDue: BigDecimal,
     totalValueSalesExVAT: BigDecimal,
     totalValuePurchasesExVAT: BigDecimal,
     totalValueGoodsSuppliedExVAT: BigDecimal,
-    totalAllAcquisitionsExVAT: BigDecimal
+    totalAcquisitionsExVAT: BigDecimal,
+    fraudRiskReportScore: BigDecimal,
+    fraudPreventionHeaders: Seq[FraudPreventionHeader],
+    fraudRiskReportReasons: Seq[String]
 )
+
 object ReportRequest:
 
   private val agent = "A"
   private val taxPayer = "T"
+
   private val govHeaderPrefixes = Seq("gov-client-", "gov-vendor-")
 
-  given writes: OWrites[ReportRequest] = Json.writes[ReportRequest]
-  
+  // RDS matches on exact header names, so known headers are sent in canonical casing unknown Gov-* headers pass through as received.
+  private val headerNames: Map[String, String] = Seq(
+    "Gov-Client-Connection-Method",
+    "Gov-Client-Device-ID",
+    "Gov-Client-Local-IPs",
+    "Gov-Client-Local-IPs-Timestamp",
+    "Gov-Client-MAC-Addresses",
+    "Gov-Client-Multi-Factor",
+    "Gov-Client-Public-IP",
+    "Gov-Client-Public-IP-Timestamp",
+    "Gov-Client-Public-Port",
+    "Gov-Client-Screens",
+    "Gov-Client-Timezone",
+    "Gov-Client-User-Agent",
+    "Gov-Client-User-IDs",
+    "Gov-Client-Window-Size",
+    "Gov-Client-Browser-JS-User-Agent",
+    "Gov-Client-Browser-Do-Not-Track",
+    "Gov-Vendor-Forwarded",
+    "Gov-Vendor-License-IDs",
+    "Gov-Vendor-Product-Name",
+    "Gov-Vendor-Public-IP",
+    "Gov-Vendor-Version"
+  ).map(name => name.toLowerCase -> name).toMap
+
+  given writes: OWrites[ReportRequest] = OWrites { request =>
+
+    def input(name: String, value: JsValue): JsObject = Json.obj("name" -> name, "value" -> value)
+
+    Json.obj(
+      "inputs" -> Json.arr(
+        input("fixedId", JsString(request.fixedId)),
+        input("vrn", JsString(request.vrn)),
+        input("periodKey", JsString(request.periodKey)),
+        input("startDate", JsString(request.startDate)),
+        input("endDate", JsString(request.endDate)),
+        input("customerType", JsString(request.customerType)),
+        // Every variable must be present; null when not an agent
+        input("agentReferenceNumber", request.agentReferenceNumber.fold[JsValue](JsNull)(JsString(_))),
+        input("vatDueSales", JsNumber(request.vatDueSales)),
+        input("vatDueAcquisitions", JsNumber(request.vatDueAcquisitions)),
+        input("totalVatDue", JsNumber(request.totalVatDue)),
+        input("vatReclaimedCurrPeriod", JsNumber(request.vatReclaimedCurrPeriod)),
+        input("netVatDue", JsNumber(request.netVatDue)),
+        input("totalValueSalesExVAT", JsNumber(request.totalValueSalesExVAT)),
+        input("totalValuePurchasesExVAT", JsNumber(request.totalValuePurchasesExVAT)),
+        input("totalValueGoodsSuppliedExVAT", JsNumber(request.totalValueGoodsSuppliedExVAT)),
+        input("totalAcquisitionsExVAT", JsNumber(request.totalAcquisitionsExVAT)),
+        input("fraudRiskReportScore", JsNumber(request.fraudRiskReportScore)),
+        input("fraudPreventionHeaders", grid(Seq("key", "value"), request.fraudPreventionHeaders.map(header => Seq(header.key, header.value)))),
+        input("fraudRiskReportReasons", grid(Seq("Reason"), request.fraudRiskReportReasons.map(Seq(_))))
+      )
+    )
+  }
+
+  // SAS data grid with no rows data is an empty array.
+  private def grid(columns: Seq[String], rows: Seq[Seq[String]]): JsValue =
+    Json.arr(
+      Json.obj("metadata" -> columns.map(column => Json.obj(column -> "string"))),
+      Json.obj("data" -> rows)
+    )
+
   def from(
       correlationId: String,
+      vrn: String,
       vendorBody: JsValue,
       agentReferenceNumber: Option[String],
       periodKey: String,
       startDate: String,
       endDate: String,
-      fraudRiskReportScore: Double,
+      fraudRiskReportScore: BigDecimal,
       fraudRiskReportReasons: Seq[String],
       requestHeaders: Seq[(String, String)]
   ): Option[ReportRequest] =
@@ -68,33 +129,37 @@ object ReportRequest:
     for
       vatDueSales <- amount("vatDueSales")
       vatDueAcquisitions <- amount("vatDueAcquisitions")
-      vatDueTotal <- amount("totalVatDue")
+      totalVatDue <- amount("totalVatDue")
       vatReclaimedCurrPeriod <- amount("vatReclaimedCurrPeriod")
-      vatDueNet <- amount("netVatDue")
+      netVatDue <- amount("netVatDue")
       totalValueSalesExVAT <- amount("totalValueSalesExVAT")
       totalValuePurchasesExVAT <- amount("totalValuePurchasesExVAT")
       totalValueGoodsSuppliedExVAT <- amount("totalValueGoodsSuppliedExVAT")
-      totalAllAcquisitionsExVAT <- amount("totalAcquisitionsExVAT")
+      totalAcquisitionsExVAT <- amount("totalAcquisitionsExVAT")
     yield ReportRequest(
       fixedId = correlationId,
+      vrn = vrn,
       periodKey = periodKey,
       startDate = startDate,
       endDate = endDate,
       customerType = if agentReferenceNumber.isDefined then agent else taxPayer,
       agentReferenceNumber = agentReferenceNumber,
-      fraudRiskReportScore = fraudRiskReportScore,
-      fraudRiskReportReasons = fraudRiskReportReasons,
-      fraudPreventionHeaders = requestHeaders.collect {
-        case (key, value) if govHeaderPrefixes.exists(key.toLowerCase.startsWith) =>
-          FraudPreventionHeader(key.toLowerCase, value)
-      },
       vatDueSales = vatDueSales,
       vatDueAcquisitions = vatDueAcquisitions,
-      vatDueTotal = vatDueTotal,
+      totalVatDue = totalVatDue,
       vatReclaimedCurrPeriod = vatReclaimedCurrPeriod,
-      vatDueNet = vatDueNet,
+      netVatDue = netVatDue,
       totalValueSalesExVAT = totalValueSalesExVAT,
       totalValuePurchasesExVAT = totalValuePurchasesExVAT,
       totalValueGoodsSuppliedExVAT = totalValueGoodsSuppliedExVAT,
-      totalAllAcquisitionsExVAT = totalAllAcquisitionsExVAT
+      totalAcquisitionsExVAT = totalAcquisitionsExVAT,
+      fraudRiskReportScore = fraudRiskReportScore,
+      fraudPreventionHeaders = fraudPreventionHeaders(requestHeaders),
+      fraudRiskReportReasons = fraudRiskReportReasons
     )
+
+  private def fraudPreventionHeaders(requestHeaders: Seq[(String, String)]): Seq[FraudPreventionHeader] =
+    requestHeaders.collect {
+      case (name, value) if govHeaderPrefixes.exists(name.toLowerCase.startsWith) =>
+        FraudPreventionHeader(headerNames.getOrElse(name.toLowerCase, name), value)
+    }
