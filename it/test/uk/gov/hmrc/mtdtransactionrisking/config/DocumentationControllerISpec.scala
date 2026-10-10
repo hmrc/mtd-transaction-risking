@@ -41,7 +41,6 @@ import play.api.Application
 import play.api.inject.guice.GuiceApplicationBuilder
 import play.api.libs.ws.WSClient
 import play.api.libs.ws.DefaultBodyReadables.readableAsString
-import uk.gov.hmrc.mongo.play.PlayMongoModule
 
 class DocumentationControllerISpec extends AnyWordSpec with Matchers with ScalaFutures with IntegrationPatience with GuiceOneServerPerSuite {
 
@@ -54,7 +53,6 @@ class DocumentationControllerISpec extends AnyWordSpec with Matchers with ScalaF
         "metrics.enabled"  -> false,
         "auditing.enabled" -> false
       )
-      .disable[PlayMongoModule]
       .build()
 
   "a request for an OpenAPI Spec" should {

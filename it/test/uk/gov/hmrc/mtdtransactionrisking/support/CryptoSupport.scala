@@ -14,16 +14,13 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.mtdtransactionrisking.config
+package uk.gov.hmrc.mtdtransactionrisking.support
 
-sealed trait Feature:
-  val name: String
+import uk.gov.hmrc.crypto.{Decrypter, Encrypter, SymmetricCryptoFactory}
 
-case object AuthFeature extends Feature:
-  override val name: String = "auth"
+trait CryptoSupport:
 
-case object NrsSubmissionFeature extends Feature:
-  override val name: String = "nrs-submission"
-
-case object NrsRetryFeature extends Feature:
-  override val name: String = "nrs-retry"
+  given crypto: (Encrypter & Decrypter) =
+    SymmetricCryptoFactory.aesGcmCrypto(
+      "9EMrIXA5uyAUjKzd/uViY0JAH2UqIl+VFWuTug4a7Uc="
+    )

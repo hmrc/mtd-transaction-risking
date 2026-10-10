@@ -16,14 +16,18 @@
 
 package uk.gov.hmrc.mtdtransactionrisking.config
 
-sealed trait Feature:
-  val name: String
+import play.api.Configuration
+import uk.gov.hmrc.crypto.{Decrypter, Encrypter, SymmetricCryptoFactory}
 
-case object AuthFeature extends Feature:
-  override val name: String = "auth"
+import javax.inject.{Inject, Provider, Singleton}
 
-case object NrsSubmissionFeature extends Feature:
-  override val name: String = "nrs-submission"
+@Singleton
+class CryptoProvider @Inject()(
+                                configuration: Configuration
+                              ) extends Provider[Encrypter & Decrypter]:
 
-case object NrsRetryFeature extends Feature:
-  override val name: String = "nrs-retry"
+  override def get(): Encrypter & Decrypter =
+    SymmetricCryptoFactory.aesGcmCryptoFromConfig(
+      baseConfigKey = "nrs-retry.crypto",
+      config = configuration.underlying
+    )

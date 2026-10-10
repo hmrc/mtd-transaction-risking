@@ -22,6 +22,7 @@ import org.scalatest.TestSuite
 import play.api.Configuration
 import uk.gov.hmrc.mtdtransactionrisking.config.AppConfig
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.auth.{InteractionCredentials, RdsCredentials}
+import scala.concurrent.duration.FiniteDuration
 
 trait MockAppConfig extends MockFactory:
   this: TestSuite =>
@@ -91,4 +92,35 @@ trait MockAppConfig extends MockFactory:
       (() => mockAppConfig.nrsSubmissionUrl).expects()
 
     def nrsApiKey: CallHandler[String] =
-      (() => mockAppConfig.nrsApiKey).expects()  
+      (() => mockAppConfig.nrsApiKey).expects()
+
+    def nrsRetryInitialDelay: CallHandler[FiniteDuration] =
+      (() => mockAppConfig.nrsRetryInitialDelay).expects()
+  
+    def nrsRetryInterval: CallHandler[FiniteDuration] =
+      (() => mockAppConfig.nrsRetryInterval).expects()
+
+    def nrsRetryBatchSize: CallHandler[Int] =
+      (() => mockAppConfig.nrsRetryBatchSize).expects()
+
+    def nrsRetryInProgressRetryAfter: CallHandler[FiniteDuration] =
+      (() => mockAppConfig.nrsRetryInProgressRetryAfter).expects()
+  
+    def nrsRetryMaxRetries: CallHandler[Int] =
+      (() => mockAppConfig.nrsRetryMaxRetries).expects()
+  
+    def nrsRetryInitialBackoff: CallHandler[FiniteDuration] =
+      (() => mockAppConfig.nrsRetryInitialBackoff).expects()
+  
+    def nrsRetryBackoffMultiplier: CallHandler[Double] =
+      (() => mockAppConfig.nrsRetryBackoffMultiplier).expects()
+
+    def nrsRetryMaxBackoff: CallHandler[FiniteDuration] =
+      (() => mockAppConfig.nrsRetryMaxBackoff).expects()
+
+    def nrsRetryJitterFactor: CallHandler[Double] =
+      (() => mockAppConfig.nrsRetryJitterFactor).expects()
+  
+    def nrsRetryRetention: CallHandler[FiniteDuration] =
+      (() => mockAppConfig.nrsRetryRetention).expects()
+      

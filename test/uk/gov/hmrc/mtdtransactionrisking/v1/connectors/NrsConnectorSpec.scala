@@ -17,88 +17,231 @@
 package uk.gov.hmrc.mtdtransactionrisking.v1.connectors
 
 import com.github.tomakehurst.wiremock.client.WireMock.*
-import org.scalatest.BeforeAndAfterAll
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import play.api.libs.json.Json
 import uk.gov.hmrc.http.client.HttpClientV2
 import uk.gov.hmrc.mtdtransactionrisking.support.{ConnectorSpec, MockAppConfig}
-import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.nrs.{Metadata, NrsSubmission, SearchKeys}
+import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.nrs.{Metadata, NrsSubmission, NrsSubmissionResult, SearchKeys}
 
-class NrsConnectorSpec extends ConnectorSpec, MockAppConfig, BeforeAndAfterAll:
+class NrsConnectorSpec
+  extends ConnectorSpec
+    with MockAppConfig
+    with BeforeAndAfterAll
+    with BeforeAndAfterEach:
 
-  private val path = "/nrs-orchestrator/submission"
+  private val path =
+    "/nrs-orchestrator/submission"
 
-  private val submission = NrsSubmission(
-    payload = "eyJwZXJpb2RLZXkiOiJBQjEyIn0=",
-    metadata = Metadata(
-      businessId = "vata",
-      notableEvent = "vata-request-feedback",
-      payloadContentType = "application/json",
-      payloadSha256Checksum = "checksum",
-      userSubmissionTimestamp = "2026-09-24T10:15:30Z",
-      identityData = Json.obj("internalId" -> "internal-id"),
-      userAuthToken = "Bearer vendor-token",
-      headerData = Json.obj("Accept" -> "application/vnd.hmrc.1.0+json"),
-      searchKeys = SearchKeys(
-        vrn = "123456789",
-        reportId = "a1e8057e-fbbc-47a8-a8b4-78d9f015c253"
+  private val apiKey =
+    "nrs-test-api-key"
+
+  private val correlationId =
+    CorrelationId("bd6c0972-34e7-11f1-9715-f35b3eb40b52")
+
+  private val submission =
+    NrsSubmission(
+      payload = "eyJwZXJpb2RLZXkiOiJBQjEyIn0=",
+      metadata = Metadata(
+        businessId = "vata",
+        notableEvent = "vata-request-feedback",
+        payloadContentType = "application/json",
+        payloadSha256Checksum = "checksum",
+        userSubmissionTimestamp = "2026-09-24T10:15:30Z",
+        identityData = Json.obj(
+          "internalId" -> "internal-id"
+        ),
+        userAuthToken = "Bearer vendor-token",
+        headerData = Json.obj(
+          "Accept" -> "application/vnd.hmrc.1.0+json"
+        ),
+        searchKeys = SearchKeys(
+          vrn = "123456789",
+          reportId = "a1e8057e-fbbc-47a8-a8b4-78d9f015c253"
+        )
       )
     )
-  )
 
-  override def beforeAll(): Unit =
+  override protected def beforeAll(): Unit =
+    super.beforeAll()
     wireMockServer.start()
 
-  override def afterAll(): Unit =
-    wireMockServer.stop()
+  override protected def afterAll(): Unit =
+    try wireMockServer.stop()
+    finally super.afterAll()
+
+  override protected def beforeEach(): Unit =
+    super.beforeEach()
+    wireMockServer.resetAll()
 
   private trait Test:
     MockedAppConfig.nrsSubmissionUrl
-      .returns(s"http://localhost:${wireMockServer.port()}$path")
+      .returns(
+        s"http://localhost:${wireMockServer.port()}$path"
+      )
       .anyNumberOfTimes()
 
-    val httpClient: HttpClientV2 = app.injector.instanceOf[HttpClientV2]
-    val connector = new NrsConnector(httpClient, mockAppConfig)
+    MockedAppConfig.nrsApiKey
+      .returns(apiKey)
+      .anyNumberOfTimes()
 
-  "NrsConnector.submit" should :
+    val httpClient: HttpClientV2 =
+      app.injector.instanceOf[HttpClientV2]
 
-    "send X-API-Key and a generated UUID X-Correlation-Id, and accept HTTP 202" in new Test:
-      MockedAppConfig.nrsApiKey
-        .returns("nrs-test-api-key")
-        .anyNumberOfTimes()
+    val connector =
+      new NrsConnector(
+        httpClient = httpClient,
+        appConfig = mockAppConfig
+      )
 
-      wireMockServer.resetAll()
+  "NrsConnector.submit" should:
+
+    "send the supplied correlation ID unchanged and accept HTTP 202" in new Test:
+      val submissionJson =
+        Json.stringify(
+          Json.toJson(submission)
+        )
 
       wireMockServer.stubFor(
         post(urlPathEqualTo(path))
-          .withHeader("X-API-Key", equalTo("nrs-test-api-key"))
-          .withHeader("X-Correlation-Id", matching("[0-9a-fA-F-]{36}"))
-          .willReturn(aResponse().withStatus(202))
+          .withHeader(
+            "X-API-Key",
+            equalTo(apiKey)
+          )
+          .withHeader(
+            "X-Correlation-Id",
+            equalTo(correlationId.value)
+          )
+          .withHeader(
+            "Content-Type",
+            containing("application/json")
+          )
+          .withRequestBody(
+            equalToJson(submissionJson)
+          )
+          .willReturn(
+            aResponse()
+              .withStatus(202)
+          )
       )
 
-      await(connector.submit(submission))
+      await(
+        connector.submit(submission, correlationId)
+      ) shouldBe NrsSubmissionResult.Success
 
       wireMockServer.verify(
         postRequestedFor(urlPathEqualTo(path))
-          .withHeader("X-API-Key", equalTo("nrs-test-api-key"))
-          .withHeader("X-Correlation-Id", matching("[0-9a-fA-F-]{36}"))
+          .withHeader(
+            "X-API-Key",
+            equalTo(apiKey)
+          )
+          .withHeader(
+            "X-Correlation-Id",
+            equalTo(correlationId.value)
+          )
+          .withHeader(
+            "Content-Type",
+            containing("application/json")
+          )
+          .withRequestBody(
+            equalToJson(submissionJson)
+          )
       )
 
-    "not fail the caller when NRS returns a non-202 response" in new Test:
-      MockedAppConfig.nrsApiKey
-        .returns("nrs-test-api-key")
-        .anyNumberOfTimes()
-
-      wireMockServer.resetAll()
-
+    "classify HTTP 429 as retryable" in new Test:
       wireMockServer.stubFor(
         post(urlPathEqualTo(path))
-          .willReturn(aResponse().withStatus(500))
+          .willReturn(
+            aResponse()
+              .withStatus(429)
+          )
       )
 
-      noException shouldBe thrownBy(
-        await(connector.submit(submission))
+      await(
+        connector.submit(submission, correlationId)
+      ) shouldBe NrsSubmissionResult.RetryableFailure
+
+    "classify HTTP 499 as retryable" in new Test:
+      wireMockServer.stubFor(
+        post(urlPathEqualTo(path))
+          .willReturn(
+            aResponse()
+              .withStatus(499)
+          )
       )
+
+      await(
+        connector.submit(submission, correlationId)
+      ) shouldBe NrsSubmissionResult.RetryableFailure
+
+    Seq(500, 503, 599).foreach { status =>
+      s"classify HTTP $status as retryable" in new Test:
+        wireMockServer.stubFor(
+          post(urlPathEqualTo(path))
+            .willReturn(
+              aResponse()
+                .withStatus(status)
+            )
+        )
+
+        await(
+          connector.submit(submission, correlationId)
+        ) shouldBe NrsSubmissionResult.RetryableFailure
+    }
+
+    "classify HTTP 422 as permanent" in new Test:
+      wireMockServer.stubFor(
+        post(urlPathEqualTo(path))
+          .willReturn(
+            aResponse()
+              .withStatus(422)
+          )
+      )
+
+      await(
+        connector.submit(submission, correlationId)
+      ) shouldBe NrsSubmissionResult.PermanentFailure
+
+    Seq(400, 401, 403, 404).foreach { status =>
+      s"classify HTTP $status as permanent" in new Test:
+        wireMockServer.stubFor(
+          post(urlPathEqualTo(path))
+            .willReturn(
+              aResponse()
+                .withStatus(status)
+            )
+        )
+
+        await(
+          connector.submit(submission, correlationId)
+        ) shouldBe NrsSubmissionResult.PermanentFailure
+    }
+
+    "reuse the supplied correlation ID for repeated attempts" in new Test:
+      wireMockServer.stubFor(
+        post(urlPathEqualTo(path))
+          .willReturn(
+            aResponse()
+              .withStatus(503)
+          )
+      )
+
+      await(
+        connector.submit(submission, correlationId)
+      ) shouldBe NrsSubmissionResult.RetryableFailure
+
+      await(
+        connector.submit(submission, correlationId)
+      ) shouldBe NrsSubmissionResult.RetryableFailure
 
       wireMockServer.verify(
+        2,
         postRequestedFor(urlPathEqualTo(path))
+          .withHeader(
+            "X-Correlation-Id",
+            equalTo(correlationId.value)
+          )
+          .withRequestBody(
+            equalToJson(Json.stringify(Json.toJson(submission)))
+          )
       )

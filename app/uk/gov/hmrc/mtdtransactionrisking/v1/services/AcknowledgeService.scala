@@ -65,7 +65,8 @@ class AcknowledgeService @Inject() (rdsAuthService: RdsAuthService,
           identityData = identityData,
           userAuthToken = userAuthToken,
           requestHeaders = requestHeaders,
-          notableEventType = AssistReportAcknowledged
+          notableEventType = AssistReportAcknowledged,
+          correlationId = correlationId
       )
     yield ResponseWrapper(correlationId, ())
 

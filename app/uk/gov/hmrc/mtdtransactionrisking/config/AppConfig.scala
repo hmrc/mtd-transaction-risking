@@ -21,6 +21,7 @@ import uk.gov.hmrc.mtdtransactionrisking.v1.models.auth.{InteractionCredentials,
 import uk.gov.hmrc.play.bootstrap.config.ServicesConfig
 
 import javax.inject.{Inject, Singleton}
+import scala.concurrent.duration.FiniteDuration
 
 trait AppConfig:
 
@@ -61,6 +62,16 @@ trait AppConfig:
   // NRS
   def nrsSubmissionUrl: String
   def nrsApiKey: String
+  def nrsRetryInitialDelay: FiniteDuration
+  def nrsRetryInterval: FiniteDuration
+  def nrsRetryBatchSize: Int
+  def nrsRetryInProgressRetryAfter: FiniteDuration
+  def nrsRetryMaxRetries: Int
+  def nrsRetryInitialBackoff: FiniteDuration
+  def nrsRetryBackoffMultiplier: Double
+  def nrsRetryMaxBackoff: FiniteDuration
+  def nrsRetryJitterFactor: Double
+  def nrsRetryRetention: FiniteDuration
 
 @Singleton
 class AppConfigImpl @Inject() (config: ServicesConfig, configuration: Configuration) extends AppConfig:
@@ -131,3 +142,33 @@ class AppConfigImpl @Inject() (config: ServicesConfig, configuration: Configurat
         )
     else
       ""
+
+  def nrsRetryInitialDelay: FiniteDuration =
+    configuration.get[FiniteDuration]("nrs-retry.initial-delay")
+
+  def nrsRetryInterval: FiniteDuration =
+    configuration.get[FiniteDuration]("nrs-retry.interval")
+
+  def nrsRetryBatchSize: Int =
+    configuration.get[Int]("nrs-retry.batch-size")
+
+  def nrsRetryInProgressRetryAfter: FiniteDuration =
+    configuration.get[FiniteDuration]("nrs-retry.in-progress-retry-after")
+
+  def nrsRetryMaxRetries: Int =
+    configuration.get[Int]("nrs-retry.max-retries")
+
+  def nrsRetryInitialBackoff: FiniteDuration =
+    configuration.get[FiniteDuration]("nrs-retry.initial-backoff")
+
+  def nrsRetryBackoffMultiplier: Double =
+    configuration.get[Double]("nrs-retry.backoff-multiplier")
+
+  def nrsRetryMaxBackoff: FiniteDuration =
+    configuration.get[FiniteDuration]("nrs-retry.max-backoff")
+
+  def nrsRetryJitterFactor: Double =
+    configuration.get[Double]("nrs-retry.jitter-factor")
+
+  def nrsRetryRetention: FiniteDuration =
+    configuration.get[FiniteDuration]("nrs-retry.retention")
