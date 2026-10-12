@@ -58,11 +58,10 @@ class NrsService @Inject()(
               notableEventType: NotableEventType,
               correlationId: CorrelationId
             ): Unit =
+    val logPrefix = s"${correlationId.value}::[NrsService][submit]"
+
     if !FeatureSwitch(appConfig.featureSwitch).isEnabled(NrsSubmissionFeature) then
-      logger.debug(
-        s"[NrsService][submit] NRS submission is disabled for " +
-          s"${notableEventType.value}"
-      )
+      logger.info(s"$logPrefix NRS submission is disabled; skipping ${notableEventType.value}")
     else
       buildNrsSubmission(
         evidence = evidence,
@@ -75,7 +74,7 @@ class NrsService @Inject()(
         notableEventType = notableEventType
       ) match
         case Left(reason) =>
-          logger.warn(s"[NrsService][submit] NRS submission skipped: $reason")
+          logger.warn(s"$logPrefix NRS submission skipped for ${notableEventType.value}: $reason")
 
         case Right(nrsSubmission) =>
           submitInitial(nrsSubmission = nrsSubmission, correlationId = correlationId)
@@ -146,27 +145,19 @@ class NrsService @Inject()(
         )
       )
 
-  private def submitInitial(
-                             nrsSubmission: NrsSubmission,
-                             correlationId: CorrelationId
-                           ): Unit =
+  private def submitInitial(nrsSubmission: NrsSubmission, correlationId: CorrelationId): Unit =
+    val logPrefix = s"${correlationId.value}::[NrsService][submitInitial]"
+    val event = nrsSubmission.metadata.notableEvent
+
     connector
       .submit(nrsSubmission = nrsSubmission, correlationId = correlationId)
       .recover { case NonFatal(error) =>
-        logger.warn(
-          s"${correlationId.value}::[NrsService][submitInitial] " +
-            s"NRS submission failed unexpectedly for " +
-            s"${nrsSubmission.metadata.notableEvent}; scheduling retry",
-          error
-        )
+        logger.warn(s"$logPrefix NRS submission failed unexpectedly for $event, scheduling retry", error)
         NrsSubmissionResult.RetryableFailure
       }
       .flatMap {
         case NrsSubmissionResult.Success =>
-          logger.info(
-            s"[NrsService][submitInitial] NRS submission accepted for " +
-              s"${nrsSubmission.metadata.notableEvent}"
-          )
+          logger.info(s"$logPrefix NRS submission accepted for $event")
           Future.unit
 
         case NrsSubmissionResult.RetryableFailure =>
@@ -174,12 +165,8 @@ class NrsService @Inject()(
             .enqueueRetryableFailure(submission = nrsSubmission, correlationId = correlationId)
             .map { workItem =>
               logger.warn(
-                s"[NrsService][submitInitial] Retryable NRS failure for " +
-                  s"${nrsSubmission.metadata.notableEvent}; " +
-                  s"persisted work item ${workItem.id} for retry at " +
-                  s"${workItem.availableAt}"
+                s"$logPrefix Retryable NRS failure for $event persisted work item ${workItem.id} for retry at ${workItem.availableAt}"
               )
-              ()
             }
 
         case NrsSubmissionResult.PermanentFailure =>
@@ -187,23 +174,15 @@ class NrsService @Inject()(
             .enqueuePermanentFailure(submission = nrsSubmission, correlationId = correlationId)
             .map { workItem =>
               logger.warn(
-                s"[NrsService][submitInitial] Permanent NRS failure for " +
-                  s"${nrsSubmission.metadata.notableEvent}; " +
-                  s"persisted work item ${workItem.id} for " +
-                  s"${appConfig.nrsRetryRetention} retention"
+                s"$logPrefix Permanent NRS failure for $event persisted work item ${workItem.id} for ${appConfig.nrsRetryRetention} retention"
               )
-              ()
             }
       }
       .recover { case NonFatal(error) =>
         logger.error(
-          s"${correlationId.value}::[NrsService][submitInitial] " +
-            s"Failed to persist NRS submission for " +
-            s"${nrsSubmission.metadata.notableEvent}; " +
-            "VAT Assist response is unaffected",
+          s"$logPrefix Failed to persist NRS submission for $event, VAT Assist response is unaffected",
           error
         )
-        ()
       }
 
   private def processWorkItem(

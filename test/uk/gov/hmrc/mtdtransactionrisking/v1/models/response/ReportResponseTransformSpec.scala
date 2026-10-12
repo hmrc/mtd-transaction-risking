@@ -95,18 +95,19 @@ class ReportResponseTransformSpec extends UnitSpec:
       "map every row in the grid" in:
         englishMessages(actionGrids(completeRow, completeRow)) should have size 2
 
-    "RDS returns the 'no feedback' report seen in QA" should:
-      "map item 0 with its placeholder content" in:
-        val noFeedbackRow = Json.arr(
-          "0",
-          "This is not a complete check of your return or confirmation that your return is accurate.",
-          "Consider any further checks before finalising your return.",
-          "HMRC Feedback: HMRC Assist has not returned any messages.",
-          "Find out more about HMRC Assist on GOV.UK",
-          "https://www.gov.uk/hmrc-assist",
-          "0"
-        )
+    "RDS returns the 'no feedback' report" should :
 
+      val noFeedbackRow = Json.arr(
+        "0",
+        "This is not a complete check of your return or confirmation that your return is accurate.",
+        "Consider any further checks before finalising your return.",
+        "HMRC Feedback: HMRC Assist has not returned any messages.",
+        "Find out more about HMRC Assist on GOV.UK",
+        "https://www.gov.uk/hmrc-assist",
+        "0"
+      )
+
+      "map item 0 with its placeholder content and no path" in :
         englishMessages(actionGrids(noFeedbackRow)) shouldBe List(
           FeedbackMessage(
             itemNumber = "0",
@@ -114,8 +115,36 @@ class ReportResponseTransformSpec extends UnitSpec:
             body = "This is not a complete check of your return or confirmation that your return is accurate.",
             action = Some("Consider any further checks before finalising your return."),
             links = Some(List(FeedbackLink("Find out more about HMRC Assist on GOV.UK", "https://www.gov.uk/hmrc-assist"))),
-            path = Some("0")
+            path = None
           ))
+
+      "omit path for item 0 even when RDS sends a non-zero path" in :
+        val row = Json.arr("0", "No messages.", "", "HMRC feedback", "", "", "vatDueSales")
+
+        englishMessages(actionGrids(row)).head.path shouldBe None
+
+      "omit path from item 0 in both english and welsh" in :
+        val report = reportWith(
+          "feedbackId" -> Json.toJson(feedbackId),
+          "englishActions" -> actionGrids(noFeedbackRow),
+          "welshActions" -> actionGrids(noFeedbackRow)
+        )
+
+        val result = ReportResponseTransform.toFeedbackResponse(report).value
+
+        (result.englishFeedback ++ result.welshFeedback).map(_.path) shouldBe List(None, None)
+
+      "not write a path field in the vendor JSON" in :
+        val json = Json.toJson(englishMessages(actionGrids(noFeedbackRow)).head)
+
+        (json \ "path").toOption shouldBe None
+
+    "RDS returns actual feedback alongside item 0" should :
+      "keep path on the feedback items and omit it only on item 0" in :
+        val noFeedbackRow = Json.arr("0", "No messages.", "", "HMRC feedback", "", "", "0")
+
+        englishMessages(actionGrids(completeRow, noFeedbackRow)).map(_.path) shouldBe
+          List(Some("vatDueSales"), None)
 
     "column names differ in case" should:
       "match them case-insensitively" in:
@@ -142,9 +171,16 @@ class ReportResponseTransformSpec extends UnitSpec:
     "a row's links" should:
 
       "be omitted when the link title is empty" in:
-        val row = Json.arr("1", "Please review.", "Check.", "VAT Return Query", "", "https://www.gov.uk/vat-returns", "vatDueSales")
+        val noPath = grid(Seq("ITEMNUMBER", "MESSAGE", "TITLE"), Json.arr("1", "Please review.", "VAT Return Query"))
 
-        englishMessages(actionGrids(row)).head.links shouldBe None
+        englishMessages(noPath).head shouldBe FeedbackMessage(
+          itemNumber = "1",
+          title = "VAT Return Query",
+          body = "Please review.",
+          action = None,
+          links = None,
+          path = None
+        )
 
       "be omitted when the link url is empty" in:
         val row = Json.arr("1", "Please review.", "Check.", "VAT Return Query", "VAT guidance", "", "vatDueSales")
@@ -153,7 +189,7 @@ class ReportResponseTransformSpec extends UnitSpec:
 
     "a row has an empty action" should:
       "map the action as absent" in:
-        val row = Json.arr("1", "Please review.", "", "VAT Return Query", "", "", "vatDueSales")
+        val row = Json.arr("1", "Please review.", "", "VAT Return Query", "", "", "")
 
         englishMessages(actionGrids(row)).head.action shouldBe None
 
