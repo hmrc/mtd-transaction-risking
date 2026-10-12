@@ -32,6 +32,7 @@ import java.time.Instant
 import java.util.Base64
 import javax.inject.{Inject, Provider, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
+import scala.util.{Failure, Success, Try}
 import scala.util.control.NonFatal
 
 @Singleton
@@ -208,56 +209,89 @@ class NrsService @Inject()(
   private def processWorkItem(
                                workItem: WorkItem[NrsSubmissionWorkItem]
                              ): Future[Unit] =
+    Try(workItem.item.nrsSubmission) match
+      case Failure(error) =>
+        logger.error(
+          s"${workItem.item.correlationId.value}::[NrsService][processWorkItem] " +
+            s"Could not decrypt or parse NRS work item ${workItem.id}; " +
+            "marking it permanently failed",
+          error
+        )
+
+        nrsSubmissionWorkItemRepository
+          .markPermanentFailure(workItem)
+          .map(_ => ())
+
+      case Success(nrsSubmission) =>
+        submitRetry(
+          workItem = workItem,
+          nrsSubmission = nrsSubmission
+        ).flatMap { result =>
+          recordRetryResult(
+            workItem = workItem,
+            result = result
+          )
+        }
+
+  private def submitRetry(
+                           workItem: WorkItem[NrsSubmissionWorkItem],
+                           nrsSubmission: NrsSubmission
+                         ): Future[NrsSubmissionResult] =
     connector
       .submit(
-        nrsSubmission = workItem.item.nrsSubmission,
+        nrsSubmission = nrsSubmission,
         correlationId = workItem.item.correlationId
       )
-      .recover {
-        case NonFatal(error) =>
-          logger.error(
-            s"${workItem.item.correlationId.value}::" +
-              s"[NrsService][processWorkItem] unexpected NRS connector failure " +
-              s"for work item ${workItem.id}; treating it as retryable",
-            error
-          )
-          NrsSubmissionResult.RetryableFailure
+      .recover { case NonFatal(error) =>
+        logger.error(
+          s"${workItem.item.correlationId.value}::" +
+            s"[NrsService][processWorkItem] unexpected NRS connector failure " +
+            s"for work item ${workItem.id}; treating it as retryable",
+          error
+        )
+        NrsSubmissionResult.RetryableFailure
       }
-      .flatMap {
+
+  private def recordRetryResult(
+                                 workItem: WorkItem[NrsSubmissionWorkItem],
+                                 result: NrsSubmissionResult
+                               ): Future[Unit] =
+    val logPrefix =
+      s"${workItem.item.correlationId.value}::[NrsService][processWorkItem]"
+
+    result match
       case NrsSubmissionResult.Success =>
         nrsSubmissionWorkItemRepository
           .completeAndDelete(workItem.id)
           .map { deleted =>
             logger.info(
-              s"[NrsService][processDueWorkItems] Retry succeeded for " +
-                s"NRS work item ${workItem.id}; deleted=$deleted"
+              s"$logPrefix Retry succeeded for NRS work item " +
+                s"${workItem.id}; deleted=$deleted"
             )
             ()
           }
 
-
       case NrsSubmissionResult.RetryableFailure =>
-        val retryNumber = workItem.failureCount + 1
+        val retryNumber =
+          workItem.failureCount + 1
 
         nrsSubmissionWorkItemRepository
           .markRetryableFailure(workItem)
           .map { updated =>
             if retryPolicy.isExhaustedAfterFailure(retryNumber) then
               logger.warn(
-                s"[NrsService][processDueWorkItems] NRS work item " +
-                  s"${workItem.id} exhausted retry $retryNumber/" +
-                  s"${retryPolicy.maxRetries}; retained for " +
-                  s"${appConfig.nrsRetryRetention}; " +
-                  s"updated=$updated"
+                s"$logPrefix NRS work item ${workItem.id} exhausted retry " +
+                  s"$retryNumber/${retryPolicy.maxRetries}; retained for " +
+                  s"${appConfig.nrsRetryRetention}; updated=$updated"
               )
             else
               logger.warn(
-                s"[NrsService][processDueWorkItems] Retry $retryNumber/" +
-                  s"${retryPolicy.maxRetries} failed for NRS work item " +
-                  s"${workItem.id}; next retry after " +
-                  s"${retryPolicy.delayForRetry(retryNumber + 1)}; " +
+                s"$logPrefix Retry $retryNumber/${retryPolicy.maxRetries} " +
+                  s"failed for NRS work item ${workItem.id}; " +
+                  "next retry scheduled; " +
                   s"updated=$updated"
               )
+
             ()
           }
 
@@ -266,14 +300,12 @@ class NrsService @Inject()(
           .markPermanentFailure(workItem)
           .map { updated =>
             logger.warn(
-              s"[NrsService][processDueWorkItems] Permanent NRS failure for " +
-                s"work item ${workItem.id}; retained for " +
-                s"${appConfig.nrsRetryRetention}; " +
-                s"updated=$updated"
+              s"$logPrefix Permanent NRS failure for work item " +
+                s"${workItem.id}; retained for " +
+                s"${appConfig.nrsRetryRetention}; updated=$updated"
             )
             ()
           }
-    }
 
   private def headerData(
                           headers: Seq[(String, String)]

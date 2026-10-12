@@ -371,10 +371,6 @@ class NrsServiceRetrySpec extends UnitSpec, MockAppConfig:
         .expects()
         .returning(10)
 
-      (retryPolicy.delayForRetry(_: Int))
-        .expects(2)
-        .returning(20.minutes)
-
       (repository.markRetryableFailure(_: WorkItem[NrsSubmissionWorkItem]))
         .expects(storedWorkItem)
         .returning(Future.successful(true))
