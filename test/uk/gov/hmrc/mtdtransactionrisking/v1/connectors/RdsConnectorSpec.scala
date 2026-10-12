@@ -33,7 +33,7 @@ import uk.gov.hmrc.mtdtransactionrisking.v1.models.errors.{
 }
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.outcomes.ResponseWrapper
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.*
-import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.{FeedbackResponse, RdsAcknowledgeResponse}
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.{FeedbackLink, FeedbackResponse, RdsAcknowledgeResponse}
 import uk.gov.hmrc.mtdtransactionrisking.v1.services.ServiceOutcome
 
 import scala.concurrent.Future
@@ -60,7 +60,7 @@ class RdsConnectorSpec extends ConnectorSpec, BeforeAndAfterAll, Injecting, Mock
     endDate = "2026-03-31",
     customerType = "T",
     agentReferenceNumber = None,
-    fraudRiskReportScore = BigDecimal("4.7"),                                      
+    fraudRiskReportScore = BigDecimal("4.7"),
     fraudRiskReportReasons = Seq("VRN 123456789 is 3.7 hops away from something risky."),
     fraudPreventionHeaders = Seq(FraudPreventionHeader("Gov-Client-Timezone", "UTC+00:00")),
     vatDueSales = BigDecimal("100.00"),
@@ -81,26 +81,15 @@ class RdsConnectorSpec extends ConnectorSpec, BeforeAndAfterAll, Injecting, Mock
     presentedDateTime = "2026-09-03T10:00:00Z"
   )
 
-  // A report with no feedbackId, so the transform cannot build response
+  // A report with no feedbackId so the transform cannot build a response
   private val reportWithoutFeedbackId: JsValue = Json.parse(
-    s"""
-       |{
-       |  "outputs": [
-       |    { "name": "correlationId", "value": "$rdsCorrelationId" },
-       |    { "name": "responseCode", "value": "201" }
-       |  ]
-       |}
-       |""".stripMargin
-  )
-  private val reportWithoutResponseCode: JsValue = Json.parse(
-    s"""
-       |{
-       |  "outputs": [
-       |    { "name": "correlationId", "value": "$rdsCorrelationId" },
-       |    { "name": "feedbackId", "value": "$feedbackId" }
-       |  ]
-       |}
-       |""".stripMargin
+    """
+      |{
+      |  "outputs": [
+      |    { "name": "correlationId", "value": null }
+      |  ]
+      |}
+      |""".stripMargin
   )
 
   private val acknowledgeWithoutResponseCode: JsValue = Json.parse(
@@ -137,45 +126,51 @@ class RdsConnectorSpec extends ConnectorSpec, BeforeAndAfterAll, Injecting, Mock
          |""".stripMargin
     )
 
-  private def reportJson(responseCode: String = "201"): JsValue = Json.parse(
-    s"""
-       |{
-       |  "links": [],
-       |  "version": 2,
-       |  "moduleId": "rbfConceptHub",
-       |  "stepId": "execute",
-       |  "executionState": "completed",
-       |  "outputs": [
-       |    { "name": "correlationId", "value": "$rdsCorrelationId" },
-       |    { "name": "feedbackId", "value": "$feedbackId" },
-       |    { "name": "responseCode", "value": "$responseCode" },
-       |    { "name": "responseMessage", "value": "Feedback generated successfully" },
-       |    {
-       |      "name": "englishActions",
-       |      "value": [
-       |        { "metadata": [ { "itemNumber": "1" }, { "message": "m" }, { "action": "a" }, { "title": "t" },
-       |                        [ { "linkTitle": "lt" }, { "linkUrl": "lu" } ], { "path": "p" } ] },
-       |        { "data": [ [ "1", "Please review your VAT return figures.", "Check your sales records.",
-       |                      "VAT Return Query",
-       |                      [ { "linkTitle": "VAT guidance" }, { "linkUrl": "https://www.gov.uk/vat-returns" } ],
-       |                      "vatDueSales" ] ] }
-       |      ]
-       |    },
-       |    {
-       |      "name": "welshActions",
-       |      "value": [
-       |        { "metadata": [ { "itemNumber": "1" }, { "message": "m" }, { "action": "a" }, { "title": "t" },
-       |                        [ { "linkTitle": "lt" }, { "linkUrl": "lu" } ], { "path": "p" } ] },
-       |        { "data": [ [ "1", "Adolygwch eich ffigurau.", "Gwiriwch eich cofnodion.",
-       |                      "Ymholiad Ffurflen TAW",
-       |                      [ { "linkTitle": "Canllawiau TAW" }, { "linkUrl": "https://www.gov.uk/ffurflenni-taw" } ],
-       |                      "vatDueSales" ] ] }
-       |      ]
-       |    }
-       |  ]
-       |}
-       |""".stripMargin
-  )
+  private def reportJson(responseCode: Option[String] = None, correlationId: Option[String] = None): JsValue =
+    val optionalOutputs =
+      responseCode.map(code => s"""{ "name": "responseCode", "value": "$code" },""").getOrElse("")
+
+    val correlationIdValue = correlationId.map(id => s""""$id"""").getOrElse("null")
+
+    val columns =
+      """{ "metadata": [ { "ITEMNUMBER": "string" }, { "MESSAGE": "string" }, { "ACTION": "string" }, { "TITLE": "string" },
+        |                { "LINKTITLE": "string" }, { "LINKURL": "string" }, { "PATH": "string" } ] }""".stripMargin
+
+    Json.parse(
+      s"""
+         |{
+         |  "links": [],
+         |  "version": 2,
+         |  "moduleId": "HMRC_ASSIST_VAT_FINSUB_FEEDBACK",
+         |  "stepId": "execute",
+         |  "executionState": "completed",
+         |  "outputs": [
+         |    $optionalOutputs
+         |    { "name": "correlationId", "value": $correlationIdValue },
+         |    { "name": "createdDttm", "value": "2026-10-09T19:00:19.246" },
+         |    {
+         |      "name": "englishActions",
+         |      "value": [
+         |        $columns,
+         |        { "data": [ [ "1", "Please review your VAT return figures.", "Check your sales records.", "VAT Return Query",
+         |                      "VAT guidance", "https://www.gov.uk/vat-returns", "vatDueSales" ] ] }
+         |      ]
+         |    },
+         |    { "name": "feedbackId", "value": "$feedbackId" },
+         |    { "name": "vrn", "value": "$vrn" },
+         |    {
+         |      "name": "welshActions",
+         |      "value": [
+         |        $columns,
+         |        { "data": [ [ "1", "Adolygwch eich ffigurau.", "Gwiriwch eich cofnodion.", "Ymholiad Ffurflen TAW",
+         |                      "Canllawiau TAW", "https://www.gov.uk/ffurflenni-taw", "vatDueSales" ] ] }
+         |      ]
+         |    },
+         |    { "name": "rt_Record_Contacts_Outer", "value": "f9a5a9a7-09a2-a94b-a492-54c9fc91d5d2" }
+         |  ]
+         |}
+         |""".stripMargin
+    )
 
   class Test:
     MockedAppConfig.rdsSubmitUrl.returns(s"http://localhost:$port$reportPath").anyNumberOfTimes()
@@ -212,6 +207,7 @@ class RdsConnectorSpec extends ConnectorSpec, BeforeAndAfterAll, Injecting, Mock
       connector.acknowledge(acknowledgeRequest, credentials)
 
   "RdsConnector.acknowledge" when:
+
     "RDS accepts the acknowledgement" should:
       "return the acknowledge response when the inner response code is 202" in new Test:
         stubAcknowledge(Some(acknowledgeJson(responseCode = Some(202)).toString), CREATED)
@@ -229,52 +225,30 @@ class RdsConnectorSpec extends ConnectorSpec, BeforeAndAfterAll, Injecting, Mock
           )
         )
 
-    "RDS rejects the acknowledgement or the response cannot be interpreted" should:
+    "RDS rejects the acknowledgement" should:
       "return AcknowledgementValidationFailedError when the inner response code is 401" in new Test:
-        val responseJson: JsValue = acknowledgeJson(responseCode = Some(401), responseMessage = Some("Unauthorised"))
+        stubAcknowledge(Some(acknowledgeJson(responseCode = Some(401), responseMessage = Some("Unauthorised")).toString), CREATED)
 
-        stubAcknowledge(Some(responseJson.toString), CREATED)
+        await(acknowledge()) shouldBe Left(ErrorWrapper(correlationId, AcknowledgementValidationFailedError))
 
-        await(acknowledge()) shouldBe Left(
-          ErrorWrapper(
-            correlationId,
-            AcknowledgementValidationFailedError
-          )
-        )
+    "the response cannot be interpreted" should:
 
-      "return AcknowledgementValidationFailedError when the inner response code is unexpected" in new Test:
-        val responseJson: JsValue = acknowledgeJson(responseCode = Some(500), responseMessage = Some("Unexpected"))
+      "return DownstreamError when the inner response code is unexpected" in new Test:
+        stubAcknowledge(Some(acknowledgeJson(responseCode = Some(500), responseMessage = Some("Unexpected")).toString), CREATED)
 
-        stubAcknowledge(Some(responseJson.toString), CREATED)
+        await(acknowledge()) shouldBe Left(ErrorWrapper(correlationId, DownstreamError))
 
-        await(acknowledge()) shouldBe Left(
-          ErrorWrapper(
-            correlationId,
-            AcknowledgementValidationFailedError
-          )
-        )
-
-      "return AcknowledgementValidationFailedError when the response has no response code" in new Test:
+      "return DownstreamError when the response has no response code" in new Test:
         stubAcknowledge(Some(acknowledgeWithoutResponseCode.toString), CREATED)
 
-        await(acknowledge()) shouldBe Left(
-          ErrorWrapper(
-            correlationId,
-            AcknowledgementValidationFailedError
-          )
-        )
+        await(acknowledge()) shouldBe Left(ErrorWrapper(correlationId, DownstreamError))
 
       "return DownstreamError when the body is malformed" in new Test:
         val malformed: JsObject = Json.obj("unexpected" -> "shape")
 
         stubAcknowledge(Some(malformed.toString), CREATED)
 
-        await(acknowledge()) shouldBe Left(
-          ErrorWrapper(
-            correlationId,
-            DownstreamError
-          )
-        )
+        await(acknowledge()) shouldBe Left(ErrorWrapper(correlationId, DownstreamError))
 
     "RDS is unreachable" should:
       Seq(NOT_FOUND, REQUEST_TIMEOUT, SERVICE_UNAVAILABLE).foreach: status =>
@@ -287,12 +261,7 @@ class RdsConnectorSpec extends ConnectorSpec, BeforeAndAfterAll, Injecting, Mock
       "return DownstreamError" in new Test:
         stubAcknowledge(None, OK)
 
-        await(acknowledge()) shouldBe Left(
-          ErrorWrapper(
-            correlationId,
-            DownstreamError
-          )
-        )
+        await(acknowledge()) shouldBe Left(ErrorWrapper(correlationId, DownstreamError))
 
     "the connection faults" should:
       "return DownstreamError via recover" in new Test:
@@ -301,6 +270,7 @@ class RdsConnectorSpec extends ConnectorSpec, BeforeAndAfterAll, Injecting, Mock
         await(acknowledge()) shouldBe Left(ErrorWrapper(correlationId, DownstreamError))
 
     "making the request" should:
+
       "send the bearer token when credentials are supplied" in new Test:
         stubAcknowledge(Some(acknowledgeJson().toString), CREATED)
 
@@ -337,40 +307,59 @@ class RdsConnectorSpec extends ConnectorSpec, BeforeAndAfterAll, Injecting, Mock
         )
 
   "RdsConnector.generateReport" when:
-    "RDS returns a report" should:
-      "return the transformed feedback when the inner response code is 201" in new Test:
+
+    "RDS returns a report in its current shape with no response code and a null correlation id" should:
+
+      "return the transformed feedback" in new Test:
         stubReport(Some(reportJson().toString), CREATED)
 
         private val feedback = await(generateReport()).value.responseData
 
         feedback.reportId shouldBe feedbackId
-        feedback.correlationId shouldBe rdsCorrelationId
+        feedback.correlationId shouldBe None
         feedback.englishFeedback should have size 1
         feedback.welshFeedback should have size 1
+
+      "build links from the separate link title and url columns" in new Test:
+        stubReport(Some(reportJson().toString), CREATED)
+
+        private val feedback = await(generateReport()).value.responseData
+
+        feedback.englishFeedback.head.links shouldBe Some(List(FeedbackLink("VAT guidance", "https://www.gov.uk/vat-returns")))
+
+    "the report includes a correlation id" should:
+      "pass it through" in new Test:
+        stubReport(Some(reportJson(correlationId = Some(rdsCorrelationId)).toString), CREATED)
+
+        await(generateReport()).value.responseData.correlationId shouldBe Some(rdsCorrelationId)
+
+    "the report includes a response code" should:
+
+      "succeed when it is 201" in new Test:
+        stubReport(Some(reportJson(responseCode = Some("201")).toString), CREATED)
+
+        await(generateReport()).value.responseData.reportId shouldBe feedbackId
+
+      "return DownstreamError when it is anything else" in new Test:
+        stubReport(Some(reportJson(responseCode = Some("500")).toString), CREATED)
+
+        await(generateReport()) shouldBe Left(ErrorWrapper(correlationId, DownstreamError))
+
+    "the report cannot be used" should:
 
       "return DownstreamError when the body is not a report" in new Test:
         stubReport(Some("""{"unexpected":"shape"}"""), CREATED)
 
         await(generateReport()) shouldBe Left(ErrorWrapper(correlationId, DownstreamError))
 
-      "return DownstreamError when the report has no response code" in new Test:
-        stubReport(Some(reportWithoutResponseCode.toString), CREATED)
-
-        await(generateReport()) shouldBe Left(ErrorWrapper(correlationId, DownstreamError))
-
-      "return DownstreamError when the inner response code is unexpected" in new Test:
-        stubReport(Some(reportJson(responseCode = "500").toString), CREATED)
-
-        await(generateReport()) shouldBe Left(ErrorWrapper(correlationId, DownstreamError))
-
-      "return DownstreamError when the report cannot be transformed" in new Test:
+      "return DownstreamError when the report has no feedback id" in new Test:
         stubReport(Some(reportWithoutFeedbackId.toString), CREATED)
 
         await(generateReport()) shouldBe Left(ErrorWrapper(correlationId, DownstreamError))
 
     "RDS rejects the request" should:
       "return DownstreamError on 400" in new Test:
-        stubReport(None, BAD_REQUEST)
+        stubReport(Some("""{"errorCode":0,"details":["The value of the field \"vrn\" must not be empty or missing."]}"""), BAD_REQUEST)
 
         await(generateReport()) shouldBe Left(ErrorWrapper(correlationId, DownstreamError))
 
@@ -381,7 +370,7 @@ class RdsConnectorSpec extends ConnectorSpec, BeforeAndAfterAll, Injecting, Mock
 
           await(generateReport()) shouldBe Left(ErrorWrapper(correlationId, ServiceUnavailableError))
 
-    "RDS returns an unexpected status" should:
+    "RDS returns an unexpected HTTP status" should:
       "return DownstreamError" in new Test:
         stubReport(None, OK)
 
@@ -394,6 +383,7 @@ class RdsConnectorSpec extends ConnectorSpec, BeforeAndAfterAll, Injecting, Mock
         await(generateReport()) shouldBe Left(ErrorWrapper(correlationId, DownstreamError))
 
     "making the request" should:
+
       "send the bearer token when credentials are supplied" in new Test:
         stubReport(Some(reportJson().toString), CREATED)
 
@@ -414,7 +404,7 @@ class RdsConnectorSpec extends ConnectorSpec, BeforeAndAfterAll, Injecting, Mock
         await(generateReport())
 
         wireMockServer.verify(postRequestedFor(reportUrlPattern).withRequestBody(equalToJson(Json.toJson(rdsRequest).toString, true, false)))
-      
+
       "send the correlation id and user agent" in new Test:
         stubReport(Some(reportJson().toString), CREATED)
 

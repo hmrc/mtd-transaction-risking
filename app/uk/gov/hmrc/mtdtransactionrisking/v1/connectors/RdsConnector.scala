@@ -61,7 +61,7 @@ class RdsConnector @Inject() (httpClient: HttpClientV2, appConfig: AppConfig)(im
             response.json
               .validate[RdsAcknowledgeResponseWrapper]
               .fold(
-                errors =>
+                _ =>
                   logger.error(s"${correlationId.value}::[RdsConnector][acknowledge] malformed response: ${response.body}")
                   Left(ErrorWrapper(correlationId, DownstreamError))
                 ,
@@ -72,16 +72,16 @@ class RdsConnector @Inject() (httpClient: HttpClientV2, appConfig: AppConfig)(im
                       Right(ResponseWrapper(correlationId, acknowledgeResponse.output))
 
                     case Some(UNAUTHORIZED) =>
-                      logger.error(
-                        s"${correlationId.value}::[RdsConnector][acknowledge] acknowledgement failed responseCode $UNAUTHORIZED, responseMessage: ${acknowledgeResponse.output.responseMessage
-                            .getOrElse("no message")}")
+                      logger.error(s"${correlationId.value}::[RdsConnector][acknowledge] acknowledgement validation failed: " +
+                        s"${acknowledgeResponse.output.responseMessage.getOrElse("no message")}")
                       Left(ErrorWrapper(correlationId, AcknowledgementValidationFailedError))
 
                     case other =>
                       logger.error(
                         s"${correlationId.value}::[RdsConnector][acknowledge] unexpected or missing response code: ${other.getOrElse("missing")}")
-                      Left(ErrorWrapper(correlationId, AcknowledgementValidationFailedError))
+                      Left(ErrorWrapper(correlationId, DownstreamError))
               )
+
           case NOT_FOUND | REQUEST_TIMEOUT | SERVICE_UNAVAILABLE =>
             logger.error(s"${correlationId.value}::[RdsConnector][acknowledge] RDS unavailable, status ${response.status}")
             Left(ErrorWrapper(correlationId, ServiceUnavailableError))
@@ -102,7 +102,7 @@ class RdsConnector @Inject() (httpClient: HttpClientV2, appConfig: AppConfig)(im
       "X-CorrelationId" -> correlationId.value
     ) ++ credentials.map(_.bearerHeader)
 
-  // A 201 means the call executed. The actual decision is in the report responseCode field
+  // A 201 means the module executed and produced a report
   def generateReport(vrn: String, request: ReportRequest, credentials: Option[RdsAuthCredentials])(implicit
       hc: HeaderCarrier,
       correlationId: CorrelationId): Future[ServiceOutcome[FeedbackResponse]] =
@@ -111,18 +111,18 @@ class RdsConnector @Inject() (httpClient: HttpClientV2, appConfig: AppConfig)(im
 
     logger.info(s"${correlationId.value}::[RdsConnector][generateReport] requesting report for VRN $vrn")
 
-    if appConfig.rdsLogPayloads then
-      logger.info(s"${correlationId.value}::[RdsConnector][generateReport] request body: ${Json.stringify(body)}")
+    if appConfig.rdsLogPayloads then logger.info(s"${correlationId.value}::[RdsConnector][generateReport] request body: ${Json.stringify(body)}")
 
     httpClient
       .post(url"${appConfig.rdsSubmitUrl}")
-      .withBody(Json.toJson(request))
+      .withBody(body)
       .setHeader(buildHeaders(correlationId, appConfig.appName, credentials)*)
       .withProxy
       .execute[HttpResponse]
       .map { response =>
         if appConfig.rdsLogPayloads then
           logger.info(s"${correlationId.value}::[RdsConnector][generateReport] response status ${response.status}, body: ${response.body}")
+
         response.status match
           case CREATED =>
             handleReport(response)
@@ -152,19 +152,18 @@ class RdsConnector @Inject() (httpClient: HttpClientV2, appConfig: AppConfig)(im
 
       case Some(report) =>
         report.responseCode match
-          case Some(CREATED) =>
-            ReportResponseTransform.toFeedbackResponse(report) match
-              case Some(feedback) =>
-                logger.info(s"${correlationId.value}::[RdsConnector][generateReport] report generated")
-                Right(ResponseWrapper(correlationId, feedback))
-              case None => Left(ErrorWrapper(correlationId, DownstreamError))
-
-          case Some(code) =>
+          case Some(code) if code != CREATED =>
             logger.error(
               s"${correlationId.value}::[RdsConnector][generateReport] unexpected responseCode $code: " +
                 s"${report.responseMessage.getOrElse("no message")}")
             Left(ErrorWrapper(correlationId, DownstreamError))
 
-          case None =>
-            logger.error(s"${correlationId.value}::[RdsConnector][generateReport] report has no responseCode")
-            Left(ErrorWrapper(correlationId, DownstreamError))
+          case _ =>
+            ReportResponseTransform.toFeedbackResponse(report) match
+              case Some(feedback) =>
+                logger.info(s"${correlationId.value}::[RdsConnector][generateReport] report generated")
+                Right(ResponseWrapper(correlationId, feedback))
+
+              case None =>
+                logger.error(s"${correlationId.value}::[RdsConnector][generateReport] report has no feedbackId")
+                Left(ErrorWrapper(correlationId, DownstreamError))

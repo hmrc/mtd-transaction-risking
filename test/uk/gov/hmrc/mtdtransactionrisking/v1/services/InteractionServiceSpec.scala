@@ -81,7 +81,7 @@ class InteractionServiceSpec extends UnitSpec, MockInteractionConnector, LogCapt
     reportId = "f2fb30e5-4ab6-4a29-b3c1-c00000000001",
     englishFeedback = List(englishMessage),
     welshFeedback = List(welshMessage),
-    correlationId = "E9F65715BBC9222477B27074804BBDD5C73CDE62F84D8B00CFD05B883534AF3D"
+    correlationId = Some("E9F65715BBC9222477B27074804BBDD5C73CDE62F84D8B00CFD05B883534AF3D")
   )
 
   private val expectedInteraction: Interaction =
