@@ -129,6 +129,13 @@ class AppConfigImpl @Inject() (config: ServicesConfig, configuration: Configurat
 
   private val nrsConfig = configuration.get[Configuration]("microservice.services.nrs-orchestrator")
   private val nrsSubmissionEnabled = FeatureSwitch(featureSwitch).isEnabled(NrsSubmissionFeature)
+  private val nrsRetryEnabled = FeatureSwitch(featureSwitch).isEnabled(NrsRetryFeature)
+
+  if (nrsSubmissionEnabled || nrsRetryEnabled) &&
+    configuration.getOptional[String]("nrs-retry.crypto.key").forall(_.trim.isEmpty)
+  then
+    throw new IllegalStateException("NRS is enabled but nrs-retry.crypto.key is not configured")
+
   val nrsSubmissionUrl: String = config.baseUrl("nrs-orchestrator") + nrsConfig.get[String]("submission-url")
   val nrsApiKey: String =
     if nrsSubmissionEnabled then

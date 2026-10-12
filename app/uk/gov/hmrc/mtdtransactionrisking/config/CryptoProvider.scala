@@ -17,17 +17,19 @@
 package uk.gov.hmrc.mtdtransactionrisking.config
 
 import play.api.Configuration
-import uk.gov.hmrc.crypto.{Decrypter, Encrypter, SymmetricCryptoFactory}
+import uk.gov.hmrc.crypto.{Crypted, Decrypter, Encrypter, PlainBytes, PlainContent, PlainText, SymmetricCryptoFactory}
 
 import javax.inject.{Inject, Provider, Singleton}
 
 @Singleton
-class CryptoProvider @Inject()(
-                                configuration: Configuration
-                              ) extends Provider[Encrypter & Decrypter]:
+class CryptoProvider @Inject() (configuration: Configuration) extends Provider[Encrypter & Decrypter]:
 
+  // AppConfigImpl fails startup if NRS is enabled without a key
   override def get(): Encrypter & Decrypter =
-    SymmetricCryptoFactory.aesGcmCryptoFromConfig(
-      baseConfigKey = "nrs-retry.crypto",
-      config = configuration.underlying
-    )
+    new Encrypter with Decrypter:
+      private lazy val crypto =
+        SymmetricCryptoFactory.aesGcmCryptoFromConfig(baseConfigKey = "nrs-retry.crypto", config = configuration.underlying)
+
+      override def encrypt(plain: PlainContent): Crypted = crypto.encrypt(plain)
+      override def decrypt(encrypted: Crypted): PlainText = crypto.decrypt(encrypted)
+      override def decryptAsBytes(encrypted: Crypted): PlainBytes = crypto.decryptAsBytes(encrypted)

@@ -22,21 +22,24 @@ import uk.gov.hmrc.mtdtransactionrisking.support.UnitSpec
 
 class FeatureSwitchSpec extends UnitSpec:
 
-  "FeatureSwitch" should:
+  private def featureSwitch(config: String): FeatureSwitch =
+    FeatureSwitch(Some(Configuration(ConfigFactory.parseString(config))))
 
-    "enable NRS submission when configured" in:
-      val featureSwitch = FeatureSwitch(
-        Some(Configuration(ConfigFactory.parseString("nrs-submission.enabled = true")))
-      )
+  Seq(
+    NrsSubmissionFeature -> "nrs-submission",
+    NrsRetryFeature -> "nrs-retry"
+  ).foreach { (feature, key) =>
+    s"FeatureSwitch for $key" should:
 
-      featureSwitch.isEnabled(NrsSubmissionFeature) shouldBe true
+      "be enabled when configured true" in:
+        featureSwitch(s"$key.enabled = true").isEnabled(feature) shouldBe true
 
-    "disable NRS submission when configured false" in:
-      val featureSwitch = FeatureSwitch(
-        Some(Configuration(ConfigFactory.parseString("nrs-submission.enabled = false")))
-      )
+      "be disabled when configured false" in:
+        featureSwitch(s"$key.enabled = false").isEnabled(feature) shouldBe false
 
-      featureSwitch.isEnabled(NrsSubmissionFeature) shouldBe false
+      "default to disabled when there is no feature-switch config" in:
+        FeatureSwitch(None).isEnabled(feature) shouldBe false
 
-    "default NRS submission to disabled when the setting is absent" in:
-      FeatureSwitch(None).isEnabled(NrsSubmissionFeature) shouldBe false
+      "default to disabled when the feature-switch config does not mention it" in:
+        featureSwitch("version-1.enabled = true").isEnabled(feature) shouldBe false
+  }
