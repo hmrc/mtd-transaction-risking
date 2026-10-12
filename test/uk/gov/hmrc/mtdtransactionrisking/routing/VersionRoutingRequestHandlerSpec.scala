@@ -28,7 +28,6 @@ import play.api.routing.Router
 import play.api.test.FakeRequest
 import play.api.test.Helpers.*
 import play.api.{Application, Configuration}
-import uk.gov.hmrc.mongo.play.PlayMongoModule
 import uk.gov.hmrc.mtdtransactionrisking.support.{MockAppConfig, UnitSpec}
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.errors.{InvalidAcceptHeaderError, UnsupportedVersionError}
 
@@ -37,7 +36,6 @@ class VersionRoutingRequestHandlerSpec extends UnitSpec, Inside, MockAppConfig, 
 
   override def fakeApplication(): Application =
     GuiceApplicationBuilder()
-      .disable[PlayMongoModule]
       .build()
 
   implicit private val actorSystem: ActorSystem = ActorSystem("test")

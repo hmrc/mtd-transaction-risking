@@ -23,4 +23,7 @@ case object AuthFeature extends Feature:
   override val name: String = "auth"
 
 case object NrsSubmissionFeature extends Feature:
-  override val name: String = "nrs-submission" 
+  override val name: String = "nrs-submission"
+
+case object NrsRetryFeature extends Feature:
+  override val name: String = "nrs-retry"

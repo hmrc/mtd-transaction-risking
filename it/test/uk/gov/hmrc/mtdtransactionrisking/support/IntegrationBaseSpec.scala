@@ -25,7 +25,6 @@ import play.api.inject.guice.GuiceApplicationBuilder
 import play.api.libs.json.{JsValue, Json}
 import play.api.libs.ws.{WSClient, WSRequest, WSResponse}
 import play.api.{Application, Environment, Mode}
-import uk.gov.hmrc.mongo.play.PlayMongoModule
 import uk.gov.hmrc.mtdtransactionrisking.stubs.AuthStub
 
 trait IntegrationBaseSpec
@@ -72,7 +71,6 @@ trait IntegrationBaseSpec
     GuiceApplicationBuilder()
       .in(Environment.simple(mode = Mode.Dev))
       .configure(servicesConfig)
-      .disable[PlayMongoModule]
       .build()
 
   override def beforeAll(): Unit =

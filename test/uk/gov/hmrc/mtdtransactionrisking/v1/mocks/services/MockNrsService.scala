@@ -23,6 +23,7 @@ import play.api.libs.json.JsValue
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.auth.IdentityData
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.nrs.NotableEventType
 import uk.gov.hmrc.mtdtransactionrisking.v1.services.NrsService
+import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
 
 import java.time.Instant
 
@@ -41,7 +42,8 @@ trait MockNrsService extends MockFactory:
                 identityData: Option[IdentityData],
                 userAuthToken: Option[String],
                 requestHeaders: Seq[(String, String)],
-                notableEventType: NotableEventType
+                notableEventType: NotableEventType,
+                correlationId: CorrelationId
               ): CallHandler[Unit] =
       (mockNrsService.submit(
         _: JsValue,
@@ -51,7 +53,8 @@ trait MockNrsService extends MockFactory:
         _: Option[IdentityData],
         _: Option[String],
         _: Seq[(String, String)],
-        _: NotableEventType
+        _: NotableEventType,
+        _: CorrelationId
       )).expects(
         evidence,
         vrn,
@@ -60,5 +63,6 @@ trait MockNrsService extends MockFactory:
         identityData,
         userAuthToken,
         requestHeaders,
-        notableEventType
+        notableEventType,
+        correlationId
       )
