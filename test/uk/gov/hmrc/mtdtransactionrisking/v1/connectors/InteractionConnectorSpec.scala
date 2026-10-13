@@ -31,7 +31,8 @@ import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.{Interaction, Interac
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.rsd.RsdSubmissionResult
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.rsd.RsdSubmissionResult.*
 
-import java.net.{ConnectException, UnknownHostException}
+import java.net.http.HttpTimeoutException
+import java.net.{ConnectException, SocketTimeoutException, UnknownHostException}
 import java.nio.charset.StandardCharsets.UTF_8
 import java.util.Base64
 import java.util.concurrent.TimeoutException
@@ -323,3 +324,15 @@ class InteractionConnectorSpec
       InteractionConnector.classifyTransportFailure(
         new IllegalStateException("invalid configuration")
       ) shouldBe PermanentFailure
+
+    "classify a nested SocketTimeoutException as retryable" in :
+      InteractionConnector.classifyTransportFailure(
+        new RuntimeException(
+          new SocketTimeoutException("socket read timed out")
+        )
+      ) shouldBe RetryableFailure
+
+    "classify HttpTimeoutException as retryable" in:
+      InteractionConnector.classifyTransportFailure(
+        new HttpTimeoutException("request timed out")
+      ) shouldBe RetryableFailure

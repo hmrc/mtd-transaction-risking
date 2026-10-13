@@ -30,7 +30,8 @@ import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.rsd.RsdSubmissionResu
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.rsd.RsdSubmissionResult.*
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.Interaction
 
-import java.net.{ConnectException, SocketException, UnknownHostException}
+import java.net.{ConnectException, SocketException, UnknownHostException, SocketTimeoutException}
+import java.net.http.HttpTimeoutException
 import java.util.concurrent.TimeoutException
 import scala.annotation.tailrec
 import java.nio.charset.StandardCharsets.UTF_8
@@ -152,6 +153,8 @@ object InteractionConnector:
         containsCause[GatewayTimeoutException](error) ||
           containsCause[BadGatewayException](error) ||
           containsCause[TimeoutException](error) ||
+          containsCause[SocketTimeoutException](error) ||
+          containsCause[HttpTimeoutException](error) ||
           containsCause[ConnectException](error) ||
           containsCause[SocketException](error) ||
           containsCause[UnknownHostException](error)

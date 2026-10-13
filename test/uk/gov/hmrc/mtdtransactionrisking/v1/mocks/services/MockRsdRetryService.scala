@@ -19,6 +19,7 @@ package uk.gov.hmrc.mtdtransactionrisking.v1.mocks.services
 import org.scalamock.handlers.CallHandler
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.TestSuite
+import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.Interaction
 import uk.gov.hmrc.mtdtransactionrisking.v1.services.RsdRetryService
@@ -37,8 +38,8 @@ trait MockRsdRetryService extends MockFactory:
                        interaction: Interaction,
                        correlationId: CorrelationId
                      ): CallHandler[Unit] =
-      (mockRsdRetryService.submitInitial(_: Interaction, _: CorrelationId))
-        .expects(interaction, correlationId)
+      (mockRsdRetryService.submitInitial(_: Interaction, _: CorrelationId)(_: HeaderCarrier))
+        .expects(interaction, correlationId, *)
 
     def processDueWorkItems(): CallHandler[Future[Unit]] =
       (() => mockRsdRetryService.processDueWorkItems())

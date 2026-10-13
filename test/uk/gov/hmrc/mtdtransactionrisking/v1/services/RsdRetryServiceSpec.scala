@@ -41,6 +41,8 @@ class RsdRetryServiceSpec extends UnitSpec, MockFactory:
   private val correlationId =
     CorrelationId("bd6c0972-34e7-11f1-9715-f35b3eb40b52")
 
+  private given HeaderCarrier = HeaderCarrier()  
+
   private val interaction =
     Interaction(
       serviceRegime = "vat-assist",

@@ -46,9 +46,8 @@ class RsdRetryService @Inject()(
   def submitInitial(
                      interaction: Interaction,
                      correlationId: CorrelationId
-                   ): Unit =
-    given HeaderCarrier = HeaderCarrier()
-    
+                   )(implicit hc: HeaderCarrier): Unit =
+
     connector
       .store(
         interaction = interaction,

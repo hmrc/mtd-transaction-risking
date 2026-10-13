@@ -29,13 +29,13 @@ import javax.inject.{Inject, Singleton}
 @Singleton
 class InteractionService @Inject() (rsdRetryService: RsdRetryService, clock: Clock) extends Logging:
 
-  def store(feedback: FeedbackResponse, obligation: Obligation, vrn: String, vendorBody: JsValue)(implicit correlationId: CorrelationId): Unit =
+  def store(feedback: FeedbackResponse, obligation: Obligation, vrn: String, vendorBody: JsValue)(implicit hc: HeaderCarrier, correlationId: CorrelationId): Unit =
     send(Interaction.forGeneratedReport(feedback, obligation, vrn, vendorBody, Instant.now(clock)))
 
   def storeAcknowledgement(request: AcknowledgeRequest)(implicit hc: HeaderCarrier, correlationId: CorrelationId): Unit =
     send(Interaction.forAcknowledgement(request, Instant.now(clock)))  
 
-  private def send(interaction: Interaction)(implicit correlationId: CorrelationId): Unit =
+  private def send(interaction: Interaction)(implicit hc: HeaderCarrier, correlationId: CorrelationId): Unit =
     rsdRetryService.submitInitial(
       interaction = interaction,
       correlationId = correlationId

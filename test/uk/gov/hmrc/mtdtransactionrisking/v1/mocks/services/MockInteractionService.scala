@@ -35,8 +35,8 @@ trait MockInteractionService extends MockFactory:
 
     def store(feedback: FeedbackResponse, obligation: Obligation, vrn: String, vendorBody: JsValue): CallHandler[Unit] =
       (mockInteractionService
-        .store(_: FeedbackResponse, _: Obligation, _: String, _: JsValue)(_: CorrelationId))
-        .expects(feedback, obligation, vrn, vendorBody, *)
+        .store(_: FeedbackResponse, _: Obligation, _: String, _: JsValue)(_: HeaderCarrier, _: CorrelationId))
+        .expects(feedback, obligation, vrn, vendorBody, *, *)
 
     def storeAcknowledgement(request: AcknowledgeRequest): CallHandler[Unit] =
       (mockInteractionService

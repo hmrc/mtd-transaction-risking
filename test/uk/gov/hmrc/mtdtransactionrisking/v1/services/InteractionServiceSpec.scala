@@ -17,6 +17,7 @@
 package uk.gov.hmrc.mtdtransactionrisking.v1.services
 
 import play.api.libs.json.{JsValue, Json}
+import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.mtdtransactionrisking.support.UnitSpec
 import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
 import uk.gov.hmrc.mtdtransactionrisking.v1.mocks.services.MockRsdRetryService
@@ -31,6 +32,9 @@ class InteractionServiceSpec
 
   implicit val correlationId: CorrelationId =
     CorrelationId("test-correlation-id")
+
+  implicit private val hc: HeaderCarrier =
+    HeaderCarrier()  
 
   private val vrn =
     "123456789"
