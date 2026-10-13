@@ -16,61 +16,35 @@
 
 package uk.gov.hmrc.mtdtransactionrisking.v1.models.response
 
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.wordspec.AnyWordSpec
-import play.api.libs.json.{JsSuccess, Json}
+import play.api.libs.json.{JsValue, Json}
+import uk.gov.hmrc.mtdtransactionrisking.support.UnitSpec
 
-class RdsAcknowledgeResponseSpec extends AnyWordSpec with Matchers:
+class RdsAcknowledgeResponseSpec extends UnitSpec:
 
-  private val response = RdsAcknowledgeResponse(
-    vrn = Some("123456789"),
-    feedbackId = Some("f2fb30e5-4ab6-4a29-b3c1-c00000000001"),
-    createdDttm = Some("2026-06-09T10:30:00Z"),
-    responseCode = Some(202),
-    responseMessage = Some("Accepted")
+  private def acknowledgeJson(outputs: (String, JsValue)*): JsValue =
+    Json.obj(
+      "moduleId"       -> "HMRC_ASSIST_VAT_FINSUB_FEEDBACK_ACK",
+      "executionState" -> "completed",
+      "outputs"        -> outputs.map((name, value) => Json.obj("name" -> name, "value" -> value))
+    )
+
+  private val qaRejection: JsValue = acknowledgeJson(
+    "VRN"                      -> Json.toJson("888852841"),
+    "createdDttm"              -> Json.toJson("2026-10-12T14:25:44.688"),
+    "feedbackId"               -> Json.toJson("bc3877bc-5490-4775-9849-cdd566a9aa3c"),
+    "responseCode"             -> Json.parse("401.0"),
+    "responseMessage"          -> Json.toJson("Acknowledgement validation failed"),
+    "rt_Record_Contacts_Outer" -> Json.toJson("bb07e500-8a7e-0a48-b3b0-8f639f4bf413")
   )
 
-  "RdsAcknowledgeResponse" when {
-    "serialising to JSON" should {
-      "produce the RDS acknowledge response fields" in {
-        val json = Json.toJson(response)
+  "RdsAcknowledgeResponse" when:
 
-        (json \ "vrn").as[String] shouldBe "123456789"
-        (json \ "feedbackId").as[String] shouldBe "f2fb30e5-4ab6-4a29-b3c1-c00000000001"
-        (json \ "createdDttm").as[String] shouldBe "2026-06-09T10:30:00Z"
-        (json \ "responseCode").as[Int] shouldBe 202
-        (json \ "responseMessage").as[String] shouldBe "Accepted"
-      }
-    }
+    "reading the response RDS returned in QA" should:
+      val response = qaRejection.as[RdsAcknowledgeResponse]
 
-    "deserialising from JSON" should {
-      "round-trip correctly" in {
-        val json = Json.toJson(response)
-        val result = json.validate[RdsAcknowledgeResponse]
+      "read VRN case-insensitively" in:
+        response.vrn shouldBe Some("888852841")
 
-        result shouldBe JsSuccess(response)
-      }
-    }
-  }
-
-  "RdsAcknowledgeResponseWrapper" when {
-    "serialising to JSON" should {
-      "wrap the output object correctly" in {
-        val wrapper = RdsAcknowledgeResponseWrapper(output = response)
-        val json = Json.toJson(wrapper)
-
-        (json \ "output" \ "responseCode").as[Int] shouldBe 202
-        (json \ "output" \ "responseMessage").as[String] shouldBe "Accepted"
-      }
-    }
-
-    "deserialising from JSON" should {
-      "round-trip correctly" in {
-        val wrapper = RdsAcknowledgeResponseWrapper(output = response)
-        val json = Json.toJson(wrapper)
-        val result = json.validate[RdsAcknowledgeResponseWrapper]
-
-        result shouldBe JsSuccess(wrapper)
-      }
-    }
-  }
+      "read the feedback id and created time" in:
+        response.feedbackId shouldBe Some("bc3877bc-5490-4775-9849-cdd566a9aa3c")
+        response.createdDttm

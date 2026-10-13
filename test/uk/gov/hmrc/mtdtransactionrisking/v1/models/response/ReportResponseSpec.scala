@@ -62,7 +62,7 @@ class ReportResponseSpec extends UnitSpec:
   private val report: ReportResponse = rdsResponseJson.as[ReportResponse]
 
   private def reportWith(outputs: (String, JsValue)*): ReportResponse =
-    ReportResponse(outputs.map((name, value) => ReportOutput(name, value)))
+    ReportResponse(outputs.map((name, value) => RdsOutput(name, value)))
 
   "ReportResponse" when:
 
@@ -94,8 +94,8 @@ class ReportResponseSpec extends UnitSpec:
 
     "a response code is sent" should:
 
-      "read it from a string" in:
-        reportWith("responseCode" -> Json.toJson("201")).responseCode shouldBe Some(201)
+      "read a whole-number decimal as an Int" in:
+        reportWith("responseCode" -> Json.parse("201.0")).responseCode shouldBe Some(201)
 
       "read it from a number" in:
         reportWith("responseCode" -> Json.toJson(201)).responseCode shouldBe Some(201)

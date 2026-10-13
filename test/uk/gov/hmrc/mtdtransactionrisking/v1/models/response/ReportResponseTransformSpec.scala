@@ -44,7 +44,7 @@ class ReportResponseTransformSpec extends UnitSpec:
   )
 
   private def reportWith(outputs: (String, JsValue)*): ReportResponse =
-    ReportResponse(outputs.map((name, value) => ReportOutput(name, value)))
+    ReportResponse(outputs.map((name, value) => RdsOutput(name, value)))
 
   private def reportWithEnglish(englishActions: JsValue): ReportResponse =
     reportWith(
@@ -171,16 +171,9 @@ class ReportResponseTransformSpec extends UnitSpec:
     "a row's links" should:
 
       "be omitted when the link title is empty" in:
-        val noPath = grid(Seq("ITEMNUMBER", "MESSAGE", "TITLE"), Json.arr("1", "Please review.", "VAT Return Query"))
+        val row = Json.arr("1", "Please review.", "Check.", "VAT Return Query", "", "https://www.gov.uk/vat-returns", "vatDueSales")
 
-        englishMessages(noPath).head shouldBe FeedbackMessage(
-          itemNumber = "1",
-          title = "VAT Return Query",
-          body = "Please review.",
-          action = None,
-          links = None,
-          path = None
-        )
+        englishMessages(actionGrids(row)).head.links shouldBe None
 
       "be omitted when the link url is empty" in:
         val row = Json.arr("1", "Please review.", "Check.", "VAT Return Query", "VAT guidance", "", "vatDueSales")
@@ -205,25 +198,25 @@ class ReportResponseTransformSpec extends UnitSpec:
         message.action shouldBe None
         message.links shouldBe None
 
-    "a row is missing path" should:
-      "retain the feedback message with no path" in:
+    "a row is missing path" should :
+      "retain the feedback message with no path" in :
         val noPath = grid(
           Seq("ITEMNUMBER", "MESSAGE", "TITLE"),
-          Json.arr("0", "HMRC Assist has not returned any messages.", "HMRC feedback")
+          Json.arr("1", "Please review.", "VAT Return Query")
         )
 
         englishMessages(noPath).head shouldBe FeedbackMessage(
-          itemNumber = "0",
-          title = "HMRC feedback",
-          body = "HMRC Assist has not returned any messages.",
+          itemNumber = "1",
+          title = "VAT Return Query",
+          body = "Please review.",
           action = None,
           links = None,
           path = None
         )
 
-    "a row has an empty path" should:
-      "retain the feedback message without surfacing path" in:
-        val row = Json.arr("0", "HMRC Assist has not returned any messages.", "", "HMRC feedback", "", "", "")
+    "a row has an empty path" should :
+      "retain the feedback message without surfacing path" in :
+        val row = Json.arr("1", "Please review.", "", "VAT Return Query", "", "", "")
 
         englishMessages(actionGrids(row)).head.path shouldBe None
 

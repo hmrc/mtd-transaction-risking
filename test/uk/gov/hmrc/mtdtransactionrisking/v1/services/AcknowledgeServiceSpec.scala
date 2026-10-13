@@ -18,17 +18,17 @@ package uk.gov.hmrc.mtdtransactionrisking.v1.services
 
 import controllers.Execution.trampoline
 import play.api.http.Status.BAD_REQUEST
-import play.api.libs.json.Json
+import play.api.libs.json.{JsNumber, JsString, Json}
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.mtdtransactionrisking.support.UnitSpec
 import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
 import uk.gov.hmrc.mtdtransactionrisking.v1.mocks.connectors.{MockAcknowledgeConnector, MockRdsConnector}
-import uk.gov.hmrc.mtdtransactionrisking.v1.mocks.services.{MockInteractionService, MockRdsAuthService, MockNrsService}
-import uk.gov.hmrc.mtdtransactionrisking.v1.models.auth.{IdentityData,RdsAuthCredentials}
+import uk.gov.hmrc.mtdtransactionrisking.v1.mocks.services.{MockInteractionService, MockNrsService, MockRdsAuthService}
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.auth.{IdentityData, RdsAuthCredentials}
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.errors.{DownstreamError, ErrorWrapper}
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.outcomes.ResponseWrapper
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.AcknowledgeRequest
-import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.RdsAcknowledgeResponse
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.{RdsAcknowledgeResponse, RdsOutput}
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.nrs.AssistReportAcknowledged
 
 import java.time.Instant
@@ -58,11 +58,13 @@ class AcknowledgeServiceSpec extends UnitSpec, MockAcknowledgeConnector, MockInt
   )
 
   private val response = RdsAcknowledgeResponse(
-    vrn = Some("123456789"),
-    feedbackId = Some("f2fb30e5-4ab6-4a29-b3c1-c00000000001"),
-    createdDttm = Some("2026-06-09T10:30:00Z"),
-    responseCode = Some(202),
-    responseMessage = Some("Accepted")
+    Seq(
+      RdsOutput("VRN", JsString("123456789")),
+      RdsOutput("feedbackId", JsString("f2fb30e5-4ab6-4a29-b3c1-c00000000001")),
+      RdsOutput("createdDttm", JsString("2026-06-09T10:30:00")),
+      RdsOutput("responseCode", JsNumber(202)),
+      RdsOutput("responseMessage", JsString("Accepted"))
+    )
   )
 
   private trait Test:

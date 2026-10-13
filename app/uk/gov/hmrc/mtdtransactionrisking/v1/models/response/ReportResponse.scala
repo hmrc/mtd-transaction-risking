@@ -18,58 +18,40 @@ package uk.gov.hmrc.mtdtransactionrisking.v1.models.response
 
 import play.api.libs.json.{JsValue, Json, Reads}
 
-/** RDS report.
+/** RDS report. An HTTP 201 means the module executed and produced a report
   *
-  * Results are a flat list of name/value outputs rather than a structured object. An HTTP 201 means the module executed and produced a report
-  *
-  * Feedback messages arrive as grids: a metadata block naming the columns, then data rows whose values line up positionally with them. 
+  * Feedback messages arrive as grids: a metadata block naming the columns, then data rows whose values line up positionally with them.
   *
   * {{{
   * {
   *   "outputs": [
   *     { "name": "correlationId", "value": null },
   *     { "name": "createdDttm",   "value": "2026-10-09T19:00:19.246" },
-  *     { "name": "feedbackId",    "value": "ec413ab2-5f07-..." },
+  *     { "name": "feedbackId",    "value": "bc3877bc-5490-4775-9849-cdd566a9aa3c" },
   *     { "name": "vrn",           "value": "123456789" },
   *     { "name": "englishActions", "value": [
   *         { "metadata": [ {"ITEMNUMBER": "string"}, {"MESSAGE": "string"}, {"ACTION": "string"}, {"TITLE": "string"},
   *                         {"LINKTITLE": "string"}, {"LINKURL": "string"}, {"PATH": "string"} ] },
   *         { "data":     [ [ "1", "Please review your figures.", "Check your records.", "VAT Return Query",
-  *                           "VAT guidance", "https://www.gov.uk/...", "vatDueSales" ] ] }
+  *                           "VAT guidance", "https://www.gov.uk", "vatDueSales" ] ] }
   *     ]},
   *     { "name": "welshActions", "value": [ ... ] },
-  *     { "name": "rt_Record_Contacts_Outer", "value": "f9a5a9a7-..." }
+  *     { "name": "rt_Record_Contacts_Outer", "value": "..." }
   *   ]
   * }
   * }}}
   */
-final case class ReportResponse(outputs: Seq[ReportOutput]):
+final case class ReportResponse(outputs: Seq[RdsOutput]) extends RdsOutputs:
 
-  // Accepts "201" or 201, should RDS start sending it
-  def responseCode: Option[Int] =
-    valueOf("responseCode").flatMap(value => value.asOpt[Int].orElse(value.asOpt[String].flatMap(_.toIntOption)))
-
-  def responseMessage: Option[String] = valueOf("responseMessage").flatMap(_.asOpt[String])
-  def feedbackId: Option[String] = valueOf("feedbackId").flatMap(_.asOpt[String])
-  def rdsCorrelationId: Option[String] = valueOf("correlationId").flatMap(_.asOpt[String]) // null becomes None
-
+  def rdsCorrelationId: Option[String] = stringOf("correlationId")
   def englishActions: Seq[ActionGrid] = actionGrids("englishActions")
+  def welshActions: Seq[ActionGrid] = actionGrids("welshActions")
 
   private def actionGrids(name: String): Seq[ActionGrid] =
     valueOf(name).flatMap(_.asOpt[Seq[ActionGrid]]).getOrElse(Seq.empty)
 
-  private def valueOf(name: String): Option[JsValue] =
-    outputs.find(_.name.equalsIgnoreCase(name)).map(_.value)
-
-  def welshActions: Seq[ActionGrid] = actionGrids("welshActions")
-
 object ReportResponse:
   given reads: Reads[ReportResponse] = Json.reads[ReportResponse]
-
-final case class ReportOutput(name: String, value: JsValue)
-
-object ReportOutput:
-  given reads: Reads[ReportOutput] = Json.reads[ReportOutput]
 
 final case class ActionGrid(metadata: Option[Seq[JsValue]], data: Option[Seq[Seq[JsValue]]])
 

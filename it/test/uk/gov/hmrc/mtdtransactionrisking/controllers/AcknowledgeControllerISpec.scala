@@ -85,6 +85,7 @@ class AcknowledgeControllerISpec extends IntegrationBaseSpec:
           AuthStub.successfulAuthWithOrganisation(vrn)
           InteractionStub.stores()
           RdsStub.acknowledgeAccepted()
+          NrsStub.accepts()
 
         val response: WSResponse = await(buildRequest(uri).post(EmptyBody))
         response.status shouldBe NO_CONTENT
@@ -157,6 +158,20 @@ class AcknowledgeControllerISpec extends IntegrationBaseSpec:
         response.status shouldBe BAD_REQUEST
         (document(response) \ "code").as[String] shouldBe "PRESENTED_DATE_TIME_INVALID"
 
+        wireMockServer.verify(0, postRequestedFor(urlPathMatching("/nrs-orchestrator/submission")))
+
+      "return an acknowledgement-failed error and not store the interaction when RDS rejects with responseCode 401" in new Test:
+        override def setupStubs(): StubMapping =
+          AuthStub.successfulAuthWith(vrn)
+          InteractionStub.stores()
+          RdsStub.acknowledgeRejected()
+
+        val response: WSResponse = await(buildRequest(uri).post(EmptyBody))
+
+        response.status shouldBe BAD_REQUEST
+        (document(response) \ "code").as[String] shouldBe "ACKNOWLEDGEMENT_VALIDATION_FAILED"
+
+        wireMockServer.verify(0, postRequestedFor(urlPathMatching("/rsd/receive-and-store")))
         wireMockServer.verify(0, postRequestedFor(urlPathMatching("/nrs-orchestrator/submission")))
 
       "not call RDS or the interaction store" in new Test:
