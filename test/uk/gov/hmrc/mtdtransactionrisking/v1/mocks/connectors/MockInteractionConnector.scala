@@ -23,7 +23,7 @@ import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
 import uk.gov.hmrc.mtdtransactionrisking.v1.connectors.InteractionConnector
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.Interaction
-import uk.gov.hmrc.mtdtransactionrisking.v1.services.ServiceOutcome
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.rsd.RsdSubmissionResult
 
 import scala.concurrent.Future
 
@@ -34,7 +34,7 @@ trait MockInteractionConnector extends MockFactory:
 
   object MockInteractionConnector:
 
-    def store(request: Interaction): CallHandler[Future[ServiceOutcome[Unit]]] =
+    def store(request: Interaction, correlationId: CorrelationId): CallHandler[Future[RsdSubmissionResult]] =
       (mockInteractionConnector
-        .store(_: Interaction)(_: HeaderCarrier, _: CorrelationId))
-        .expects(request, *, *)
+        .store(_: Interaction, _: CorrelationId)(_: HeaderCarrier))
+        .expects(request, correlationId, *)

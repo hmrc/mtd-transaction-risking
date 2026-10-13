@@ -88,6 +88,33 @@ trait MockAppConfig extends MockFactory:
     def interactionCredentials: CallHandler[InteractionCredentials] =
       (() => mockAppConfig.interactionCredentials).expects()
 
+    def rsdRetryInitialDelay: CallHandler[FiniteDuration] =
+      (() => mockAppConfig.rsdRetryInitialDelay).expects()
+
+    def rsdRetryInterval: CallHandler[FiniteDuration] =
+      (() => mockAppConfig.rsdRetryInterval).expects()
+
+    def rsdRetryBatchSize: CallHandler[Int] =
+      (() => mockAppConfig.rsdRetryBatchSize).expects()
+          
+    def rsdRetryInProgressRetryAfter: CallHandler[FiniteDuration] =
+      (() => mockAppConfig.rsdRetryInProgressRetryAfter).expects()
+        
+    def rsdRetryMaxRetries: CallHandler[Int] =
+      (() => mockAppConfig.rsdRetryMaxRetries).expects()
+
+    def rsdRetryInitialBackoff: CallHandler[FiniteDuration] =
+      (() => mockAppConfig.rsdRetryInitialBackoff).expects()
+          
+    def rsdRetryBackoffMultiplier: CallHandler[Double] =
+      (() => mockAppConfig.rsdRetryBackoffMultiplier).expects()
+          
+    def rsdRetryMaxBackoff: CallHandler[FiniteDuration] =
+      (() => mockAppConfig.rsdRetryMaxBackoff).expects()
+        
+    def rsdRetryRetention: CallHandler[FiniteDuration] =
+      (() => mockAppConfig.rsdRetryRetention).expects()  
+
     def nrsSubmissionUrl: CallHandler[String] =
       (() => mockAppConfig.nrsSubmissionUrl).expects()
 

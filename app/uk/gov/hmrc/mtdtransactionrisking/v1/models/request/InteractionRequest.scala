@@ -16,7 +16,7 @@
 
 package uk.gov.hmrc.mtdtransactionrisking.v1.models.request
 
-import play.api.libs.json.{JsObject, JsValue, Json, OWrites}
+import play.api.libs.json.{JsObject, JsValue, Json, OFormat}
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.{FeedbackMessage, FeedbackResponse, Obligation}
 
 import java.time.Instant
@@ -36,7 +36,7 @@ object Interaction:
   private val generateReportEvent = "generate-report"
   private val acknowledgeReportEvent = "acknowledge-report"
 
-  given writes: OWrites[Interaction] = Json.writes[Interaction]
+  given format: OFormat[Interaction] = Json.format[Interaction]
 
   def forGeneratedReport(feedback: FeedbackResponse, obligation: Obligation, vrn: String, vendorBody: JsValue, occurredAt: Instant): Interaction =
     Interaction(
@@ -75,7 +75,7 @@ object InteractionMetadata:
     "totalAcquisitionsExVAT"
   )
 
-  given writes: OWrites[InteractionMetadata] = Json.writes[InteractionMetadata]
+  given format: OFormat[InteractionMetadata] = Json.format[InteractionMetadata]
 
   def forGeneratedReport(vrn: String, obligation: Obligation, vendorBody: JsValue): InteractionMetadata =
     InteractionMetadata(
@@ -97,7 +97,7 @@ final case class InteractionPayload(reportId: String, messages: Option[Seq[Inter
 
 object InteractionPayload:
 
-  given writes: OWrites[InteractionPayload] = Json.writes[InteractionPayload]
+  given format: OFormat[InteractionPayload] = Json.format[InteractionPayload]
 
   def forGeneratedReport(feedback: FeedbackResponse): InteractionPayload =
     val welshByItemNumber = feedback.welshFeedback.map(message => message.itemNumber -> message).toMap
@@ -113,7 +113,7 @@ final case class InteractionMessage(englishActions: InteractionAction, welshActi
 
 object InteractionMessage:
 
-  given writes: OWrites[InteractionMessage] = Json.writes[InteractionMessage]
+  given format: OFormat[InteractionMessage] = Json.format[InteractionMessage]
 
   def from(english: FeedbackMessage, welsh: FeedbackMessage): Option[InteractionMessage] =
     english.itemNumber.toIntOption.map { itemNumber =>
@@ -134,7 +134,7 @@ final case class InteractionAction(
 
 object InteractionAction:
 
-  given writes: OWrites[InteractionAction] = Json.writes[InteractionAction]
+  given format: OFormat[InteractionAction] = Json.format[InteractionAction]
 
   def from(itemNumber: Int, message: FeedbackMessage): InteractionAction =
     InteractionAction(
@@ -149,4 +149,4 @@ object InteractionAction:
 final case class InteractionLink(linkTitle: String, linkUrl: String)
 
 object InteractionLink:
-  given writes: OWrites[InteractionLink] = Json.writes[InteractionLink]
+  given format: OFormat[InteractionLink] = Json.format[InteractionLink]

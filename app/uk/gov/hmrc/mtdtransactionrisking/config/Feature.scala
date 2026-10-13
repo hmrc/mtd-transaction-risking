@@ -27,3 +27,6 @@ case object NrsSubmissionFeature extends Feature:
 
 case object NrsRetryFeature extends Feature:
   override val name: String = "nrs-retry"
+
+case object RsdRetryFeature extends Feature:
+  override val name: String = "rsd-retry"  

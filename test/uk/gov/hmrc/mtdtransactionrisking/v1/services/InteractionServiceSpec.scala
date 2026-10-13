@@ -17,93 +17,128 @@
 package uk.gov.hmrc.mtdtransactionrisking.v1.services
 
 import play.api.libs.json.{JsValue, Json}
-import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.mtdtransactionrisking.support.UnitSpec
 import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
-import uk.gov.hmrc.mtdtransactionrisking.v1.mocks.connectors.MockInteractionConnector
-import uk.gov.hmrc.mtdtransactionrisking.v1.models.errors.{DownstreamError, ErrorWrapper}
-import uk.gov.hmrc.mtdtransactionrisking.v1.models.outcomes.ResponseWrapper
+import uk.gov.hmrc.mtdtransactionrisking.v1.mocks.services.MockRsdRetryService
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.Interaction
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.{FeedbackLink, FeedbackMessage, FeedbackResponse, Obligation}
-import uk.gov.hmrc.play.bootstrap.tools.LogCapturing
 
-import scala.concurrent.ExecutionContext.Implicits.global
 import java.time.{Clock, Instant, ZoneOffset}
-import scala.concurrent.{ExecutionContext, Future}
 
-class InteractionServiceSpec extends UnitSpec, MockInteractionConnector, LogCapturing:
+class InteractionServiceSpec
+  extends UnitSpec
+    with MockRsdRetryService:
 
-  implicit val hc: HeaderCarrier = HeaderCarrier()
-  implicit val correlationId: CorrelationId = CorrelationId("test-correlation-id")
+  implicit val correlationId: CorrelationId =
+    CorrelationId("test-correlation-id")
 
-  private val vrn = "123456789"
-  private val now = Instant.parse("2026-08-13T09:00:00Z")
-  private val clock = Clock.fixed(now, ZoneOffset.UTC)
+  private val vrn =
+    "123456789"
 
-  private val obligation = Obligation(
-    periodKey = "AB12",
-    start = "2026-01-01",
-    end = "2026-03-31",
-    due = "2026-05-07",
-    status = "O",
-    received = None
-  )
+  private val now =
+    Instant.parse("2026-08-13T09:00:00Z")
 
-  private val vendorBody: JsValue = Json.parse(
-    """
-      |{
-      |  "periodKey": "AB12",
-      |  "vatDueSales": 100.00,
-      |  "vatDueAcquisitions": 100.00,
-      |  "totalVatDue": 200.00,
-      |  "vatReclaimedCurrPeriod": 100.00,
-      |  "netVatDue": 100.00,
-      |  "totalValueSalesExVAT": 500,
-      |  "totalValuePurchasesExVAT": 500,
-      |  "totalValueGoodsSuppliedExVAT": 500,
-      |  "totalAcquisitionsExVAT": 500
-      |}
-      |""".stripMargin
-  )
+  private val clock =
+    Clock.fixed(now, ZoneOffset.UTC)
 
-  private val englishMessage = FeedbackMessage(
-    itemNumber = "1",
-    title = "VAT title",
-    body = "VAT body",
-    action = Some("VAT action"),
-    links = Some(List(FeedbackLink("VAT", "https://www.gov.uk/vat"))),
-    path = Some("/guidance")
-  )
+  private val obligation =
+    Obligation(
+      periodKey = "AB12",
+      start = "2026-01-01",
+      end = "2026-03-31",
+      due = "2026-05-07",
+      status = "O",
+      received = None
+    )
 
-  private val welshMessage = englishMessage.copy(title = "Teitl TAW", body = "Corff TAW")
+  private val vendorBody: JsValue =
+    Json.parse(
+      """
+        |{
+        |  "periodKey": "AB12",
+        |  "vatDueSales": 100.00,
+        |  "vatDueAcquisitions": 100.00,
+        |  "totalVatDue": 200.00,
+        |  "vatReclaimedCurrPeriod": 100.00,
+        |  "netVatDue": 100.00,
+        |  "totalValueSalesExVAT": 500,
+        |  "totalValuePurchasesExVAT": 500,
+        |  "totalAcquisitionsExVAT": 500
+        |}
+        |""".stripMargin
+    )
 
-  private val feedback = FeedbackResponse(
-    reportId = "f2fb30e5-4ab6-4a29-b3c1-c00000000001",
-    englishFeedback = List(englishMessage),
-    welshFeedback = List(welshMessage),
-    correlationId = Some("E9F65715BBC9222477B27074804BBDD5C73CDE62F84D8B00CFD05B883534AF3D")
-  )
+  private val englishMessage =
+    FeedbackMessage(
+      itemNumber = "1",
+      title = "VAT title",
+      body = "VAT body",
+      action = Some("VAT action"),
+      links = Some(
+        List(
+          FeedbackLink(
+            "VAT",
+            "https://www.gov.uk/vat"
+          )
+        )
+      ),
+      path = Some("/guidance")
+    )
+
+  private val feedback =
+    FeedbackResponse(
+      reportId = "f2fb30e5-4ab6-4a29-b3c1-c00000000001",
+      englishFeedback = List(englishMessage),
+      welshFeedback = List(englishMessage),
+      correlationId = None
+    )
 
   private val expectedInteraction: Interaction =
-    Interaction.forGeneratedReport(feedback, obligation, vrn, vendorBody, now)
+    Interaction.forGeneratedReport(
+      feedback = feedback,
+      obligation = obligation,
+      vrn = vrn,
+      vendorBody = vendorBody,
+      occurredAt = now
+    )
 
-  trait Test:
-    val service = new InteractionService(mockInteractionConnector, clock)
+  private trait Test:
+    val service =
+      new InteractionService(
+        rsdRetryService = mockRsdRetryService,
+        clock = clock
+      )
 
-  "store" when:
+  "InteractionService.store" should :
 
-    "the connector accepts the interaction" should:
-      "send it built from the feedback, obligation and vendor body" in new Test:
-        MockInteractionConnector
-          .store(expectedInteraction)
-          .returns(Future.successful(Right(ResponseWrapper(correlationId, ()))))
+    "build the generated-report interaction and submit it with the TxR-generated correlation ID" in new Test:
+      MockRsdRetryService
+        .submitInitial(
+          interaction = expectedInteraction,
+          correlationId = correlationId
+        )
+        .returns(())
 
-        service.store(feedback, obligation, vrn, vendorBody)
+      service.store(
+        feedback = feedback,
+        obligation = obligation,
+        vrn = vrn,
+        vendorBody = vendorBody
+      )
 
-    "the connector returns an error" should:
-      "not propagate it to the caller" in new Test:
-        MockInteractionConnector
-          .store(expectedInteraction)
-          .returns(Future.successful(Left(ErrorWrapper(correlationId, DownstreamError))))
+    "not depend on the nullable downstream response-data correlationId" in new Test:
+      MockRsdRetryService
+        .submitInitial(
+          interaction = expectedInteraction,
+          correlationId = correlationId
+        )
+        .returns(())
 
-        noException should be thrownBy service.store(feedback, obligation, vrn, vendorBody)
+      noException shouldBe thrownBy {
+        service.store(
+          feedback = feedback,
+          obligation = obligation,
+          vrn = vrn,
+          vendorBody = vendorBody
+        )
+      }

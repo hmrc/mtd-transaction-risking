@@ -22,46 +22,114 @@ import play.api.libs.json.Json
 import play.api.libs.ws.writeableOf_JsValue
 import uk.gov.hmrc.http.HttpReads.Implicits.*
 import uk.gov.hmrc.http.client.HttpClientV2
-import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse, StringContextOps}
+import uk.gov.hmrc.http.{BadGatewayException, GatewayTimeoutException, HeaderCarrier, HttpResponse, StringContextOps}
 import uk.gov.hmrc.mtdtransactionrisking.config.AppConfig
 import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.auth.InteractionCredentials
-import uk.gov.hmrc.mtdtransactionrisking.v1.models.errors.{DownstreamError, ErrorWrapper}
-import uk.gov.hmrc.mtdtransactionrisking.v1.models.outcomes.ResponseWrapper
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.rsd.RsdSubmissionResult
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.rsd.RsdSubmissionResult.*
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.Interaction
-import uk.gov.hmrc.mtdtransactionrisking.v1.services.ServiceOutcome
 
+import java.net.{ConnectException, SocketException, UnknownHostException}
+import java.util.concurrent.TimeoutException
+import scala.annotation.tailrec
 import java.nio.charset.StandardCharsets.UTF_8
 import java.util.Base64
 import javax.inject.{Inject, Singleton}
+import javax.net.ssl.SSLException
 import scala.concurrent.{ExecutionContext, Future}
+import scala.reflect.ClassTag
+import scala.util.control.NonFatal
 
 @Singleton
 class InteractionConnector @Inject() (httpClient: HttpClientV2, appConfig: AppConfig)(implicit ec: ExecutionContext) extends Logging:
 
-  def store(interaction: Interaction)(implicit hc: HeaderCarrier, correlationId: CorrelationId): Future[ServiceOutcome[Unit]] =
+  def store(interaction: Interaction, correlationId: CorrelationId)(implicit hc: HeaderCarrier): Future[RsdSubmissionResult] =
 
     logger.info(s"${correlationId.value}::[InteractionConnector][store] storing interaction for feedbackId ${interaction.feedbackId}")
 
-    httpClient
-      .post(url"${appConfig.interactionsBaseUrl}")
-      .withBody(Json.toJson(interaction))
-      .setHeader(buildHeaders(correlationId, appConfig.interactionCredentials)*)
-      .execute[HttpResponse]
-      .map { response =>
-        response.status match
-          case NO_CONTENT =>
-            logger.info(s"${correlationId.value}::[InteractionConnector][store] interaction stored")
-            Right(ResponseWrapper(correlationId, ()))
+    try
+      httpClient
+        .post(url"${appConfig.interactionsBaseUrl}")
+        .withBody(Json.toJson(interaction))
+        .setHeader(
+          buildHeaders(
+            correlationId = correlationId,
+            credentials = appConfig.interactionCredentials
+          ) *
+        )
+        .execute[HttpResponse]
+        .map { response =>
+          response.status match
+            case NO_CONTENT =>
+              logger.info(
+                s"${correlationId.value}::[InteractionConnector][store] " +
+                  s"interaction stored for ${interaction.eventName}, " +
+                  s"feedbackId ${interaction.feedbackId}"
+              )
+              Success
 
-          case status =>
-            logger.error(s"${correlationId.value}::[InteractionConnector][store] failed $status: ${response.body}")
-            Left(ErrorWrapper(correlationId, DownstreamError))
-      }
-      .recover:
-        case ex =>
-          logger.error(s"${correlationId.value}::[InteractionConnector][store] unexpected exception", ex)
-          Left(ErrorWrapper(correlationId, DownstreamError))
+            case 400 =>
+              logger.warn(
+                s"${correlationId.value}::[InteractionConnector][store] " +
+                  s"permanent RSD status 400 for ${interaction.eventName}, " +
+                  s"feedbackId ${interaction.feedbackId}"
+              )
+              PermanentFailure
+
+            case 499 =>
+              logger.warn(
+                s"${correlationId.value}::[InteractionConnector][store] " +
+                  s"retryable RSD status 499 for ${interaction.eventName}, " +
+                  s"feedbackId ${interaction.feedbackId}"
+              )
+              RetryableFailure
+
+            case status if status >= 500 && status <= 599 =>
+              logger.warn(
+                s"${correlationId.value}::[InteractionConnector][store] " +
+                  s"retryable RSD status $status for ${interaction.eventName}, " +
+                  s"feedbackId ${interaction.feedbackId}"
+              )
+              RetryableFailure
+
+            case status =>
+              logger.warn(
+                s"${correlationId.value}::[InteractionConnector][store] " +
+                  s"non-retryable RSD status $status for ${interaction.eventName}, " +
+                  s"feedbackId ${interaction.feedbackId}"
+              )
+              PermanentFailure
+        }
+        .recover {
+          case NonFatal(error) =>
+            val result: RsdSubmissionResult =
+              InteractionConnector.classifyTransportFailure(error)
+
+            logger.warn(
+              s"${correlationId.value}::[InteractionConnector][store] " +
+                s"${InteractionConnector.failureCategory(result)} RSD transport failure " +
+                s"for ${interaction.eventName}, feedbackId ${interaction.feedbackId}: " +
+                s"${error.getClass.getSimpleName}",
+              error
+            )
+
+            result
+        }
+    catch
+      case NonFatal(error) =>
+        val result =
+          InteractionConnector.classifyTransportFailure(error)
+
+        logger.warn(
+          s"${correlationId.value}::[InteractionConnector][store] " +
+            s"${InteractionConnector.failureCategory(result)} RSD request-construction failure " +
+            s"for ${interaction.eventName}, feedbackId ${interaction.feedbackId}: " +
+            s"${error.getClass.getSimpleName}",
+          error
+        )
+
+        Future.successful(result)
 
   private def buildHeaders(correlationId: CorrelationId, credentials: InteractionCredentials): Seq[(String, String)] =
     val encoded = Base64.getEncoder.encodeToString(s"${credentials.clientId}:${credentials.clientSecret}".getBytes(UTF_8))
@@ -72,3 +140,50 @@ class InteractionConnector @Inject() (httpClient: HttpClientV2, appConfig: AppCo
       "CorrelationId" -> correlationId.value,
       "Authorization" -> s"Basic $encoded"
     )
+
+object InteractionConnector:
+
+    def classifyTransportFailure(
+                                  error: Throwable
+                                ): RsdSubmissionResult =
+      if containsCause[SSLException](error) then
+        PermanentFailure
+      else if
+        containsCause[GatewayTimeoutException](error) ||
+          containsCause[BadGatewayException](error) ||
+          containsCause[TimeoutException](error) ||
+          containsCause[ConnectException](error) ||
+          containsCause[SocketException](error) ||
+          containsCause[UnknownHostException](error)
+      then
+        RetryableFailure
+      else
+        PermanentFailure
+
+    def failureCategory(
+                         result: RsdSubmissionResult
+                       ): String =
+      result match
+        case Success => "success"
+        case RetryableFailure => "retryable"
+        case PermanentFailure => "permanent"
+
+    private def containsCause[T <: Throwable : ClassTag](
+                                                          error: Throwable
+                                                        ): Boolean =
+
+      @tailrec
+      def loop(
+                current: Throwable
+              ): Boolean =
+        if summon[ClassTag[T]].runtimeClass.isInstance(current) then
+          true
+        else
+          Option(current.getCause) match
+            case Some(cause) if cause ne current =>
+              loop(cause)
+
+            case _ =>
+              false
+
+      loop(error)

@@ -20,32 +20,23 @@ import play.api.Logging
 import play.api.libs.json.JsValue
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
-import uk.gov.hmrc.mtdtransactionrisking.v1.connectors.InteractionConnector
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.{AcknowledgeRequest, Interaction}
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.{FeedbackResponse, Obligation}
 
 import java.time.{Clock, Instant}
 import javax.inject.{Inject, Singleton}
-import scala.concurrent.ExecutionContext
 
 @Singleton
-class InteractionService @Inject() (connector: InteractionConnector, clock: Clock)(implicit ec: ExecutionContext) extends Logging:
+class InteractionService @Inject() (rsdRetryService: RsdRetryService, clock: Clock) extends Logging:
 
-  def store(feedback: FeedbackResponse, obligation: Obligation, vrn: String, vendorBody: JsValue)(implicit
-      hc: HeaderCarrier,
-      correlationId: CorrelationId): Unit =
+  def store(feedback: FeedbackResponse, obligation: Obligation, vrn: String, vendorBody: JsValue)(implicit correlationId: CorrelationId): Unit =
     send(Interaction.forGeneratedReport(feedback, obligation, vrn, vendorBody, Instant.now(clock)))
 
   def storeAcknowledgement(request: AcknowledgeRequest)(implicit hc: HeaderCarrier, correlationId: CorrelationId): Unit =
     send(Interaction.forAcknowledgement(request, Instant.now(clock)))  
 
-  private def send(interaction: Interaction)(implicit hc: HeaderCarrier, correlationId: CorrelationId): Unit =
-    connector
-      .store(interaction)
-      .foreach {
-        case Right(_) => ()
-        case Left(errorWrapper) =>
-          logger.warn(
-            s"${correlationId.value}::[InteractionService] failed to store ${interaction.eventName} interaction " +
-              s"for feedbackId:${interaction.feedbackId} error:${errorWrapper.error.code}")
-      }
+  private def send(interaction: Interaction)(implicit correlationId: CorrelationId): Unit =
+    rsdRetryService.submitInitial(
+      interaction = interaction,
+      correlationId = correlationId
+    )

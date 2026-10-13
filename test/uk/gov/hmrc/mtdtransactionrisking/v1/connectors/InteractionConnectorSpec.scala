@@ -19,111 +19,307 @@ package uk.gov.hmrc.mtdtransactionrisking.v1.connectors
 import com.github.tomakehurst.wiremock.client.WireMock.*
 import com.github.tomakehurst.wiremock.http.Fault
 import com.github.tomakehurst.wiremock.stubbing.StubMapping
-import org.scalatest.BeforeAndAfterAll
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import play.api.libs.json.Json
 import play.api.test.Injecting
+import uk.gov.hmrc.http.{BadGatewayException, GatewayTimeoutException}
 import uk.gov.hmrc.http.client.HttpClientV2
 import uk.gov.hmrc.mtdtransactionrisking.support.{ConnectorSpec, MockAppConfig}
+import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.auth.InteractionCredentials
-import uk.gov.hmrc.mtdtransactionrisking.v1.models.errors.{DownstreamError, ErrorWrapper}
-import uk.gov.hmrc.mtdtransactionrisking.v1.models.outcomes.ResponseWrapper
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.{Interaction, InteractionMetadata, InteractionPayload}
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.rsd.RsdSubmissionResult
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.rsd.RsdSubmissionResult.*
 
+import java.net.{ConnectException, UnknownHostException}
 import java.nio.charset.StandardCharsets.UTF_8
 import java.util.Base64
+import java.util.concurrent.TimeoutException
+import javax.net.ssl.SSLException
 
-class InteractionConnectorSpec extends ConnectorSpec, BeforeAndAfterAll, Injecting, MockAppConfig:
+class InteractionConnectorSpec
+  extends ConnectorSpec
+    with BeforeAndAfterAll
+    with BeforeAndAfterEach
+    with Injecting
+    with MockAppConfig:
 
-  def port: Int = wireMockServer.port()
+  private val storePath =
+    "/rsd/receive-and-store"
 
-  val httpClient: HttpClientV2 = app.injector.instanceOf[HttpClientV2]
+  private val urlPattern =
+    urlPathMatching(storePath)
 
-  private val storePath = "/rsd/receive-and-store"
-  private val urlPattern = urlPathMatching(storePath)
+  private val clientId =
+    "stub-client-id"
 
-  private val clientId = "stub-client-id"
-  private val clientSecret = "stub-client-secret"
+  private val clientSecret =
+    "stub-client-secret"
+
+  private val correlationId =
+    CorrelationId("bd6c0972-34e7-11f1-9715-f35b3eb40b52")
 
   private val expectedBasicAuth =
-    "Basic " + Base64.getEncoder.encodeToString(s"$clientId:$clientSecret".getBytes(UTF_8))
+    "Basic " + Base64.getEncoder.encodeToString(
+      s"$clientId:$clientSecret".getBytes(UTF_8)
+    )
 
-  private val interaction: Interaction = Interaction(
-    serviceRegime = "vat-assist",
-    eventName = "generate-report",
-    feedbackId = "f2fb30e5-4ab6-4a29-b3c1-c00000000001",
-    eventTimestamp = "2026-08-13T09:00:00Z",
-    metadata = Seq(InteractionMetadata(vrn = "123456789", start = Some("2026-01-01"), end = Some("2026-03-31"), additionalProperties = Json.obj())),
-    payload = InteractionPayload(reportId = "f2fb30e5-4ab6-4a29-b3c1-c00000000001", messages = Some(Seq.empty))
-  )
+  private val interaction =
+    Interaction(
+      serviceRegime = "vat-assist",
+      eventName = "generate-report",
+      feedbackId = "f2fb30e5-4ab6-4a29-b3c1-c00000000001",
+      eventTimestamp = "2026-08-13T09:00:00Z",
+      metadata = Seq(
+        InteractionMetadata(
+          vrn = "123456789",
+          start = Some("2026-01-01"),
+          end = Some("2026-03-31"),
+          additionalProperties = Json.obj(
+            "periodKey" -> "AB12"
+          )
+        )
+      ),
+      payload = InteractionPayload(
+        reportId = "f2fb30e5-4ab6-4a29-b3c1-c00000000001",
+        messages = Some(Seq.empty)
+      )
+    )
 
-  class Test:
-    MockedAppConfig.interactionsBaseUrl.returns(s"http://localhost:$port$storePath").anyNumberOfTimes()
-    MockedAppConfig.interactionCredentials.returns(InteractionCredentials(clientId, clientSecret)).anyNumberOfTimes()
+  private trait Test:
+    MockedAppConfig.interactionsBaseUrl
+      .returns(
+        s"http://localhost:${wireMockServer.port()}$storePath"
+      )
+      .anyNumberOfTimes()
 
-    val connector = new InteractionConnector(httpClient, mockAppConfig)
+    MockedAppConfig.interactionCredentials
+      .returns(
+        InteractionCredentials(
+          clientId = clientId,
+          clientSecret = clientSecret
+        )
+      )
+      .anyNumberOfTimes()
 
-    def stubStore(status: Int, body: Option[String] = None): StubMapping =
-      wireMockServer.stubFor:
-        val resp = body.foldLeft(aResponse().withStatus(status)): (r, b) =>
-          r.withBody(b).withHeader("Content-Type", "application/json")
-        post(urlPattern).willReturn(resp)
+    val httpClient: HttpClientV2 =
+      app.injector.instanceOf[HttpClientV2]
 
-    def stubFault(): StubMapping =
-      wireMockServer.stubFor(post(urlPattern).willReturn(aResponse().withFault(Fault.CONNECTION_RESET_BY_PEER)))
+    val connector =
+      new InteractionConnector(
+        httpClient = httpClient,
+        appConfig = mockAppConfig
+      )
 
-  override def beforeAll(): Unit = wireMockServer.start()
-  override def afterAll(): Unit = wireMockServer.stop()
+    def stubStore(status: Int): StubMapping =
+      wireMockServer.stubFor(
+        post(urlPattern).willReturn(
+          aResponse().withStatus(status)
+        )
+      )
 
-  "InteractionConnector.store" when:
+    def stubConnectionReset(): StubMapping =
+      wireMockServer.stubFor(
+        post(urlPattern).willReturn(
+          aResponse().withFault(
+            Fault.CONNECTION_RESET_BY_PEER
+          )
+        )
+      )
 
-    "the datastore accepts the interaction" should:
-      "return Right(()) on 204" in new Test:
-        stubStore(NO_CONTENT)
+  override protected def beforeAll(): Unit =
+    super.beforeAll()
+    wireMockServer.start()
 
-        await(connector.store(interaction)) shouldBe Right(ResponseWrapper(correlationId, ()))
+  override protected def beforeEach(): Unit =
+    super.beforeEach()
+    wireMockServer.resetAll()
 
-    "the datastore rejects the request" should:
-      Seq(BAD_REQUEST, UNAUTHORIZED, FORBIDDEN, INTERNAL_SERVER_ERROR, SERVICE_UNAVAILABLE).foreach: status =>
-        s"return DownstreamError on $status" in new Test:
-          stubStore(status, Some(Json.obj("code" -> "ERROR", "message" -> "failed").toString))
+  override protected def afterAll(): Unit =
+    try wireMockServer.stop()
+    finally super.afterAll()
 
-          await(connector.store(interaction)) shouldBe Left(ErrorWrapper(correlationId, DownstreamError))
+  "InteractionConnector.store" should:
 
-    "the connection faults" should:
-      "return DownstreamError via recover" in new Test:
-        stubFault()
+    "return Success on HTTP 204" in new Test:
+      stubStore(204)
 
-        await(connector.store(interaction)) shouldBe Left(ErrorWrapper(correlationId, DownstreamError))
+      await(
+        connector.store(interaction, correlationId)
+      ) shouldBe Success
 
-    "making the request" should:
+    "return PermanentFailure on HTTP 400" in new Test:
+      stubStore(400)
 
-      "send the client credentials as basic auth" in new Test:
-        stubStore(NO_CONTENT)
+      await(
+        connector.store(interaction, correlationId)
+      ) shouldBe PermanentFailure
 
-        await(connector.store(interaction))
+    "return RetryableFailure on HTTP 499" in new Test:
+      stubStore(499)
 
-        wireMockServer.verify(postRequestedFor(urlPattern).withHeader("Authorization", equalTo(expectedBasicAuth)))
+      await(
+        connector.store(interaction, correlationId)
+      ) shouldBe RetryableFailure
 
-      "send the correlation id" in new Test:
-        stubStore(NO_CONTENT)
+    Seq(500, 503, 599).foreach { status =>
+      s"return RetryableFailure on HTTP $status" in new Test:
+        stubStore(status)
 
-        await(connector.store(interaction))
+        await(
+          connector.store(interaction, correlationId)
+        ) shouldBe RetryableFailure
+    }
 
-        wireMockServer.verify(postRequestedFor(urlPattern).withHeader("CorrelationId", equalTo(correlationId.value)))
+    Seq(401, 403, 404, 408, 409, 422, 429).foreach { status =>
+      s"return PermanentFailure on non-ticket HTTP status $status" in new Test:
+        stubStore(status)
 
-      "send json content type and accept any response type" in new Test:
-        stubStore(NO_CONTENT)
+        await(
+          connector.store(interaction, correlationId)
+        ) shouldBe PermanentFailure
+    }
 
-        await(connector.store(interaction))
+    "return RetryableFailure on a transient connection reset" in new Test:
+      stubConnectionReset()
 
-        wireMockServer.verify(
-          postRequestedFor(urlPattern)
-            .withHeader("Content-Type", containing("application/json"))
-            .withHeader("Accept", equalTo("*/*")))
+      await(
+        connector.store(interaction, correlationId)
+      ) shouldBe RetryableFailure
 
-      "send the interaction as the request body" in new Test:
-        stubStore(NO_CONTENT)
+    "send the existing Basic authentication credentials" in new Test:
+      stubStore(204)
 
-        await(connector.store(interaction))
+      await(
+        connector.store(interaction, correlationId)
+      ) shouldBe Success
 
-        wireMockServer.verify(postRequestedFor(urlPattern).withRequestBody(equalToJson(Json.toJson(interaction).toString, true, false)))
+      wireMockServer.verify(
+        postRequestedFor(urlPattern)
+          .withHeader(
+            "Authorization",
+            equalTo(expectedBasicAuth)
+          )
+      )
+
+    "send the supplied CorrelationId header unchanged" in new Test:
+      stubStore(204)
+
+      await(
+        connector.store(interaction, correlationId)
+      ) shouldBe Success
+
+      wireMockServer.verify(
+        postRequestedFor(urlPattern)
+          .withHeader(
+            "CorrelationId",
+            equalTo(correlationId.value)
+          )
+      )
+
+    "send JSON content type and accept any response type" in new Test:
+      stubStore(204)
+
+      await(
+        connector.store(interaction, correlationId)
+      ) shouldBe Success
+
+      wireMockServer.verify(
+        postRequestedFor(urlPattern)
+          .withHeader(
+            "Content-Type",
+            containing("application/json")
+          )
+          .withHeader(
+            "Accept",
+            equalTo("*/*")
+          )
+      )
+
+    "send the original interaction as the request body" in new Test:
+      stubStore(204)
+
+      await(
+        connector.store(interaction, correlationId)
+      ) shouldBe Success
+
+      wireMockServer.verify(
+        postRequestedFor(urlPattern)
+          .withRequestBody(
+            equalToJson(
+              Json.stringify(Json.toJson(interaction)),
+              true,
+              false
+            )
+          )
+      )
+
+    "reuse the supplied CorrelationId unchanged on repeated delivery attempts" in new Test:
+      stubStore(503)
+
+      await(
+        connector.store(interaction, correlationId)
+      ) shouldBe RetryableFailure
+
+      await(
+        connector.store(interaction, correlationId)
+      ) shouldBe RetryableFailure
+
+      wireMockServer.verify(
+        2,
+        postRequestedFor(urlPattern)
+          .withHeader(
+            "CorrelationId",
+            equalTo(correlationId.value)
+          )
+          .withRequestBody(
+            equalToJson(
+              Json.stringify(Json.toJson(interaction))
+            )
+          )
+      )
+
+  "InteractionConnector.classifyTransportFailure" should:
+
+    "classify GatewayTimeoutException as retryable" in:
+      InteractionConnector.classifyTransportFailure(
+        new GatewayTimeoutException("RSD request timed out")
+      ) shouldBe RetryableFailure
+
+    "classify BadGatewayException as retryable" in:
+      InteractionConnector.classifyTransportFailure(
+        new BadGatewayException("RSD connection failed")
+      ) shouldBe RetryableFailure
+
+    "classify a nested TimeoutException as retryable" in:
+      InteractionConnector.classifyTransportFailure(
+        new RuntimeException(
+          new TimeoutException("read timed out")
+        )
+      ) shouldBe RetryableFailure
+
+    "classify a nested ConnectException as retryable" in:
+      InteractionConnector.classifyTransportFailure(
+        new RuntimeException(
+          new ConnectException("connection refused")
+        )
+      ) shouldBe RetryableFailure
+
+    "classify a nested UnknownHostException as retryable" in:
+      InteractionConnector.classifyTransportFailure(
+        new RuntimeException(
+          new UnknownHostException("rsd.example")
+        )
+      ) shouldBe RetryableFailure
+
+    "classify SSL/TLS failures as permanent" in:
+      InteractionConnector.classifyTransportFailure(
+        new RuntimeException(
+          new SSLException("certificate validation failed")
+        )
+      ) shouldBe PermanentFailure
+
+    "classify unknown failures as permanent" in:
+      InteractionConnector.classifyTransportFailure(
+        new IllegalStateException("invalid configuration")
+      ) shouldBe PermanentFailure
