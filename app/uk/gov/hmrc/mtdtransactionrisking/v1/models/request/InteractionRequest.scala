@@ -129,7 +129,7 @@ final case class InteractionAction(
     body: String,
     action: String,
     links: Seq[InteractionLink],
-    path: Option[String]
+    path: String
 )
 
 object InteractionAction:
@@ -143,7 +143,7 @@ object InteractionAction:
       body = message.body,
       action = message.action.getOrElse(""),
       links = message.links.getOrElse(Nil).map(link => InteractionLink(link.title, link.url)),
-      path = message.path
+      path = message.path.getOrElse(if itemNumber == 0 then "0" else "")
     )
 
 final case class InteractionLink(linkTitle: String, linkUrl: String)

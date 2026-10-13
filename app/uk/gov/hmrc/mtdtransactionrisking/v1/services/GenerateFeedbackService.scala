@@ -71,10 +71,9 @@ class GenerateFeedbackService @Inject() (rdsAuthService: RdsAuthService,
 
       report <- EitherT(rdsConnector.generateReport(vrn, reportRequest, credentials.responseData))
 
-      _ = interactionService.store(report.responseData, obligation.responseData, vrn, body)
-
       _ =
         if hasActualFeedback(report.responseData) then
+          interactionService.store(report.responseData, obligation.responseData, vrn, body)
           submitNrsEvents(
             requestFeedbackEvidence = body,
             generateReportEvidence = report.responseData,
@@ -88,7 +87,7 @@ class GenerateFeedbackService @Inject() (rdsAuthService: RdsAuthService,
           )
         else
           logger.info(
-            s"${correlationId.value}::[GenerateFeedbackService][generateFeedback] RDS returned no actionable feedback NRS submission skipped"
+            s"${correlationId.value}::[GenerateFeedbackService][generateFeedback] RDS returned no actionable feedback, interaction store and NRS submission skipped"
           )
     yield ResponseWrapper(correlationId, report.responseData)
 
@@ -106,7 +105,6 @@ class GenerateFeedbackService @Inject() (rdsAuthService: RdsAuthService,
       requestHeaders: Seq[(String, String)]
   ): Unit =
     // Request Feedback evidence is the vendor's original validated body as received.
-    // It is not reconstructed from the RDS request or response.
     nrsService.submit(
       evidence = requestFeedbackEvidence,
       vrn = vrn,

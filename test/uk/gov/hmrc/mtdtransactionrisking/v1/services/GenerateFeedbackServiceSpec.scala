@@ -229,7 +229,7 @@ class GenerateFeedbackServiceSpec
         await(generate()) shouldBe Right(ResponseWrapper(correlationId, feedbackResponse))
 
     "RDS returns No Feedback" should:
-      "not submit Request Feedback or Generate Report evidence to NRS" in new Test:
+      "not submit Request Feedback or Generate Report evidence to NRS or interaction store" in new Test:
         vatApiReturnsObligation()
         insightsSucceed()
         authSucceeds()
@@ -237,10 +237,6 @@ class GenerateFeedbackServiceSpec
         MockRdsConnector
           .generateReport(vrn)
           .returns(Future.successful(Right(ResponseWrapper(correlationId, noFeedbackResponse))))
-
-        MockInteractionService
-          .store(noFeedbackResponse, obligation, vrn, validReturnBody)
-          .returns(())
 
         await(generate()) shouldBe Right(ResponseWrapper(correlationId, noFeedbackResponse))
 

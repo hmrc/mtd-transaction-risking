@@ -108,6 +108,36 @@ object RdsStub:
       )
     )
 
+  def mixedFeedback(): StubMapping =
+    stubFor(
+      post(generateRdsUrl).willReturn(
+        created(
+          s"""
+               |{
+               |  "outputs": [
+               |    { "name": "correlationId", "value": "E9F65715BBC9222477B27074804BBDD5C73CDE62F84D8B00CFD05B883534AF3D" },
+               |    { "name": "feedbackId", "value": "f2fb30e5-4ab6-4a29-b3c1-c7264259ff1c" },
+               |    { "name": "englishActions", "value": [
+               |        $actionColumns,
+               |        { "data": [
+               |          [ "0", "No messages.", "", "HMRC Feedback", "", "", "0" ],
+               |          [ "1", "Please review your VAT return figures.", "Check your sales records.", "VAT Return Query",
+               |            "VAT guidance", "https://www.gov.uk/vat-returns", "vatDueSales" ] ] }
+               |    ]},
+               |    { "name": "welshActions", "value": [
+               |        $actionColumns,
+               |        { "data": [
+               |          [ "0", "Dim negeseuon.", "", "Adborth CThEF", "", "", "0" ],
+               |          [ "1", "Adolygwch eich ffigurau.", "Gwiriwch eich cofnodion.", "Ymholiad Ffurflen TAW",
+               |            "Canllawiau TAW", "https://www.gov.uk/ffurflenni-taw", "vatDueSales" ] ] }
+               |    ]}
+               |  ]
+               |}
+               |""".stripMargin
+        )
+      )
+    )
+
   def acknowledgeAccepted(): StubMapping = acknowledgeResponds(responseCode = 202, responseMessage = "Accepted")
 
   private def acknowledgeResponds(responseCode: Int, responseMessage: String): StubMapping =
@@ -140,12 +170,6 @@ object RdsStub:
   def acknowledgeMalformedResponse(): StubMapping =
     stubFor(post(acknowledgeRdsUrl).willReturn(created("""{"unexpected":"shape"}""")))
 
-  private def created(body: String) =
-    aResponse()
-      .withStatus(CREATED)
-      .withHeader("Content-Type", "application/json")
-      .withBody(body)
-
   def acknowledgeBadRequest(): StubMapping =
     stubFor(post(acknowledgeRdsUrl).willReturn(aResponse().withStatus(BAD_REQUEST)))
 
@@ -157,3 +181,9 @@ object RdsStub:
 
   def malformedReport(): StubMapping =
     stubFor(post(generateRdsUrl).willReturn(created("""{"unexpected":"shape"}""")))
+
+  private def created(body: String) =
+    aResponse()
+      .withStatus(CREATED)
+      .withHeader("Content-Type", "application/json")
+      .withBody(body)

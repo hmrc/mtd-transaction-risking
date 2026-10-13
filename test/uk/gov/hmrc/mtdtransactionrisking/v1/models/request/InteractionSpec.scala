@@ -59,7 +59,7 @@ class InteractionSpec extends UnitSpec:
     body = "VAT body",
     action = Some("VAT action"),
     links = Some(List(FeedbackLink("VAT guidance", "https://www.gov.uk/vat-returns"))),
-    path = Some("/guidance")
+    path = Some("/vatDueSales")
   )
 
   private def welshMessage(itemNumber: String) = FeedbackMessage(
@@ -68,7 +68,7 @@ class InteractionSpec extends UnitSpec:
     body = "Corff TAW",
     action = Some("Gweithred TAW"),
     links = Some(List(FeedbackLink("Canllawiau TAW", "https://www.gov.uk/ffurflenni-taw"))),
-    path = Some("/guidance")
+    path = Some("/vatDueSales")
   )
 
   "Interaction.forGeneratedReport" when:
@@ -104,7 +104,7 @@ class InteractionSpec extends UnitSpec:
 
       "nest the paired english and welsh actions under one message with an integer item number" in:
         val feedback = FeedbackResponse("report-1", List(englishMessage("1")), List(welshMessage("1")), Some("rds-corr-id"))
-        val messages = Interaction.forGeneratedReport(feedback, obligation, vrn, vendorBody, now).payload.messages.get
+        val messages = Interaction.forGeneratedReport(feedback, obligation, vrn, vendorBody, now).payload.messages.value
 
         messages should have size 1
 
@@ -117,27 +117,27 @@ class InteractionSpec extends UnitSpec:
 
       "map links to linkTitle and linkUrl" in:
         val feedback = FeedbackResponse("report-1", List(englishMessage("1")), List(welshMessage("1")), Some("rds-corr-id"))
-        val message = Interaction.forGeneratedReport(feedback, obligation, vrn, vendorBody, now).payload.messages.get.head
+        val message = Interaction.forGeneratedReport(feedback, obligation, vrn, vendorBody, now).payload.messages.value.head
 
         message.englishActions.links shouldBe List(InteractionLink("VAT guidance", "https://www.gov.uk/vat-returns"))
 
       "default a missing action to an empty string" in:
         val feedback = FeedbackResponse("report-1", List(englishMessage("1").copy(action = None)), List(welshMessage("1")), Some("rds-corr-id"))
-        val message = Interaction.forGeneratedReport(feedback, obligation, vrn, vendorBody, now).payload.messages.get.head
+        val message = Interaction.forGeneratedReport(feedback, obligation, vrn, vendorBody, now).payload.messages.value.head
 
         message.englishActions.action shouldBe ""
 
     "an english message has no matching welsh item number" should:
-      "drop it forGeneratedReport the payload" in:
+      "drop it from the payload" in:
         val feedback = FeedbackResponse("report-1", List(englishMessage("1")), List(welshMessage("2")), Some("rds-corr-id"))
 
-        Interaction.forGeneratedReport(feedback, obligation, vrn, vendorBody, now).payload.messages.get shouldBe empty
+        Interaction.forGeneratedReport(feedback, obligation, vrn, vendorBody, now).payload.messages.value shouldBe empty
 
     "an item number is not numeric" should:
       "drop that message" in:
         val feedback = FeedbackResponse("report-1", List(englishMessage("not-a-number")), List(welshMessage("not-a-number")), Some("rds-corr-id"))
 
-        Interaction.forGeneratedReport(feedback, obligation, vrn, vendorBody, now).payload.messages.get shouldBe empty
+        Interaction.forGeneratedReport(feedback, obligation, vrn, vendorBody, now).payload.messages.value shouldBe empty
 
     "there are several matched pairs" should:
       "include every matched message" in:
@@ -148,32 +148,49 @@ class InteractionSpec extends UnitSpec:
           Some("rds-corr-id")
         )
 
-        Interaction.forGeneratedReport(feedback, obligation, vrn, vendorBody, now).payload.messages.get should have size 2
+        Interaction.forGeneratedReport(feedback, obligation, vrn, vendorBody, now).payload.messages.value should have size 2
 
-    "a feedback message has no path" should:
-      "preserve the missing path in the interaction payload" in:
-        val english = englishMessage("0").copy(path = None)
-        val welsh = welshMessage("0").copy(path = None)
+  "a feedback message has no path" should:
+    "record path 0 for the no-feedback item" in:
+      val feedback = FeedbackResponse(
+        "report-1",
+        List(englishMessage("0").copy(path = None)),
+        List(welshMessage("0").copy(path = None)),
+        None
+      )
 
-        val feedback = FeedbackResponse(
-          reportId = "report-1",
-          englishFeedback = List(english),
-          welshFeedback = List(welsh),
-          correlationId = Some("rds-corr-id")
-        )
+      val message = Interaction.forGeneratedReport(feedback, obligation, vrn, vendorBody, now).payload.messages.value.head
 
-        val interaction = Interaction.forGeneratedReport(
-          feedback,
-          obligation,
-          vrn,
-          vendorBody,
-          now
-        )
+      message.englishActions.path shouldBe "0"
+      message.welshActions.path shouldBe "0"
 
-        val englishAction =
-          interaction.payload.messages.value.head.englishActions
+    "record an empty path for an actual feedback item" in:
+      val feedback = FeedbackResponse(
+        "report-1",
+        List(englishMessage("1").copy(path = None)),
+        List(welshMessage("1").copy(path = None)),
+        None
+      )
 
-        englishAction.path shouldBe None
+      val message = Interaction.forGeneratedReport(feedback, obligation, vrn, vendorBody, now).payload.messages.value.head
+
+      message.englishActions.path shouldBe ""
+
+  "the report has item 0 alongside actual feedback" should:
+
+    "store every item with a path on each" in:
+      val feedback = FeedbackResponse(
+        "report-1",
+        List(englishMessage("0").copy(path = None), englishMessage("1"), englishMessage("2").copy(path = Some("netVatDue"))),
+        List(welshMessage("0").copy(path = None), welshMessage("1"), welshMessage("2").copy(path = Some("netVatDue"))),
+        None
+      )
+
+      val messages = Interaction.forGeneratedReport(feedback, obligation, vrn, vendorBody, now).payload.messages.value
+
+      messages.map(_.englishActions.itemNumber) shouldBe Seq(0, 1, 2)
+      messages.map(_.englishActions.path) shouldBe Seq("0", "/vatDueSales", "netVatDue")
+      messages.map(_.welshActions.path) shouldBe Seq("0", "/vatDueSales", "netVatDue")
 
   "Interaction.forAcknowledgement" when:
 
