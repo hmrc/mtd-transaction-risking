@@ -20,7 +20,7 @@ import com.github.tomakehurst.wiremock.client.WireMock.*
 import com.github.tomakehurst.wiremock.http.Fault
 import com.github.tomakehurst.wiremock.stubbing.StubMapping
 import org.scalatest.BeforeAndAfterAll
-import play.api.libs.json.{JsObject, JsValue, Json}
+import play.api.libs.json.*
 import play.api.test.Injecting
 import uk.gov.hmrc.http.client.HttpClientV2
 import uk.gov.hmrc.mtdtransactionrisking.support.{ConnectorSpec, MockAppConfig}
@@ -91,19 +91,7 @@ class RdsConnectorSpec extends ConnectorSpec, BeforeAndAfterAll, Injecting, Mock
       |}
       |""".stripMargin
   )
-
-  private val acknowledgeWithoutResponseCode: JsValue = Json.parse(
-    s"""
-       |{
-       |  "output": {
-       |    "vrn": "$vrn",
-       |    "feedbackId": "$feedbackId",
-       |    "createdDttm": "2026-09-03T10:00:00Z",
-       |    "responseMessage": "Missing response code"
-       |  }
-       |}
-       |""".stripMargin
-  )
+  private val acknowledgeWithoutResponseCode: JsValue = acknowledgeJson(responseCode = None)
 
   def port: Int = wireMockServer.port()
 
@@ -111,24 +99,27 @@ class RdsConnectorSpec extends ConnectorSpec, BeforeAndAfterAll, Injecting, Mock
 
   override def afterAll(): Unit = wireMockServer.stop()
 
-  private def acknowledgeJson(responseCode: Option[Int] = Some(202), responseMessage: Option[String] = Some("Accepted")): JsValue =
-    Json.parse(
-      s"""
-         |{
-         |  "output": {
-         |    "vrn": "$vrn",
-         |    "feedbackId": "$feedbackId",
-         |    "createdDttm": "2026-09-03T10:00:00Z",
-         |    "responseCode": ${responseCode.map(_.toString).getOrElse("null")},
-         |    "responseMessage": ${responseMessage.map(m => s""""$m"""").getOrElse("null")}
-         |  }
-         |}
-         |""".stripMargin
+  private def acknowledgeJson(
+      responseCode: Option[Int] = Some(ACCEPTED),
+      responseMessage: Option[String] = Some("Accepted")
+  ): JsValue =
+    Json.obj(
+      "moduleId" -> "HMRC_ASSIST_VAT_FINSUB_FEEDBACK_ACK",
+      "executionState" -> "completed",
+      "outputs" -> JsArray(
+        Seq(
+          Some(Json.obj("name" -> "VRN", "value" -> vrn)),
+          Some(Json.obj("name" -> "createdDttm", "value" -> "2026-09-03T10:00:00")),
+          Some(Json.obj("name" -> "feedbackId", "value" -> feedbackId)),
+          responseCode.map(code => Json.obj("name" -> "responseCode", "value" -> JsNumber(code))),
+          responseMessage.map(message => Json.obj("name" -> "responseMessage", "value" -> message))
+        ).flatten
+      )
     )
 
-  private def reportJson(responseCode: Option[String] = None, correlationId: Option[String] = None): JsValue =
+  private def reportJson(responseCode: Option[Int] = None, correlationId: Option[String] = None): JsValue =
     val optionalOutputs =
-      responseCode.map(code => s"""{ "name": "responseCode", "value": "$code" },""").getOrElse("")
+      responseCode.map(code => s"""{ "name": "responseCode", "value": $code },""").getOrElse("")
 
     val correlationIdValue = correlationId.map(id => s""""$id"""").getOrElse("null")
 
@@ -210,20 +201,15 @@ class RdsConnectorSpec extends ConnectorSpec, BeforeAndAfterAll, Injecting, Mock
 
     "RDS accepts the acknowledgement" should:
       "return the acknowledge response when the inner response code is 202" in new Test:
-        stubAcknowledge(Some(acknowledgeJson(responseCode = Some(202)).toString), CREATED)
+        val responseJson: JsValue = acknowledgeJson(responseCode = Some(202))
 
-        await(acknowledge()) shouldBe Right(
-          ResponseWrapper(
-            correlationId,
-            RdsAcknowledgeResponse(
-              vrn = Some(vrn),
-              feedbackId = Some(feedbackId),
-              createdDttm = Some("2026-09-03T10:00:00Z"),
-              responseCode = Some(202),
-              responseMessage = Some("Accepted")
-            )
-          )
-        )
+        stubAcknowledge(Some(responseJson.toString), CREATED)
+
+        val result: ServiceOutcome[RdsAcknowledgeResponse] = await(acknowledge())
+
+        result shouldBe Right(ResponseWrapper(correlationId, responseJson.as[RdsAcknowledgeResponse]))
+        result.map(_.responseData.vrn) shouldBe Right(Some(vrn))
+        result.map(_.responseData.responseCode) shouldBe Right(Some(202))
 
     "RDS rejects the acknowledgement" should:
       "return AcknowledgementValidationFailedError when the inner response code is 401" in new Test:
@@ -336,12 +322,12 @@ class RdsConnectorSpec extends ConnectorSpec, BeforeAndAfterAll, Injecting, Mock
     "the report includes a response code" should:
 
       "succeed when it is 201" in new Test:
-        stubReport(Some(reportJson(responseCode = Some("201")).toString), CREATED)
+        stubReport(Some(reportJson(responseCode = Some(201)).toString), CREATED)
 
         await(generateReport()).value.responseData.reportId shouldBe feedbackId
 
       "return DownstreamError when it is anything else" in new Test:
-        stubReport(Some(reportJson(responseCode = Some("500")).toString), CREATED)
+        stubReport(Some(reportJson(responseCode = Some(500)).toString), CREATED)
 
         await(generateReport()) shouldBe Left(ErrorWrapper(correlationId, DownstreamError))
 

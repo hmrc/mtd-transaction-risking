@@ -18,7 +18,7 @@ package uk.gov.hmrc.mtdtransactionrisking.v1.connectors
 
 import play.api.Logging
 import play.api.http.Status.*
-import play.api.libs.json.Json
+import play.api.libs.json.{JsError, Json}
 import play.api.libs.ws.writeableOf_JsValue
 import uk.gov.hmrc.http.HttpReads.Implicits.*
 import uk.gov.hmrc.http.client.HttpClientV2
@@ -59,21 +59,21 @@ class RdsConnector @Inject() (httpClient: HttpClientV2, appConfig: AppConfig)(im
         response.status match
           case CREATED =>
             response.json
-              .validate[RdsAcknowledgeResponseWrapper]
+              .validate[RdsAcknowledgeResponse]
               .fold(
-                _ =>
-                  logger.error(s"${correlationId.value}::[RdsConnector][acknowledge] malformed response: ${response.body}")
+                errors =>
+                  logger.error(s"${correlationId.value}::[RdsConnector][acknowledge] malformed response: ${JsError.toJson(errors)}")
                   Left(ErrorWrapper(correlationId, DownstreamError))
                 ,
                 acknowledgeResponse =>
-                  acknowledgeResponse.output.responseCode match
+                  acknowledgeResponse.responseCode match
                     case Some(ACCEPTED) =>
                       logger.info(s"${correlationId.value}::[RdsConnector][acknowledge] success")
-                      Right(ResponseWrapper(correlationId, acknowledgeResponse.output))
+                      Right(ResponseWrapper(correlationId, acknowledgeResponse))
 
                     case Some(UNAUTHORIZED) =>
-                      logger.error(s"${correlationId.value}::[RdsConnector][acknowledge] acknowledgement validation failed: " +
-                        s"${acknowledgeResponse.output.responseMessage.getOrElse("no message")}")
+                      logger.warn(s"${correlationId.value}::[RdsConnector][acknowledge] acknowledgement validation failed: " +
+                        s"${acknowledgeResponse.responseMessage.getOrElse("no message")}")
                       Left(ErrorWrapper(correlationId, AcknowledgementValidationFailedError))
 
                     case other =>

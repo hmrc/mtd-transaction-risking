@@ -27,7 +27,7 @@ import uk.gov.hmrc.http.SessionKeys.authToken
 import uk.gov.hmrc.mtdtransactionrisking.stubs.*
 import uk.gov.hmrc.mtdtransactionrisking.support.IntegrationBaseSpec
 import uk.gov.hmrc.mtdtransactionrisking.v1.controllers.GenerateFeedbackController
-import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.FeedbackResponse
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.{FeedbackLink, FeedbackMessage, FeedbackResponse}
 
 import scala.concurrent.Future
 
@@ -61,6 +61,19 @@ class GenerateFeedbackControllerISpec extends IntegrationBaseSpec:
           feedback.englishFeedback should have size 1
           feedback.welshFeedback should have size 1
 
+          feedback.correlationId shouldBe Some("E9F65715BBC9222477B27074804BBDD5C73CDE62F84D8B00CFD05B883534AF3D")
+
+          feedback.englishFeedback.head shouldBe FeedbackMessage(
+            itemNumber = "1",
+            title = "VAT Return Query",
+            body = "Please review your VAT return figures.",
+            action = Some("Check your sales records."),
+            links = Some(List(FeedbackLink("VAT guidance", "https://www.gov.uk/vat-returns"))),
+            path = Some("vatDueSales")
+          )
+
+          feedback.welshFeedback.head.links shouldBe Some(List(FeedbackLink("Canllawiau TAW", "https://www.gov.uk/ffurflenni-taw")))
+
           // Since rsd call is fire and forget this confirms the call was actually made
           eventually {
             wireMockServer.verify(postRequestedFor(urlPathMatching("/rsd/receive-and-store")))
@@ -76,12 +89,12 @@ class GenerateFeedbackControllerISpec extends IntegrationBaseSpec:
                 .withRequestBody(matchingJsonPath("$.metadata.searchKeys.reportId", equalTo(rdsReportId))))
           }
 
-        "RDS returns no-feedback messages without path" in new Test:
+        "RDS returns the no-feedback item 0 report" in new Test:
           override def setupStubs(): StubMapping =
             AuthStub.successfulAuthWith(vrn)
             VatApiStub.validationPasses(periodKey, fromDate, toDate)
             InsightsRiskStub.successResponse(vrn)
-            RdsStub.noFeedbackWithoutPath()
+            RdsStub.noFeedback()
             InteractionStub.stores()
             NrsStub.accepts()
 
@@ -92,6 +105,9 @@ class GenerateFeedbackControllerISpec extends IntegrationBaseSpec:
 
           val json: JsValue = contentAsJson(response)
           val feedback: FeedbackResponse = json.as[FeedbackResponse]
+
+          feedback.correlationId shouldBe None
+          (json \ "correlationId").toOption shouldBe None
 
           feedback.englishFeedback should have size 1
           feedback.welshFeedback should have size 1

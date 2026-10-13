@@ -25,146 +25,126 @@ object RdsStub:
   private val generateRdsUrl = urlPathMatching("/rds/assessments/generate")
   private val acknowledgeRdsUrl = urlPathMatching("/rds/assessments/acknowledge")
 
-  // A report with inner 201 code and one english and one welsh feedback message
+  private val actionColumns =
+    """{ "metadata": [ { "ITEMNUMBER": "string" }, { "MESSAGE": "string" }, { "ACTION": "string" }, { "TITLE": "string" },
+      |                { "LINKTITLE": "string" }, { "LINKURL": "string" }, { "PATH": "string" } ] }""".stripMargin
+
   def reportGenerated(): StubMapping =
     stubFor(
       post(generateRdsUrl).willReturn(
-        aResponse()
-          .withStatus(CREATED)
-          .withHeader("Content-Type", "application/json")
-          .withBody(
-            """
-              |{
-              |  "outputs": [
-              |    { "name": "correlationId", "value": "E9F65715BBC9222477B27074804BBDD5C73CDE62F84D8B00CFD05B883534AF3D" },
-              |    { "name": "feedbackId", "value": "f2fb30e5-4ab6-4a29-b3c1-c7264259ff1c" },
-              |    { "name": "responseCode", "value": "201" },
-              |    { "name": "responseMessage", "value": "Feedback generated successfully" },
-              |    {
-              |      "name": "englishActions",
-              |      "value": [
-              |        { "metadata": [ { "itemNumber": "1" }, { "message": "m" }, { "action": "a" }, { "title": "t" },
-              |                        [ { "linkTitle": "lt" }, { "linkUrl": "lu" } ], { "path": "p" } ] },
-              |        { "data": [ [ "1", "Please review your VAT return figures.", "Check your sales records.",
-              |                      "VAT Return Query",
-              |                      [ { "linkTitle": "VAT guidance" }, { "linkUrl": "https://www.gov.uk/vat-returns" } ],
-              |                      "vatDueSales" ] ] }
-              |      ]
-              |    },
-              |    {
-              |      "name": "welshActions",
-              |      "value": [
-              |        { "metadata": [ { "itemNumber": "1" }, { "message": "m" }, { "action": "a" }, { "title": "t" },
-              |                        [ { "linkTitle": "lt" }, { "linkUrl": "lu" } ], { "path": "p" } ] },
-              |        { "data": [ [ "1", "Adolygwch eich ffigurau.", "Gwiriwch eich cofnodion.",
-              |                      "Ymholiad Ffurflen TAW",
-              |                      [ { "linkTitle": "Canllawiau TAW" }, { "linkUrl": "https://www.gov.uk/ffurflenni-taw" } ],
-              |                      "vatDueSales" ] ] }
-              |      ]
-              |    }
-              |  ]
-              |}
-              |""".stripMargin
-          )
+        created(
+          s"""
+             |{
+             |  "moduleId": "HMRC_ASSIST_VAT_FINSUB_FEEDBACK",
+             |  "executionState": "completed",
+             |  "outputs": [
+             |    { "name": "correlationId", "value": "E9F65715BBC9222477B27074804BBDD5C73CDE62F84D8B00CFD05B883534AF3D" },
+             |    { "name": "createdDttm", "value": "2026-10-09T19:00:19.246" },
+             |    {
+             |      "name": "englishActions",
+             |      "value": [
+             |        $actionColumns,
+             |        { "data": [ [ "1", "Please review your VAT return figures.", "Check your sales records.", "VAT Return Query",
+             |                      "VAT guidance", "https://www.gov.uk/vat-returns", "vatDueSales" ] ] }
+             |      ]
+             |    },
+             |    { "name": "feedbackId", "value": "f2fb30e5-4ab6-4a29-b3c1-c7264259ff1c" },
+             |    { "name": "vrn", "value": "123456789" },
+             |    {
+             |      "name": "welshActions",
+             |      "value": [
+             |        $actionColumns,
+             |        { "data": [ [ "1", "Adolygwch eich ffigurau.", "Gwiriwch eich cofnodion.", "Ymholiad Ffurflen TAW",
+             |                      "Canllawiau TAW", "https://www.gov.uk/ffurflenni-taw", "vatDueSales" ] ] }
+             |      ]
+             |    },
+             |    { "name": "rt_Record_Contacts_Outer", "value": "f9a5a9a7-09a2-a94b-a492-54c9fc91d5d2" }
+             |  ]
+             |}
+             |""".stripMargin
+        )
       )
     )
 
-  def noFeedbackWithoutPath(): StubMapping =
+  // Item 0 "no feedback" report (PATH "0", which we drop)
+  def noFeedback(): StubMapping =
     stubFor(
       post(generateRdsUrl).willReturn(
-        aResponse()
-          .withStatus(CREATED)
-          .withHeader("Content-Type", "application/json")
-          .withBody(
-            """
-              |{
-              |  "outputs": [
-              |    { "name": "correlationId", "value": "E9F65715BBC9222477B27074804BBDD5C73CDE62F84D8B00CFD05B883534AF3D" },
-              |    { "name": "feedbackId", "value": "f2fb30e5-4ab6-4a29-b3c1-c7264259ff1c" },
-              |    { "name": "responseCode", "value": "201" },
-              |    { "name": "responseMessage", "value": "No feedback available" },
-              |    {
-              |      "name": "englishActions",
-              |      "value": [
-              |        {
-              |          "metadata": [
-              |            { "itemNumber": "0" },
-              |            { "message": "HMRC Assist has not returned any messages." },
-              |            { "title": "HMRC feedback" }
-              |          ]
-              |        },
-              |        {
-              |          "data": [
-              |            [
-              |              "0",
-              |              "HMRC Assist has not returned any messages.",
-              |              "HMRC feedback"
-              |            ]
-              |          ]
-              |        }
-              |      ]
-              |    },
-              |    {
-              |      "name": "welshActions",
-              |      "value": [
-              |        {
-              |          "metadata": [
-              |            { "itemNumber": "0" },
-              |            { "message": "Nid yw HMRC Assist wedi dychwelyd unrhyw negeseuon." },
-              |            { "title": "Adborth HMRC" }
-              |          ]
-              |        },
-              |        {
-              |          "data": [
-              |            [
-              |              "0",
-              |              "Nid yw HMRC Assist wedi dychwelyd unrhyw negeseuon.",
-              |              "Adborth HMRC"
-              |            ]
-              |          ]
-              |        }
-              |      ]
-              |    }
-              |  ]
-              |}
-              |""".stripMargin
-          )
+        created(
+          s"""
+             |{
+             |  "moduleId": "HMRC_ASSIST_VAT_FINSUB_FEEDBACK",
+             |  "executionState": "completed",
+             |  "outputs": [
+             |    { "name": "correlationId", "value": null },
+             |    { "name": "createdDttm", "value": "2026-10-12T13:40:11.102" },
+             |    {
+             |      "name": "englishActions",
+             |      "value": [
+             |        $actionColumns,
+             |        { "data": [ [ "0", "This is not a complete check of your return or confirmation that your return is accurate.",
+             |                      "Consider any further checks before finalising your return.",
+             |                      "HMRC Feedback: HMRC Assist has not returned any messages.",
+             |                      "Find out more about HMRC Assist on GOV.UK", "https://www.gov.uk/hmrc-assist", "0" ] ] }
+             |      ]
+             |    },
+             |    { "name": "feedbackId", "value": "f2fb30e5-4ab6-4a29-b3c1-c7264259ff1c" },
+             |    { "name": "vrn", "value": "123456789" },
+             |    {
+             |      "name": "welshActions",
+             |      "value": [
+             |        $actionColumns,
+             |        { "data": [ [ "0", "Nid yw hwn yn wiriad cyflawn o'ch Ffurflen Dreth.",
+             |                      "Ystyriwch unrhyw wiriadau pellach.",
+             |                      "Adborth CThEF: Nid yw HMRC Assist wedi dychwelyd unrhyw negeseuon.",
+             |                      "Ewch i GOV.UK i gael rhagor o wybodaeth am HMRC Assist", "https://www.gov.uk/hmrc-assist", "0" ] ] }
+             |      ]
+             |    },
+             |    { "name": "rt_Record_Contacts_Outer", "value": "f9a5a9a7-09a2-a94b-a492-54c9fc91d5d2" }
+             |  ]
+             |}
+             |""".stripMargin
+        )
       )
     )
 
-  def acknowledgeAccepted(): StubMapping =
+  def acknowledgeAccepted(): StubMapping = acknowledgeResponds(responseCode = 202, responseMessage = "Accepted")
+
+  private def acknowledgeResponds(responseCode: Int, responseMessage: String): StubMapping =
     stubFor(
       post(acknowledgeRdsUrl).willReturn(
-        aResponse()
-          .withStatus(CREATED)
-          .withHeader("Content-Type", "application/json")
-          .withBody(
-            """
-              |{
-              |  "output": {
-              |    "vrn": "123456789",
-              |    "feedbackId": "f2fb30e5-4ab6-4a29-b3c1-c00000000001",
-              |    "createdDttm": "2026-06-09T10:30:00Z",
-              |    "responseCode": 202,
-              |    "responseMessage": "Accepted"
-              |  }
-              |}
-              |""".stripMargin
-          )
+        created(
+          s"""
+             |{
+             |  "moduleId": "HMRC_ASSIST_VAT_FINSUB_FEEDBACK_ACK",
+             |  "executionState": "completed",
+             |  "outputs": [
+             |    { "name": "VRN", "value": "123456789" },
+             |    { "name": "createdDttm", "value": "2026-10-12T14:25:44.688" },
+             |    { "name": "feedbackId", "value": "f2fb30e5-4ab6-4a29-b3c1-c00000000001" },
+             |    { "name": "responseCode", "value": $responseCode.0 },
+             |    { "name": "responseMessage", "value": "$responseMessage" },
+             |    { "name": "rt_Record_Contacts_Outer", "value": "bb07e500-8a7e-0a48-b3b0-8f639f4bf413" }
+             |  ]
+             |}
+             |""".stripMargin
+        )
       )
     )
+
+  def acknowledgeRejected(): StubMapping = acknowledgeResponds(responseCode = 401, responseMessage = "Acknowledgement validation failed")
 
   def acknowledgeUnavailable(): StubMapping =
     stubFor(post(acknowledgeRdsUrl).willReturn(aResponse().withStatus(SERVICE_UNAVAILABLE)))
 
   def acknowledgeMalformedResponse(): StubMapping =
-    stubFor(
-      post(acknowledgeRdsUrl).willReturn(
-        aResponse()
-          .withStatus(CREATED)
-          .withHeader("Content-Type", "application/json")
-          .withBody("""{"unexpected":"shape"}""")
-      ))
+    stubFor(post(acknowledgeRdsUrl).willReturn(created("""{"unexpected":"shape"}""")))
+
+  private def created(body: String) =
+    aResponse()
+      .withStatus(CREATED)
+      .withHeader("Content-Type", "application/json")
+      .withBody(body)
 
   def acknowledgeBadRequest(): StubMapping =
     stubFor(post(acknowledgeRdsUrl).willReturn(aResponse().withStatus(BAD_REQUEST)))
@@ -176,10 +156,4 @@ object RdsStub:
     stubFor(post(generateRdsUrl).willReturn(aResponse().withStatus(SERVICE_UNAVAILABLE)))
 
   def malformedReport(): StubMapping =
-    stubFor(
-      post(generateRdsUrl).willReturn(
-        aResponse()
-          .withStatus(CREATED)
-          .withHeader("Content-Type", "application/json")
-          .withBody("""{"unexpected":"shape"}""")
-      ))
+    stubFor(post(generateRdsUrl).willReturn(created("""{"unexpected":"shape"}""")))

@@ -19,7 +19,6 @@ package uk.gov.hmrc.mtdtransactionrisking.v1.models.response
 import play.api.libs.json.{JsObject, JsValue}
 
 // Converts RDS action grids into the feedback shape returned to vendors.
-// An action output holds a metadata block naming the columns and a data block of rows, where each row's values line up positionally with those columns.
 
 object ReportResponseTransform:
 
@@ -37,7 +36,6 @@ object ReportResponseTransform:
         reportId = feedbackId,
         englishFeedback = toMessages(report.englishActions),
         welshFeedback = toMessages(report.welshActions),
-        // RDS currently returns null here
         correlationId = report.rdsCorrelationId
       )
     }
@@ -54,6 +52,7 @@ object ReportResponseTransform:
       case _                => ""
     }
 
+  // Pairs each row's values with the column names from the metadata block.
   private def toMessage(fields: Map[String, JsValue]): Option[FeedbackMessage] =
 
     def string(name: String): Option[String] = fields.get(name).flatMap(_.asOpt[String])
@@ -69,7 +68,7 @@ object ReportResponseTransform:
       body = body,
       action = nonEmpty(actionColumn),
       links = toLinks(nonEmpty(linkTitleColumn), nonEmpty(linkUrlColumn)),
-      path = nonEmpty(pathColumn)
+      path = nonEmpty(pathColumn).filter(_ => itemNumber != "0") // When there is no feedback, path is not meaningful so is to be removed
     )
 
   // RDS sends one link per item as two plain columns
