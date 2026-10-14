@@ -207,7 +207,6 @@ paths:
                     Note that the message in this example is for illustration purposes only.
                   value:
                     reportId: 'f2fb30e5-4ab6-4a29-b3c1-c00000000001'
-                    correlationId: 'E9F65715BBC9222477B27074804BBDD5C73CDE62F84D8B00CFD05B883534AF3D'
                     englishFeedback:
                       - itemNumber: '0'
                         title: 'HMRC feedback: HMRC Assist has not returned any messages.'
@@ -387,7 +386,7 @@ paths:
             example: '123456789'
         - name: reportId
           in: path
-          description: The unique identifier for the report.
+          description: The unique identifier for the report, as returned by the *feedback* endpoint.
           required: true
           style: simple
           schema:
@@ -396,7 +395,7 @@ paths:
             example: 'f2fb30e5-4ab6-4a29-b3c1-c00000000001'
         - name: correlationId
           in: path
-          description: The correlation ID of the report.
+          description: The correlation ID of the report, as returned by the *feedback* endpoint.
           required: true
           style: simple
           schema:
@@ -644,7 +643,6 @@ components:
       title: VATAssistResponse
       required:
         - reportId
-        - correlationId
         - englishFeedback
         - welshFeedback
       type: object
@@ -656,7 +654,10 @@ components:
           example: 'f2fb30e5-4ab6-4a29-b3c1-c00000000001'
         correlationId:
           type: string
-          description: The correlation ID of the report.
+          description: |
+            The correlation ID of the report.
+            
+            It will not be present in the scenario where there is no HMRC Assist feedback.
           example: 'E9F65715BBC9222477B27074804BBDD5C73CDE62F84D8B00CFD05B883534AF3D'
         englishFeedback:
           type: array
