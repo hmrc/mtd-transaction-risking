@@ -175,6 +175,62 @@ class InteractionSpec extends UnitSpec:
 
         englishAction.path shouldBe None
 
+      "round-trip a generated-report interaction through JSON" in :
+        val feedback =
+          FeedbackResponse(
+            "report-1",
+            List(englishMessage("1")),
+            List(welshMessage("1")),
+            Some("rds-corr-id")
+          )
+
+        val interaction =
+          Interaction.forGeneratedReport(
+            feedback,
+            obligation,
+            vrn,
+            vendorBody,
+            now
+          )
+
+        Json.toJson(interaction).as[Interaction] shouldBe interaction
+
+      "round-trip an acknowledgement interaction through JSON" in :
+        val request =
+          AcknowledgeRequest(
+            vrn,
+            "report-1",
+            "9EEB55EF4FA9A24954BC982DF1D59B3D02BC097F6B1377B8B335C7583D92B959",
+            "2026-08-13T09:00:00Z"
+          )
+
+        val interaction =
+          Interaction.forAcknowledgement(request, now)
+
+        Json.toJson(interaction).as[Interaction] shouldBe interaction
+
+      "reject generated-report JSON when a required field is missing" in :
+        val feedback =
+          FeedbackResponse(
+            "report-1",
+            List(englishMessage("1")),
+            List(welshMessage("1")),
+            Some("rds-corr-id")
+          )
+
+        val json =
+          Json.toJson(
+            Interaction.forGeneratedReport(
+              feedback,
+              obligation,
+              vrn,
+              vendorBody,
+              now
+            )
+          ).as[JsObject] - "eventName"
+
+        Json.fromJson[Interaction](json).isError shouldBe true
+
   "Interaction.forAcknowledgement" when:
 
     "building the interaction" should:
