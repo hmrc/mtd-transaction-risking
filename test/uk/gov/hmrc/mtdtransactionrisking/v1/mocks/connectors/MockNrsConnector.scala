@@ -21,7 +21,8 @@ import org.scalamock.scalatest.MockFactory
 import org.scalatest.TestSuite
 import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
 import uk.gov.hmrc.mtdtransactionrisking.v1.connectors.NrsConnector
-import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.nrs.{NrsSubmission, NrsSubmissionResult}
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.nrs.NrsSubmission
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.SubmissionResult
 
 import scala.concurrent.Future
 
@@ -32,6 +33,6 @@ trait MockNrsConnector extends MockFactory:
 
   object MockNrsConnector:
 
-    def submit(nrsSubmission: NrsSubmission, correlationId: CorrelationId): CallHandler[Future[NrsSubmissionResult]] =
+    def submit(nrsSubmission: NrsSubmission, correlationId: CorrelationId): CallHandler[Future[SubmissionResult]] =
       (mockNrsConnector.submit(_: NrsSubmission, _: CorrelationId))
         .expects(nrsSubmission, correlationId)

@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.mtdtransactionrisking.v1.models.request.nrs
+package uk.gov.hmrc.mtdtransactionrisking.v1.models.request
 
-sealed trait NrsSubmissionResult
+sealed trait SubmissionResult
 
-object NrsSubmissionResult:
-  case object Success extends NrsSubmissionResult
-  case object RetryableFailure extends NrsSubmissionResult
-  case object PermanentFailure extends NrsSubmissionResult
+object SubmissionResult:
+  case object Success extends SubmissionResult
+  case object RetryableFailure extends SubmissionResult
+  case object PermanentFailure extends SubmissionResult

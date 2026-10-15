@@ -25,14 +25,8 @@ import uk.gov.hmrc.mongo.workitem.{ProcessingStatus, WorkItem}
 import uk.gov.hmrc.mtdtransactionrisking.support.{MockAppConfig, UnitSpec}
 import uk.gov.hmrc.mtdtransactionrisking.v1.connectors.NrsConnector
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.auth.IdentityData
-import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.nrs.{
-  AssistRequestFeedback,
-  Metadata,
-  NrsSubmission,
-  NrsSubmissionResult,
-  NrsSubmissionWorkItem,
-  SearchKeys
-}
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.nrs.{AssistRequestFeedback, Metadata, NrsSubmission, NrsSubmissionWorkItem, SearchKeys}
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.SubmissionResult
 import uk.gov.hmrc.mtdtransactionrisking.v1.repositories.NrsSubmissionWorkItemStore
 import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
 
@@ -202,7 +196,7 @@ class NrsServiceRetrySpec extends UnitSpec, MockAppConfig:
        .expects(expectedBuiltSubmission, correlationId)
         .onCall { _ =>
           connectorCalled.success(())
-          Future.successful(NrsSubmissionResult.Success)
+          Future.successful(SubmissionResult.Success)
         }
 
       submitInitial()
@@ -216,7 +210,7 @@ class NrsServiceRetrySpec extends UnitSpec, MockAppConfig:
       (connector.submit(_: NrsSubmission, _: CorrelationId))
         .expects(expectedBuiltSubmission, correlationId)
         .returning(
-          Future.successful(NrsSubmissionResult.RetryableFailure)
+          Future.successful(SubmissionResult.RetryableFailure)
         )
 
       expectRepositoryProvider()
@@ -239,7 +233,7 @@ class NrsServiceRetrySpec extends UnitSpec, MockAppConfig:
       (connector.submit(_: NrsSubmission, _: CorrelationId))
         .expects(expectedBuiltSubmission, correlationId)
         .returning(
-          Future.successful(NrsSubmissionResult.PermanentFailure)
+          Future.successful(SubmissionResult.PermanentFailure)
         )
 
       expectRepositoryProvider()
@@ -262,7 +256,7 @@ class NrsServiceRetrySpec extends UnitSpec, MockAppConfig:
       (connector.submit(_: NrsSubmission, _: CorrelationId))
         .expects(expectedBuiltSubmission, correlationId)
         .returning(
-          Future.successful(NrsSubmissionResult.RetryableFailure)
+          Future.successful(SubmissionResult.RetryableFailure)
         )
 
       expectRepositoryProvider()
@@ -307,7 +301,7 @@ class NrsServiceRetrySpec extends UnitSpec, MockAppConfig:
       (connector.submit(_: NrsSubmission, _: CorrelationId))
         .expects(persistedSubmission, correlationId)
         .returning(
-          Future.successful(NrsSubmissionResult.Success)
+          Future.successful(SubmissionResult.Success)
         )
 
       (repository.completeAndDelete(_: ObjectId))
@@ -335,7 +329,7 @@ class NrsServiceRetrySpec extends UnitSpec, MockAppConfig:
         storedWorkItem.item.correlationId
       )
         .returning(
-          Future.successful(NrsSubmissionResult.Success)
+          Future.successful(SubmissionResult.Success)
         )
 
       (repository.completeAndDelete(_: ObjectId))
@@ -360,7 +354,7 @@ class NrsServiceRetrySpec extends UnitSpec, MockAppConfig:
       (connector.submit(_: NrsSubmission, _: CorrelationId))
         .expects(persistedSubmission, correlationId)
         .returning(
-          Future.successful(NrsSubmissionResult.RetryableFailure)
+          Future.successful(SubmissionResult.RetryableFailure)
         )
 
       (retryPolicy.isExhaustedAfterFailure(_: Int))
@@ -393,7 +387,7 @@ class NrsServiceRetrySpec extends UnitSpec, MockAppConfig:
       (connector.submit(_: NrsSubmission, _: CorrelationId))
         .expects(persistedSubmission, correlationId)
         .returning(
-          Future.successful(NrsSubmissionResult.PermanentFailure)
+          Future.successful(SubmissionResult.PermanentFailure)
         )
 
       (repository.markPermanentFailure(_: WorkItem[NrsSubmissionWorkItem]))
@@ -421,7 +415,7 @@ class NrsServiceRetrySpec extends UnitSpec, MockAppConfig:
       (connector.submit(_: NrsSubmission, _: CorrelationId))
         .expects(persistedSubmission, correlationId)
         .returning(
-          Future.successful(NrsSubmissionResult.RetryableFailure)
+          Future.successful(SubmissionResult.RetryableFailure)
         )
 
       (retryPolicy.isExhaustedAfterFailure(_: Int))
@@ -456,7 +450,7 @@ class NrsServiceRetrySpec extends UnitSpec, MockAppConfig:
           storedWorkItem.item.nrsSubmission,
           storedWorkItem.item.correlationId
         )
-        .returning(Future.successful(NrsSubmissionResult.Success))
+        .returning(Future.successful(SubmissionResult.Success))
 
       (repository.completeAndDelete(_: ObjectId))
         .expects(storedWorkItem.id)
@@ -493,7 +487,7 @@ class NrsServiceRetrySpec extends UnitSpec, MockAppConfig:
           firstWorkItem.item.correlationId
         )
         .returning(
-          Future.successful(NrsSubmissionResult.Success)
+          Future.successful(SubmissionResult.Success)
         )
         .once()
 
@@ -503,7 +497,7 @@ class NrsServiceRetrySpec extends UnitSpec, MockAppConfig:
           secondWorkItem.item.correlationId
         )
         .returning(
-          Future.successful(NrsSubmissionResult.Success)
+          Future.successful(SubmissionResult.Success)
         )
         .once()
 

@@ -19,8 +19,8 @@ package uk.gov.hmrc.mtdtransactionrisking.config
 import play.api.inject.{Binding, Module as AppModule}
 import play.api.{Configuration, Environment}
 import uk.gov.hmrc.crypto.{Decrypter, Encrypter}
-import uk.gov.hmrc.mtdtransactionrisking.v1.scheduling.NrsRetryScheduler
-import uk.gov.hmrc.mtdtransactionrisking.v1.services.{ConfiguredNrsRetryPolicy, NrsRetryPolicy}
+import uk.gov.hmrc.mtdtransactionrisking.v1.scheduling.{RsdRetryScheduler, NrsRetryScheduler}
+import uk.gov.hmrc.mtdtransactionrisking.v1.services.{ConfiguredRsdRetryPolicy, ConfiguredNrsRetryPolicy, NrsRetryPolicy, RsdRetryPolicy}
 
 import java.time.Clock
 
@@ -33,6 +33,9 @@ class Module extends AppModule:
     bind[Clock].toInstance(Clock.systemDefaultZone) ::
       bind[AppConfig].to[AppConfigImpl].eagerly() ::
       bind[Encrypter & Decrypter].toProvider[CryptoProvider] ::
+      bind[RsdCrypto].toProvider[RsdCryptoProvider] ::
       bind[NrsRetryPolicy].to[ConfiguredNrsRetryPolicy] ::
+      bind[RsdRetryPolicy].to[ConfiguredRsdRetryPolicy] ::
       bind[NrsRetryScheduler].toSelf.eagerly() ::
+      bind[RsdRetryScheduler].toSelf.eagerly() ::
       Nil

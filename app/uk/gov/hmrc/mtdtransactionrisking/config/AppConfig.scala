@@ -58,6 +58,15 @@ trait AppConfig:
   // RSD interaction datastore
   def interactionsBaseUrl: String
   def interactionCredentials: InteractionCredentials
+  def rsdRetryInitialDelay: FiniteDuration
+  def rsdRetryInterval: FiniteDuration
+  def rsdRetryBatchSize: Int
+  def rsdRetryInProgressRetryAfter: FiniteDuration
+  def rsdRetryMaxRetries: Int
+  def rsdRetryInitialBackoff: FiniteDuration
+  def rsdRetryBackoffMultiplier: Double
+  def rsdRetryMaxBackoff: FiniteDuration
+  def rsdRetryRetention: FiniteDuration
 
   // NRS
   def nrsSubmissionUrl: String
@@ -126,6 +135,41 @@ class AppConfigImpl @Inject() (config: ServicesConfig, configuration: Configurat
     clientId = interactionsConfig.get[String]("clientId"),
     clientSecret = interactionsConfig.get[String]("clientSecret")
   )
+
+  private val rsdRetryEnabled = FeatureSwitch(featureSwitch).isEnabled(RsdRetryFeature)
+
+  if rsdRetryEnabled &&
+    configuration.getOptional[String]("rsd-retry.crypto.key")
+      .forall(_.trim.isEmpty)
+    then
+    throw new IllegalStateException("RSD retry encryption key rsd-retry.crypto.key is not configured")
+  
+  def rsdRetryInitialDelay: FiniteDuration =
+    configuration.get[FiniteDuration]("rsd-retry.initial-delay")
+    
+  def rsdRetryInterval: FiniteDuration =
+    configuration.get[FiniteDuration]("rsd-retry.interval")
+    
+  def rsdRetryBatchSize: Int =
+    configuration.get[Int]("rsd-retry.batch-size")
+    
+  def rsdRetryInProgressRetryAfter: FiniteDuration =
+    configuration.get[FiniteDuration]("rsd-retry.in-progress-retry-after")
+    
+  def rsdRetryMaxRetries: Int =
+    configuration.get[Int]("rsd-retry.max-retries")
+    
+  def rsdRetryInitialBackoff: FiniteDuration =
+    configuration.get[FiniteDuration]("rsd-retry.initial-backoff")
+    
+  def rsdRetryBackoffMultiplier: Double =
+    configuration.get[Double]("rsd-retry.backoff-multiplier")
+    
+  def rsdRetryMaxBackoff: FiniteDuration =
+    configuration.get[FiniteDuration]("rsd-retry.max-backoff")
+    
+  def rsdRetryRetention: FiniteDuration =
+    configuration.get[FiniteDuration]("rsd-retry.retention")
 
   private val nrsConfig = configuration.get[Configuration]("microservice.services.nrs-orchestrator")
   private val nrsSubmissionEnabled = FeatureSwitch(featureSwitch).isEnabled(NrsSubmissionFeature)

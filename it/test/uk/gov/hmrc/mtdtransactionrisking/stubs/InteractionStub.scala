@@ -27,5 +27,14 @@ object InteractionStub:
   def stores(): StubMapping =
     stubFor(post(storeUrl).willReturn(aResponse().withStatus(NO_CONTENT)))
 
+  def badRequest(): StubMapping =
+    stubFor(post(storeUrl).willReturn(aResponse().withStatus(BAD_REQUEST)))
+
+  def clientClosedRequest(): StubMapping =
+    stubFor(post(storeUrl).willReturn(aResponse().withStatus(499)))
+
+  def serverError(): StubMapping =
+    stubFor(post(storeUrl).willReturn(aResponse().withStatus(INTERNAL_SERVER_ERROR)))  
+
   def unavailable(): StubMapping =
     stubFor(post(storeUrl).willReturn(aResponse().withStatus(SERVICE_UNAVAILABLE)))

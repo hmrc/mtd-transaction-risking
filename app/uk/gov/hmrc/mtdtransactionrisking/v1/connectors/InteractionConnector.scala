@@ -18,7 +18,6 @@ package uk.gov.hmrc.mtdtransactionrisking.v1.connectors
 
 import play.api.Logging
 import play.api.http.Status.NO_CONTENT
-import play.api.libs.json.Json
 import play.api.libs.ws.writeableOf_JsValue
 import uk.gov.hmrc.http.HttpReads.Implicits.*
 import uk.gov.hmrc.http.client.HttpClientV2
@@ -26,42 +25,82 @@ import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse, StringContextOps}
 import uk.gov.hmrc.mtdtransactionrisking.config.AppConfig
 import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.auth.InteractionCredentials
-import uk.gov.hmrc.mtdtransactionrisking.v1.models.errors.{DownstreamError, ErrorWrapper}
-import uk.gov.hmrc.mtdtransactionrisking.v1.models.outcomes.ResponseWrapper
-import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.Interaction
-import uk.gov.hmrc.mtdtransactionrisking.v1.services.ServiceOutcome
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.SubmissionResult
+import play.api.libs.json.JsValue
 
+import scala.annotation.tailrec
 import java.nio.charset.StandardCharsets.UTF_8
 import java.util.Base64
 import javax.inject.{Inject, Singleton}
+import javax.net.ssl.SSLException
 import scala.concurrent.{ExecutionContext, Future}
+import scala.util.control.NonFatal
 
 @Singleton
 class InteractionConnector @Inject() (httpClient: HttpClientV2, appConfig: AppConfig)(implicit ec: ExecutionContext) extends Logging:
 
-  def store(interaction: Interaction)(implicit hc: HeaderCarrier, correlationId: CorrelationId): Future[ServiceOutcome[Unit]] =
+  def store(body: JsValue, feedbackId: String, eventName: String, correlationId: CorrelationId)(implicit hc: HeaderCarrier): Future[SubmissionResult] =
 
-    logger.info(s"${correlationId.value}::[InteractionConnector][store] storing interaction for feedbackId ${interaction.feedbackId}")
+    logger.info(s"${correlationId.value}::[InteractionConnector][store] storing interaction for feedbackId $feedbackId")
 
-    httpClient
-      .post(url"${appConfig.interactionsBaseUrl}")
-      .withBody(Json.toJson(interaction))
-      .setHeader(buildHeaders(correlationId, appConfig.interactionCredentials)*)
-      .execute[HttpResponse]
-      .map { response =>
-        response.status match
-          case NO_CONTENT =>
-            logger.info(s"${correlationId.value}::[InteractionConnector][store] interaction stored")
-            Right(ResponseWrapper(correlationId, ()))
+    Future
+      .delegate {
+        httpClient
+          .post(url"${appConfig.interactionsBaseUrl}")
+          .withBody(body)
+          .setHeader(
+            buildHeaders(
+              correlationId = correlationId,
+              credentials = appConfig.interactionCredentials
+            ) *
+          )
+          .execute[HttpResponse]
+          .map { response =>
+            response.status match
+              case NO_CONTENT =>
+                logger.info(
+                  s"${correlationId.value}::[InteractionConnector][store] " +
+                    s"interaction stored for $eventName, " +
+                    s"feedbackId $feedbackId"
+                )
+                SubmissionResult.Success
 
-          case status =>
-            logger.error(s"${correlationId.value}::[InteractionConnector][store] failed $status: ${response.body}")
-            Left(ErrorWrapper(correlationId, DownstreamError))
+              case status if status == 499 || (status >= 500 && status <= 599) =>
+                logger.warn(
+                  s"${correlationId.value}::[InteractionConnector][store] " +
+                    s"retryable RSD status $status for $eventName, " +
+                    s"feedbackId $feedbackId"
+                )
+                SubmissionResult.RetryableFailure
+
+              case status =>
+                logger.warn(
+                  s"${correlationId.value}::[InteractionConnector][store] " +
+                    s"non-retryable RSD status $status for $eventName, " +
+                    s"feedbackId $feedbackId"
+                )
+                SubmissionResult.PermanentFailure
+          }
       }
-      .recover:
-        case ex =>
-          logger.error(s"${correlationId.value}::[InteractionConnector][store] unexpected exception", ex)
-          Left(ErrorWrapper(correlationId, DownstreamError))
+      .recover {
+        case error if InteractionConnector.containsSslFailure(error) =>
+          logger.warn(
+            s"${correlationId.value}::[InteractionConnector][store] " +
+              s"permanent SSL/TLS failure for $eventName, feedbackId $feedbackId",
+            error
+          )
+          SubmissionResult.PermanentFailure
+
+        case NonFatal(error) =>
+          logger.warn(
+            s"${correlationId.value}::[InteractionConnector][store] " +
+              s"RSD request failed for $eventName, feedbackId $feedbackId; " +
+              "treating as retryable",
+            error
+          )
+          SubmissionResult.RetryableFailure
+
+      }
 
   private def buildHeaders(correlationId: CorrelationId, credentials: InteractionCredentials): Seq[(String, String)] =
     val encoded = Base64.getEncoder.encodeToString(s"${credentials.clientId}:${credentials.clientSecret}".getBytes(UTF_8))
@@ -72,3 +111,20 @@ class InteractionConnector @Inject() (httpClient: HttpClientV2, appConfig: AppCo
       "CorrelationId" -> correlationId.value,
       "Authorization" -> s"Basic $encoded"
     )
+
+object InteractionConnector:
+  private[connectors] def containsSslFailure(error: Throwable): Boolean =
+
+    @tailrec
+    def loop(current: Throwable): Boolean =
+      if current.isInstanceOf[SSLException] then
+        true
+      else
+        Option(current.getCause) match
+          case Some(cause) if cause ne current =>
+            loop(cause)
+
+          case _ =>
+            false
+
+    loop(error)
