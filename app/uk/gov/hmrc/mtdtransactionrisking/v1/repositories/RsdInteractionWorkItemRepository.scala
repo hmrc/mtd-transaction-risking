@@ -28,6 +28,7 @@ import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.Interaction
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.rsd.RsdInteractionWorkItem
 import uk.gov.hmrc.mtdtransactionrisking.v1.services.RsdRetryPolicy
+import uk.gov.hmrc.mtdtransactionrisking.config.RsdCrypto
 
 import java.time.{Clock, Duration, Instant}
 import java.util.Date
@@ -41,7 +42,7 @@ class RsdInteractionWorkItemRepository @Inject()(
                                                   appConfig: AppConfig,
                                                   retryPolicy: RsdRetryPolicy,
                                                   clock: Clock
-                                                )(using ec: ExecutionContext)
+                                                )(using ec: ExecutionContext, rsdCrypto: RsdCrypto)
   extends WorkItemRepository[RsdInteractionWorkItem](
     collectionName = "rsd-interaction-work-items",
     mongoComponent = mongoComponent,
@@ -80,7 +81,7 @@ class RsdInteractionWorkItemRepository @Inject()(
       item = RsdInteractionWorkItem(
         interaction = interaction,
         correlationId = correlationId
-      ),
+      )(using rsdCrypto),
       availableAt = now().plusMillis(
         retryPolicy.delayForRetry(1).toMillis
       )
@@ -94,7 +95,7 @@ class RsdInteractionWorkItemRepository @Inject()(
       item = RsdInteractionWorkItem(
         interaction = interaction,
         correlationId = correlationId
-      ),
+      )(using rsdCrypto),
       availableAt = now(),
       initialState = _ => ProcessingStatus.PermanentlyFailed
     )

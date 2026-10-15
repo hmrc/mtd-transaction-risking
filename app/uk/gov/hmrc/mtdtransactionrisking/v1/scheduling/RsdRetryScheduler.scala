@@ -20,7 +20,7 @@ import org.apache.pekko.actor.{ActorSystem, Cancellable}
 import play.api.inject.ApplicationLifecycle
 import uk.gov.hmrc.mtdtransactionrisking.config.{AppConfig, FeatureSwitch, RsdRetryFeature}
 import uk.gov.hmrc.mtdtransactionrisking.utils.Logging
-import uk.gov.hmrc.mtdtransactionrisking.v1.services.RsdRetryService
+import uk.gov.hmrc.mtdtransactionrisking.v1.services.InteractionService
 
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
@@ -31,7 +31,7 @@ class RsdRetryScheduler @Inject()(
                                    actorSystem: ActorSystem,
                                    applicationLifecycle: ApplicationLifecycle,
                                    appConfig: AppConfig,
-                                   rsdRetryService: RsdRetryService
+                                   interactionService: InteractionService
                                  )(using ec: ExecutionContext)
   extends Logging:
 
@@ -53,7 +53,7 @@ class RsdRetryScheduler @Inject()(
           initialDelay = appConfig.rsdRetryInitialDelay,
           interval = appConfig.rsdRetryInterval
         ) { () =>
-          rsdRetryService.processDueWorkItems().recover {
+          interactionService.processDueWorkItems().recover {
             case NonFatal(error) =>
               logger.error(
                 "[RsdRetryScheduler] unexpected RSD retry worker failure",

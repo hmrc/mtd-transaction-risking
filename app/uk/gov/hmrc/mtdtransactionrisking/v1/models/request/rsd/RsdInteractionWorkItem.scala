@@ -16,15 +16,70 @@
 
 package uk.gov.hmrc.mtdtransactionrisking.v1.models.request.rsd
 
-import play.api.libs.json.{Json, OFormat}
+import play.api.libs.functional.syntax.*
+import play.api.libs.json.{Format, JsValue, Json, OFormat, __}
+import uk.gov.hmrc.crypto.Sensitive.SensitiveString
+import uk.gov.hmrc.crypto.json.JsonEncryption
+import uk.gov.hmrc.mtdtransactionrisking.config.RsdCrypto
 import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.Interaction
 
-final case class RsdInteractionWorkItem(
-                                         interaction: Interaction,
-                                         correlationId: CorrelationId
-                                       )
+final case class RsdInteractionWorkItem private (
+                                                  feedbackId: String,
+                                                  eventName: String,
+                                                  correlationId: CorrelationId,
+                                                  private val encryptedBody: SensitiveString
+                                                ):
+
+  lazy val body: JsValue =
+    Json.parse(encryptedBody.decryptedValue)
 
 object RsdInteractionWorkItem:
-  given format: OFormat[RsdInteractionWorkItem] =
-    Json.format[RsdInteractionWorkItem]
+
+  private val EncryptedBody = "encryptedBody"
+
+  def apply(
+             interaction: Interaction,
+             correlationId: CorrelationId
+           )(using RsdCrypto): RsdInteractionWorkItem =
+    fromEncrypted(
+      feedbackId = interaction.feedbackId,
+      eventName = interaction.eventName,
+      correlationId = correlationId,
+      encryptedBody = SensitiveString(
+        Json.stringify(Json.toJson(interaction))
+      )
+    )
+
+  private def fromEncrypted(
+                             feedbackId: String,
+                             eventName: String,
+                             correlationId: CorrelationId,
+                             encryptedBody: SensitiveString
+                           ): RsdInteractionWorkItem =
+    new RsdInteractionWorkItem(
+      feedbackId = feedbackId,
+      eventName = eventName,
+      correlationId = correlationId,
+      encryptedBody = encryptedBody
+    )
+
+  given format(using crypto: RsdCrypto): OFormat[RsdInteractionWorkItem] =
+    given Format[SensitiveString] =
+      JsonEncryption.sensitiveEncrypterDecrypter(SensitiveString.apply)
+
+    (
+      (__ \ "feedbackId").format[String] and
+        (__ \ "eventName").format[String] and
+        (__ \ "correlationId").format[CorrelationId] and
+        (__ \ EncryptedBody).format[SensitiveString]
+      )(
+      fromEncrypted,
+      workItem =>
+        (
+          workItem.feedbackId,
+          workItem.eventName,
+          workItem.correlationId,
+          workItem.encryptedBody
+        )
+    )

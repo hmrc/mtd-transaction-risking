@@ -33,6 +33,7 @@ class Module extends AppModule:
     bind[Clock].toInstance(Clock.systemDefaultZone) ::
       bind[AppConfig].to[AppConfigImpl].eagerly() ::
       bind[Encrypter & Decrypter].toProvider[CryptoProvider] ::
+      bind[RsdCrypto].toProvider[RsdCryptoProvider] ::
       bind[NrsRetryPolicy].to[ConfiguredNrsRetryPolicy] ::
       bind[RsdRetryPolicy].to[ConfiguredRsdRetryPolicy] ::
       bind[NrsRetryScheduler].toSelf.eagerly() ::

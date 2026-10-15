@@ -19,11 +19,11 @@ package uk.gov.hmrc.mtdtransactionrisking.v1.mocks.connectors
 import org.scalamock.handlers.CallHandler
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.TestSuite
+import play.api.libs.json.JsValue
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
 import uk.gov.hmrc.mtdtransactionrisking.v1.connectors.InteractionConnector
-import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.Interaction
-import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.rsd.RsdSubmissionResult
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.SubmissionResult
 
 import scala.concurrent.Future
 
@@ -34,7 +34,11 @@ trait MockInteractionConnector extends MockFactory:
 
   object MockInteractionConnector:
 
-    def store(request: Interaction, correlationId: CorrelationId): CallHandler[Future[RsdSubmissionResult]] =
-      (mockInteractionConnector
-        .store(_: Interaction, _: CorrelationId)(_: HeaderCarrier))
-        .expects(request, correlationId, *)
+    def store(body: JsValue, feedbackId: String, eventName: String, correlationId: CorrelationId): CallHandler[Future[SubmissionResult]] =
+      (mockInteractionConnector.store(
+        _: JsValue,
+        _: String,
+        _: String,
+        _: CorrelationId
+        )(_: HeaderCarrier)
+        ).expects(body, feedbackId, eventName, correlationId, *)

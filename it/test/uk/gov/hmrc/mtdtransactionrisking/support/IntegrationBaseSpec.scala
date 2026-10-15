@@ -58,6 +58,8 @@ trait IntegrationBaseSpec
     "microservice.services.interactions-datastore.port"       -> mockPort,
     "microservice.services.interactions-datastore.protocol"   -> "http",
     "microservice.services.interactions-datastore.submit-url" -> "/rsd/receive-and-store",
+    "feature-switch.rsd-retry.enabled"                        -> false,
+    "rsd-retry.crypto.key"                                    -> "aI7/ACVHrJOYOdI1pCVuOaulZomDlMiLYE08dyIX1lM=",
     "feature-switch.nrs-submission.enabled"                   -> true,
     "feature-switch.nrs-retry.enabled"                        -> false,
     "nrs-retry.crypto.key"                                    -> "9EMrIXA5uyAUjKzd/uViY0JAH2UqIl+VFWuTug4a7Uc=",
@@ -100,3 +102,4 @@ trait IntegrationBaseSpec
 
   def document(response: WSResponse): JsValue =
     Json.parse(response.body)
+    

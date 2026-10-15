@@ -135,6 +135,14 @@ class AppConfigImpl @Inject() (config: ServicesConfig, configuration: Configurat
     clientId = interactionsConfig.get[String]("clientId"),
     clientSecret = interactionsConfig.get[String]("clientSecret")
   )
+
+  private val rsdRetryEnabled = FeatureSwitch(featureSwitch).isEnabled(RsdRetryFeature)
+
+  if rsdRetryEnabled &&
+    configuration.getOptional[String]("rsd-retry.crypto.key")
+      .forall(_.trim.isEmpty)
+    then
+    throw new IllegalStateException("RSD retry encryption key rsd-retry.crypto.key is not configured")
   
   def rsdRetryInitialDelay: FiniteDuration =
     configuration.get[FiniteDuration]("rsd-retry.initial-delay")

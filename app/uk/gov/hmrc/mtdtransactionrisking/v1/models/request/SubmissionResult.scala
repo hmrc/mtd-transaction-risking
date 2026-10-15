@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.mtdtransactionrisking.v1.models.request.rsd
+package uk.gov.hmrc.mtdtransactionrisking.v1.models.request
 
-sealed trait RsdSubmissionResult
+sealed trait SubmissionResult
 
-object RsdSubmissionResult:
-  case object Success extends RsdSubmissionResult
-  case object RetryableFailure extends RsdSubmissionResult
-  case object PermanentFailure extends RsdSubmissionResult
+object SubmissionResult:
+  case object Success extends SubmissionResult
+  case object RetryableFailure extends SubmissionResult
+  case object PermanentFailure extends SubmissionResult

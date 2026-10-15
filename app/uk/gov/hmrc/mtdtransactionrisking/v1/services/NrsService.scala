@@ -23,8 +23,9 @@ import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
 import uk.gov.hmrc.mtdtransactionrisking.utils.Logging
 import uk.gov.hmrc.mtdtransactionrisking.v1.connectors.NrsConnector
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.auth.IdentityData
-import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.nrs.{Metadata, NotableEventType, NrsSubmission, NrsSubmissionResult, NrsSubmissionWorkItem, SearchKeys}
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.nrs.{Metadata, NotableEventType, NrsSubmission, NrsSubmissionWorkItem, SearchKeys}
 import uk.gov.hmrc.mtdtransactionrisking.v1.repositories.NrsSubmissionWorkItemStore
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.SubmissionResult
 
 import java.nio.charset.StandardCharsets.UTF_8
 import java.security.MessageDigest
@@ -153,14 +154,14 @@ class NrsService @Inject()(
       .submit(nrsSubmission = nrsSubmission, correlationId = correlationId)
       .recover { case NonFatal(error) =>
         logger.warn(s"$logPrefix NRS submission failed unexpectedly for $event, scheduling retry", error)
-        NrsSubmissionResult.RetryableFailure
+        SubmissionResult.RetryableFailure
       }
       .flatMap {
-        case NrsSubmissionResult.Success =>
+        case SubmissionResult.Success =>
           logger.info(s"$logPrefix NRS submission accepted for $event")
           Future.unit
 
-        case NrsSubmissionResult.RetryableFailure =>
+        case SubmissionResult.RetryableFailure =>
           nrsSubmissionWorkItemRepository
             .enqueueRetryableFailure(submission = nrsSubmission, correlationId = correlationId)
             .map { workItem =>
@@ -169,7 +170,7 @@ class NrsService @Inject()(
               )
             }
 
-        case NrsSubmissionResult.PermanentFailure =>
+        case SubmissionResult.PermanentFailure =>
           nrsSubmissionWorkItemRepository
             .enqueuePermanentFailure(submission = nrsSubmission, correlationId = correlationId)
             .map { workItem =>
@@ -215,7 +216,7 @@ class NrsService @Inject()(
   private def submitRetry(
                            workItem: WorkItem[NrsSubmissionWorkItem],
                            nrsSubmission: NrsSubmission
-                         ): Future[NrsSubmissionResult] =
+                         ): Future[SubmissionResult] =
     connector
       .submit(
         nrsSubmission = nrsSubmission,
@@ -228,18 +229,18 @@ class NrsService @Inject()(
             s"for work item ${workItem.id}; treating it as retryable",
           error
         )
-        NrsSubmissionResult.RetryableFailure
+        SubmissionResult.RetryableFailure
       }
 
   private def recordRetryResult(
                                  workItem: WorkItem[NrsSubmissionWorkItem],
-                                 result: NrsSubmissionResult
+                                 result: SubmissionResult
                                ): Future[Unit] =
     val logPrefix =
       s"${workItem.item.correlationId.value}::[NrsService][processWorkItem]"
 
     result match
-      case NrsSubmissionResult.Success =>
+      case SubmissionResult.Success =>
         nrsSubmissionWorkItemRepository
           .completeAndDelete(workItem.id)
           .map { deleted =>
@@ -250,7 +251,7 @@ class NrsService @Inject()(
             ()
           }
 
-      case NrsSubmissionResult.RetryableFailure =>
+      case SubmissionResult.RetryableFailure =>
         val retryNumber =
           workItem.failureCount + 1
 
@@ -274,7 +275,7 @@ class NrsService @Inject()(
             ()
           }
 
-      case NrsSubmissionResult.PermanentFailure =>
+      case SubmissionResult.PermanentFailure =>
         nrsSubmissionWorkItemRepository
           .markPermanentFailure(workItem)
           .map { updated =>

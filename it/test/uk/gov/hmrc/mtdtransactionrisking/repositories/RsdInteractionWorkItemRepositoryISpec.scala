@@ -26,9 +26,10 @@ import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import play.api.libs.json.Json
+import uk.gov.hmrc.crypto.{Crypted, PlainBytes, PlainContent, PlainText, SymmetricCryptoFactory}
 import uk.gov.hmrc.mongo.test.DefaultPlayMongoRepositorySupport
 import uk.gov.hmrc.mongo.workitem.{ProcessingStatus, WorkItem, WorkItemFields}
-import uk.gov.hmrc.mtdtransactionrisking.config.AppConfig
+import uk.gov.hmrc.mtdtransactionrisking.config.{AppConfig, RsdCrypto}
 import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.{Interaction, InteractionMetadata, InteractionPayload}
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.rsd.RsdInteractionWorkItem
@@ -57,6 +58,22 @@ class RsdInteractionWorkItemRepositoryISpec
 
   private val clock =
     new RsdMutableClock(initialNow)
+
+  private given RsdCrypto =
+    new RsdCrypto:
+      private val crypto =
+        SymmetricCryptoFactory.aesGcmCrypto(
+          "9EMrIXA5uyAUjKzd/uViY0JAH2UqIl+VFWuTug4a7Uc="
+        )
+
+      override def encrypt(plain: PlainContent): Crypted =
+        crypto.encrypt(plain)
+
+      override def decrypt(encrypted: Crypted): PlainText =
+        crypto.decrypt(encrypted)
+
+      override def decryptAsBytes(encrypted: Crypted): PlainBytes =
+        crypto.decryptAsBytes(encrypted)
 
   private val appConfig =
     stub[AppConfig]
@@ -191,7 +208,10 @@ class RsdInteractionWorkItemRepositoryISpec
           )
           .futureValue
 
-      persisted.item shouldBe payload
+      persisted.item.feedbackId shouldBe interaction.feedbackId
+      persisted.item.eventName shouldBe interaction.eventName
+      persisted.item.correlationId shouldBe correlationId
+      persisted.item.body shouldBe Json.toJson(interaction)
       persisted.status shouldBe ProcessingStatus.ToDo
       persisted.failureCount shouldBe 0
       persisted.availableAt shouldBe
@@ -206,7 +226,10 @@ class RsdInteractionWorkItemRepositoryISpec
           )
           .futureValue
 
-      persisted.item shouldBe payload
+      persisted.item.feedbackId shouldBe interaction.feedbackId
+      persisted.item.eventName shouldBe interaction.eventName
+      persisted.item.correlationId shouldBe correlationId
+      persisted.item.body shouldBe Json.toJson(interaction)
       persisted.status shouldBe ProcessingStatus.PermanentlyFailed
       persisted.failureCount shouldBe 0
       persisted.updatedAt shouldBe initialNow
@@ -225,8 +248,10 @@ class RsdInteractionWorkItemRepositoryISpec
       val stored =
         findStored(persisted.id).value
 
-      stored.item.interaction shouldBe interaction
+      stored.item.feedbackId shouldBe interaction.feedbackId
+      stored.item.eventName shouldBe interaction.eventName
       stored.item.correlationId shouldBe correlationId
+      stored.item.body shouldBe Json.toJson(interaction)
 
     "atomically claim one due item as InProgress" in :
       val stored =
@@ -245,7 +270,10 @@ class RsdInteractionWorkItemRepositoryISpec
 
       claimed.id shouldBe stored.id
       claimed.status shouldBe ProcessingStatus.InProgress
-      claimed.item shouldBe payload
+      claimed.item.feedbackId shouldBe interaction.feedbackId
+      claimed.item.eventName shouldBe interaction.eventName
+      claimed.item.correlationId shouldBe correlationId
+      claimed.item.body shouldBe Json.toJson(interaction)
 
     "not claim the same due item twice across concurrent workers" in :
       repository

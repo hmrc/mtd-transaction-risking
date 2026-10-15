@@ -22,7 +22,10 @@ import play.api.libs.json.Json
 import uk.gov.hmrc.http.client.HttpClientV2
 import uk.gov.hmrc.mtdtransactionrisking.support.{ConnectorSpec, MockAppConfig}
 import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
-import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.nrs.{Metadata, NrsSubmission, NrsSubmissionResult, SearchKeys}
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.nrs.{Metadata, NrsSubmission, SearchKeys}
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.SubmissionResult
+import java.io.IOException
+import java.util.concurrent.TimeoutException
 
 class NrsConnectorSpec
   extends ConnectorSpec
@@ -127,7 +130,7 @@ class NrsConnectorSpec
 
       await(
         connector.submit(submission, correlationId)
-      ) shouldBe NrsSubmissionResult.Success
+      ) shouldBe SubmissionResult.Success
 
       wireMockServer.verify(
         postRequestedFor(urlPathEqualTo(path))
@@ -159,7 +162,7 @@ class NrsConnectorSpec
 
       await(
         connector.submit(submission, correlationId)
-      ) shouldBe NrsSubmissionResult.RetryableFailure
+      ) shouldBe SubmissionResult.RetryableFailure
 
     "classify HTTP 499 as retryable" in new Test:
       wireMockServer.stubFor(
@@ -172,7 +175,7 @@ class NrsConnectorSpec
 
       await(
         connector.submit(submission, correlationId)
-      ) shouldBe NrsSubmissionResult.RetryableFailure
+      ) shouldBe SubmissionResult.RetryableFailure
 
     Seq(500, 503, 599).foreach { status =>
       s"classify HTTP $status as retryable" in new Test:
@@ -186,7 +189,7 @@ class NrsConnectorSpec
 
         await(
           connector.submit(submission, correlationId)
-        ) shouldBe NrsSubmissionResult.RetryableFailure
+        ) shouldBe SubmissionResult.RetryableFailure
     }
 
     "classify HTTP 422 as permanent" in new Test:
@@ -200,7 +203,7 @@ class NrsConnectorSpec
 
       await(
         connector.submit(submission, correlationId)
-      ) shouldBe NrsSubmissionResult.PermanentFailure
+      ) shouldBe SubmissionResult.PermanentFailure
 
     Seq(400, 401, 403, 404).foreach { status =>
       s"classify HTTP $status as permanent" in new Test:
@@ -214,7 +217,7 @@ class NrsConnectorSpec
 
         await(
           connector.submit(submission, correlationId)
-        ) shouldBe NrsSubmissionResult.PermanentFailure
+        ) shouldBe SubmissionResult.PermanentFailure
     }
 
     "reuse the supplied correlation ID for repeated attempts" in new Test:
@@ -228,11 +231,11 @@ class NrsConnectorSpec
 
       await(
         connector.submit(submission, correlationId)
-      ) shouldBe NrsSubmissionResult.RetryableFailure
+      ) shouldBe SubmissionResult.RetryableFailure
 
       await(
         connector.submit(submission, correlationId)
-      ) shouldBe NrsSubmissionResult.RetryableFailure
+      ) shouldBe SubmissionResult.RetryableFailure
 
       wireMockServer.verify(
         2,
@@ -245,3 +248,42 @@ class NrsConnectorSpec
             equalToJson(Json.stringify(Json.toJson(submission)))
           )
       )
+
+    "NrsConnector transport failure classification" should :
+
+      "recognise an IOException" in :
+        NrsConnector.isRetryableTransportFailure(
+          new IOException("connection failed")
+        ) shouldBe true
+
+      "recognise a TimeoutException" in :
+        NrsConnector.isRetryableTransportFailure(
+          new TimeoutException("request timed out")
+        ) shouldBe true
+
+      "recognise retryable transport failures nested as causes" in :
+        val error =
+          new RuntimeException(
+            "HTTP client failure",
+            new IOException("connection reset")
+          )
+
+        NrsConnector.isRetryableTransportFailure(error) shouldBe true
+
+      "recognise a nested timeout" in :
+        val error =
+          new RuntimeException(
+            "HTTP client failure",
+            new RuntimeException(
+              "request failure",
+              new TimeoutException("request timed out")
+            )
+          )
+
+        NrsConnector.isRetryableTransportFailure(error) shouldBe true
+
+      "reject an exception without an IOException or TimeoutException cause" in :
+        NrsConnector.isRetryableTransportFailure(
+          new IllegalStateException("invalid request")
+        ) shouldBe false
+

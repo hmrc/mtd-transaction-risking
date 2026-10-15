@@ -27,9 +27,8 @@ import uk.gov.hmrc.http.client.HttpClientV2
 import uk.gov.hmrc.mtdtransactionrisking.support.{ConnectorSpec, MockAppConfig}
 import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.auth.InteractionCredentials
-import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.{Interaction, InteractionMetadata, InteractionPayload}
-import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.rsd.RsdSubmissionResult
-import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.rsd.RsdSubmissionResult.*
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.{Interaction, InteractionMetadata, InteractionPayload, SubmissionResult}
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.SubmissionResult.*
 
 import java.net.http.HttpTimeoutException
 import java.net.{ConnectException, SocketTimeoutException, UnknownHostException}
@@ -87,6 +86,9 @@ class InteractionConnectorSpec
       )
     )
 
+  private val interactionBody =
+    Json.toJson(interaction)
+
   private trait Test:
     MockedAppConfig.interactionsBaseUrl
       .returns(
@@ -112,6 +114,14 @@ class InteractionConnectorSpec
         appConfig = mockAppConfig
       )
 
+    def store(): scala.concurrent.Future[SubmissionResult] =
+      connector.store(
+        body = interactionBody,
+        feedbackId = interaction.feedbackId,
+        eventName = interaction.eventName,
+        correlationId = correlationId
+      )
+
     def stubStore(status: Int): StubMapping =
       wireMockServer.stubFor(
         post(urlPattern).willReturn(
@@ -122,9 +132,7 @@ class InteractionConnectorSpec
     def stubConnectionReset(): StubMapping =
       wireMockServer.stubFor(
         post(urlPattern).willReturn(
-          aResponse().withFault(
-            Fault.CONNECTION_RESET_BY_PEER
-          )
+          aResponse().withFault(Fault.CONNECTION_RESET_BY_PEER)
         )
       )
 
@@ -145,55 +153,41 @@ class InteractionConnectorSpec
     "return Success on HTTP 204" in new Test:
       stubStore(204)
 
-      await(
-        connector.store(interaction, correlationId)
-      ) shouldBe Success
+      await(store()) shouldBe Success
 
     "return PermanentFailure on HTTP 400" in new Test:
       stubStore(400)
 
-      await(
-        connector.store(interaction, correlationId)
-      ) shouldBe PermanentFailure
+      await(store()) shouldBe PermanentFailure
 
     "return RetryableFailure on HTTP 499" in new Test:
       stubStore(499)
 
-      await(
-        connector.store(interaction, correlationId)
-      ) shouldBe RetryableFailure
+      await(store()) shouldBe RetryableFailure
 
     Seq(500, 503, 599).foreach { status =>
       s"return RetryableFailure on HTTP $status" in new Test:
         stubStore(status)
 
-        await(
-          connector.store(interaction, correlationId)
-        ) shouldBe RetryableFailure
+        await(store()) shouldBe RetryableFailure
     }
 
     Seq(401, 403, 404, 408, 409, 422, 429).foreach { status =>
-      s"return PermanentFailure on non-ticket HTTP status $status" in new Test:
+      s"return PermanentFailure on HTTP status $status" in new Test:
         stubStore(status)
 
-        await(
-          connector.store(interaction, correlationId)
-        ) shouldBe PermanentFailure
+        await(store()) shouldBe PermanentFailure
     }
 
     "return RetryableFailure on a transient connection reset" in new Test:
       stubConnectionReset()
 
-      await(
-        connector.store(interaction, correlationId)
-      ) shouldBe RetryableFailure
+      await(store()) shouldBe RetryableFailure
 
     "send the existing Basic authentication credentials" in new Test:
       stubStore(204)
 
-      await(
-        connector.store(interaction, correlationId)
-      ) shouldBe Success
+      await(store()) shouldBe Success
 
       wireMockServer.verify(
         postRequestedFor(urlPattern)
@@ -206,9 +200,7 @@ class InteractionConnectorSpec
     "send the supplied CorrelationId header unchanged" in new Test:
       stubStore(204)
 
-      await(
-        connector.store(interaction, correlationId)
-      ) shouldBe Success
+      await(store()) shouldBe Success
 
       wireMockServer.verify(
         postRequestedFor(urlPattern)
@@ -221,9 +213,7 @@ class InteractionConnectorSpec
     "send JSON content type and accept any response type" in new Test:
       stubStore(204)
 
-      await(
-        connector.store(interaction, correlationId)
-      ) shouldBe Success
+      await(store()) shouldBe Success
 
       wireMockServer.verify(
         postRequestedFor(urlPattern)
@@ -237,34 +227,27 @@ class InteractionConnectorSpec
           )
       )
 
-    "send the original interaction as the request body" in new Test:
+    "send the original interaction JSON as the request body" in new Test:
       stubStore(204)
 
-      await(
-        connector.store(interaction, correlationId)
-      ) shouldBe Success
+      await(store()) shouldBe Success
 
       wireMockServer.verify(
         postRequestedFor(urlPattern)
           .withRequestBody(
             equalToJson(
-              Json.stringify(Json.toJson(interaction)),
+              Json.stringify(interactionBody),
               true,
               false
             )
           )
       )
 
-    "reuse the supplied CorrelationId unchanged on repeated delivery attempts" in new Test:
+    "reuse the supplied CorrelationId and body on repeated delivery attempts" in new Test:
       stubStore(503)
 
-      await(
-        connector.store(interaction, correlationId)
-      ) shouldBe RetryableFailure
-
-      await(
-        connector.store(interaction, correlationId)
-      ) shouldBe RetryableFailure
+      await(store()) shouldBe RetryableFailure
+      await(store()) shouldBe RetryableFailure
 
       wireMockServer.verify(
         2,
@@ -274,65 +257,64 @@ class InteractionConnectorSpec
             equalTo(correlationId.value)
           )
           .withRequestBody(
-            equalToJson(
-              Json.stringify(Json.toJson(interaction))
-            )
+            equalToJson(Json.stringify(interactionBody))
           )
       )
 
-  "InteractionConnector.classifyTransportFailure" should:
+  "InteractionConnector.isRetryableTransportFailure" should:
 
     "classify GatewayTimeoutException as retryable" in:
-      InteractionConnector.classifyTransportFailure(
+      InteractionConnector.isRetryableTransportFailure(
         new GatewayTimeoutException("RSD request timed out")
-      ) shouldBe RetryableFailure
+      ) shouldBe true
 
     "classify BadGatewayException as retryable" in:
-      InteractionConnector.classifyTransportFailure(
+      InteractionConnector.isRetryableTransportFailure(
         new BadGatewayException("RSD connection failed")
-      ) shouldBe RetryableFailure
+      ) shouldBe true
 
     "classify a nested TimeoutException as retryable" in:
-      InteractionConnector.classifyTransportFailure(
+      InteractionConnector.isRetryableTransportFailure(
         new RuntimeException(
           new TimeoutException("read timed out")
         )
-      ) shouldBe RetryableFailure
+      ) shouldBe true
 
     "classify a nested ConnectException as retryable" in:
-      InteractionConnector.classifyTransportFailure(
+      InteractionConnector.isRetryableTransportFailure(
         new RuntimeException(
           new ConnectException("connection refused")
         )
-      ) shouldBe RetryableFailure
+      ) shouldBe true
 
     "classify a nested UnknownHostException as retryable" in:
-      InteractionConnector.classifyTransportFailure(
+      InteractionConnector.isRetryableTransportFailure(
         new RuntimeException(
           new UnknownHostException("rsd.example")
         )
-      ) shouldBe RetryableFailure
+      ) shouldBe true
 
-    "classify SSL/TLS failures as permanent" in:
-      InteractionConnector.classifyTransportFailure(
-        new RuntimeException(
-          new SSLException("certificate validation failed")
-        )
-      ) shouldBe PermanentFailure
-
-    "classify unknown failures as permanent" in:
-      InteractionConnector.classifyTransportFailure(
-        new IllegalStateException("invalid configuration")
-      ) shouldBe PermanentFailure
-
-    "classify a nested SocketTimeoutException as retryable" in :
-      InteractionConnector.classifyTransportFailure(
+    "classify a nested SocketTimeoutException as retryable" in:
+      InteractionConnector.isRetryableTransportFailure(
         new RuntimeException(
           new SocketTimeoutException("socket read timed out")
         )
-      ) shouldBe RetryableFailure
+      ) shouldBe true
 
     "classify HttpTimeoutException as retryable" in:
-      InteractionConnector.classifyTransportFailure(
+      InteractionConnector.isRetryableTransportFailure(
         new HttpTimeoutException("request timed out")
-      ) shouldBe RetryableFailure
+      ) shouldBe true
+
+    "exclude SSL/TLS failures from retryable transport failures" in:
+      InteractionConnector.isRetryableTransportFailure(
+        new RuntimeException(
+          new SSLException("certificate validation failed")
+        )
+      ) shouldBe false
+
+    "classify unknown failures as non-retryable" in:
+      InteractionConnector.isRetryableTransportFailure(
+        new IllegalStateException("invalid configuration")
+      ) shouldBe false
+      

@@ -26,7 +26,7 @@ import play.api.Configuration
 import play.api.inject.ApplicationLifecycle
 import uk.gov.hmrc.mtdtransactionrisking.config.AppConfig
 import uk.gov.hmrc.mtdtransactionrisking.support.UnitSpec
-import uk.gov.hmrc.mtdtransactionrisking.v1.services.RsdRetryService
+import uk.gov.hmrc.mtdtransactionrisking.v1.services.InteractionService
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -58,7 +58,7 @@ class RsdRetrySchedulerSpec extends UnitSpec, MockitoSugar:
       mock[Scheduler],
       mock[ApplicationLifecycle],
       mock[AppConfig],
-      mock[RsdRetryService],
+      mock[InteractionService],
       mock[Cancellable]
     )
 
@@ -66,7 +66,7 @@ class RsdRetrySchedulerSpec extends UnitSpec, MockitoSugar:
                                          actorSystem: ActorSystem,
                                          pekkoScheduler: Scheduler,
                                          appConfig: AppConfig,
-                                         rsdRetryService: RsdRetryService,
+                                         interactionService: InteractionService,
                                          cancellable: Cancellable
                                        ): Unit =
     when(appConfig.featureSwitch)
@@ -88,7 +88,7 @@ class RsdRetrySchedulerSpec extends UnitSpec, MockitoSugar:
       )(any[Runnable])(any[ExecutionContext])
     ).thenReturn(cancellable)
 
-    when(rsdRetryService.processDueWorkItems())
+    when(interactionService.processDueWorkItems())
       .thenReturn(Future.successful(()))
 
   "RsdRetryScheduler" should:
@@ -99,7 +99,7 @@ class RsdRetrySchedulerSpec extends UnitSpec, MockitoSugar:
         pekkoScheduler,
         lifecycle,
         appConfig,
-        rsdRetryService,
+        interactionService,
         cancellable
         ) = createSchedulerMocks()
 
@@ -107,7 +107,7 @@ class RsdRetrySchedulerSpec extends UnitSpec, MockitoSugar:
         actorSystem,
         pekkoScheduler,
         appConfig,
-        rsdRetryService,
+        interactionService,
         cancellable
       )
 
@@ -115,7 +115,7 @@ class RsdRetrySchedulerSpec extends UnitSpec, MockitoSugar:
         actorSystem = actorSystem,
         applicationLifecycle = lifecycle,
         appConfig = appConfig,
-        rsdRetryService = rsdRetryService
+        interactionService = interactionService
       )
 
       verify(pekkoScheduler).scheduleAtFixedRate(
@@ -129,7 +129,7 @@ class RsdRetrySchedulerSpec extends UnitSpec, MockitoSugar:
         pekkoScheduler,
         lifecycle,
         appConfig,
-        rsdRetryService,
+        interactionService,
         _
         ) = createSchedulerMocks()
 
@@ -143,7 +143,7 @@ class RsdRetrySchedulerSpec extends UnitSpec, MockitoSugar:
         actorSystem = actorSystem,
         applicationLifecycle = lifecycle,
         appConfig = appConfig,
-        rsdRetryService = rsdRetryService
+        interactionService = interactionService
       )
 
       verifyNoInteractions(pekkoScheduler)
@@ -154,7 +154,7 @@ class RsdRetrySchedulerSpec extends UnitSpec, MockitoSugar:
         pekkoScheduler,
         lifecycle,
         appConfig,
-        rsdRetryService,
+        interactionService,
         cancellable
         ) = createSchedulerMocks()
 
@@ -162,7 +162,7 @@ class RsdRetrySchedulerSpec extends UnitSpec, MockitoSugar:
         actorSystem,
         pekkoScheduler,
         appConfig,
-        rsdRetryService,
+        interactionService,
         cancellable
       )
 
@@ -170,7 +170,7 @@ class RsdRetrySchedulerSpec extends UnitSpec, MockitoSugar:
         actorSystem = actorSystem,
         applicationLifecycle = lifecycle,
         appConfig = appConfig,
-        rsdRetryService = rsdRetryService
+        interactionService = interactionService
       )
 
       val runnableCaptor =
@@ -183,7 +183,7 @@ class RsdRetrySchedulerSpec extends UnitSpec, MockitoSugar:
 
       runnableCaptor.getValue.run()
 
-      verify(rsdRetryService).processDueWorkItems()
+      verify(interactionService).processDueWorkItems()
 
     "cancel the scheduled task when the application stops" in:
       val (
@@ -191,7 +191,7 @@ class RsdRetrySchedulerSpec extends UnitSpec, MockitoSugar:
         pekkoScheduler,
         lifecycle,
         appConfig,
-        rsdRetryService,
+        interactionService,
         cancellable
         ) = createSchedulerMocks()
 
@@ -199,7 +199,7 @@ class RsdRetrySchedulerSpec extends UnitSpec, MockitoSugar:
         actorSystem,
         pekkoScheduler,
         appConfig,
-        rsdRetryService,
+        interactionService,
         cancellable
       )
 
@@ -212,7 +212,7 @@ class RsdRetrySchedulerSpec extends UnitSpec, MockitoSugar:
         actorSystem = actorSystem,
         applicationLifecycle = lifecycle,
         appConfig = appConfig,
-        rsdRetryService = rsdRetryService
+        interactionService = interactionService
       )
 
       verify(lifecycle).addStopHook(
@@ -231,7 +231,7 @@ class RsdRetrySchedulerSpec extends UnitSpec, MockitoSugar:
         pekkoScheduler,
         lifecycle,
         appConfig,
-        rsdRetryService,
+        interactionService,
         cancellable
         ) = createSchedulerMocks()
 
@@ -239,11 +239,11 @@ class RsdRetrySchedulerSpec extends UnitSpec, MockitoSugar:
         actorSystem,
         pekkoScheduler,
         appConfig,
-        rsdRetryService,
+        interactionService,
         cancellable
       )
 
-      when(rsdRetryService.processDueWorkItems())
+      when(interactionService.processDueWorkItems())
         .thenReturn(
           Future.failed(
             new RuntimeException("Mongo unavailable")
@@ -254,7 +254,7 @@ class RsdRetrySchedulerSpec extends UnitSpec, MockitoSugar:
         actorSystem = actorSystem,
         applicationLifecycle = lifecycle,
         appConfig = appConfig,
-        rsdRetryService = rsdRetryService
+        interactionService = interactionService
       )
 
       val runnableCaptor =
@@ -267,4 +267,4 @@ class RsdRetrySchedulerSpec extends UnitSpec, MockitoSugar:
 
       runnableCaptor.getValue.run()
 
-      verify(rsdRetryService).processDueWorkItems()
+      verify(interactionService).processDueWorkItems()

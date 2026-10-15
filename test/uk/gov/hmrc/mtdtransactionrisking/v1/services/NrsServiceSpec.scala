@@ -25,7 +25,8 @@ import uk.gov.hmrc.auth.core.retrieve.{AgentInformation, ItmpAddress, ItmpName, 
 import uk.gov.hmrc.mtdtransactionrisking.support.{MockAppConfig, UnitSpec}
 import uk.gov.hmrc.mtdtransactionrisking.v1.mocks.connectors.MockNrsConnector
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.auth.IdentityData
-import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.nrs.{AssistRequestFeedback, NrsSubmission, NrsSubmissionResult}
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.nrs.{AssistRequestFeedback, NrsSubmission}
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.SubmissionResult
 import uk.gov.hmrc.mtdtransactionrisking.v1.repositories.NrsSubmissionWorkItemStore
 import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
 
@@ -248,7 +249,7 @@ class NrsServiceSpec extends UnitSpec, MockAppConfig, MockNrsConnector:
         .submit(expectedSubmission(), correlationId)
         .onCall { _ =>
           connectorCalled.success(())
-          Future.successful(NrsSubmissionResult.Success)
+          Future.successful(SubmissionResult.Success)
         }
 
       submit()
@@ -281,7 +282,7 @@ class NrsServiceSpec extends UnitSpec, MockAppConfig, MockNrsConnector:
         .submit(expectedSubmission(), correlationId)
         .onCall { _ =>
           connectorCalled.success(())
-          Future.successful(NrsSubmissionResult.Success)
+          Future.successful(SubmissionResult.Success)
         }
 
       submit()

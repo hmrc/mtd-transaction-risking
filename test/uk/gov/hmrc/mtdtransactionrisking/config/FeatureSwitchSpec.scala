@@ -27,7 +27,8 @@ class FeatureSwitchSpec extends UnitSpec:
 
   Seq(
     NrsSubmissionFeature -> "nrs-submission",
-    NrsRetryFeature -> "nrs-retry"
+    NrsRetryFeature -> "nrs-retry",
+    RsdRetryFeature -> "rsd-retry"
   ).foreach { (feature, key) =>
     s"FeatureSwitch for $key" should:
 
