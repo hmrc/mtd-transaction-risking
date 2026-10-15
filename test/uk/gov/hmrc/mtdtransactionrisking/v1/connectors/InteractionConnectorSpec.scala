@@ -22,7 +22,6 @@ import com.github.tomakehurst.wiremock.stubbing.StubMapping
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import play.api.libs.json.Json
 import play.api.test.Injecting
-import uk.gov.hmrc.http.{BadGatewayException, GatewayTimeoutException}
 import uk.gov.hmrc.http.client.HttpClientV2
 import uk.gov.hmrc.mtdtransactionrisking.support.{ConnectorSpec, MockAppConfig}
 import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
@@ -30,11 +29,8 @@ import uk.gov.hmrc.mtdtransactionrisking.v1.models.auth.InteractionCredentials
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.{Interaction, InteractionMetadata, InteractionPayload, SubmissionResult}
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.SubmissionResult.*
 
-import java.net.http.HttpTimeoutException
-import java.net.{ConnectException, SocketTimeoutException, UnknownHostException}
 import java.nio.charset.StandardCharsets.UTF_8
 import java.util.Base64
-import java.util.concurrent.TimeoutException
 import javax.net.ssl.SSLException
 
 class InteractionConnectorSpec
@@ -261,60 +257,16 @@ class InteractionConnectorSpec
           )
       )
 
-  "InteractionConnector.isRetryableTransportFailure" should:
-
-    "classify GatewayTimeoutException as retryable" in:
-      InteractionConnector.isRetryableTransportFailure(
-        new GatewayTimeoutException("RSD request timed out")
-      ) shouldBe true
-
-    "classify BadGatewayException as retryable" in:
-      InteractionConnector.isRetryableTransportFailure(
-        new BadGatewayException("RSD connection failed")
-      ) shouldBe true
-
-    "classify a nested TimeoutException as retryable" in:
-      InteractionConnector.isRetryableTransportFailure(
-        new RuntimeException(
-          new TimeoutException("read timed out")
-        )
-      ) shouldBe true
-
-    "classify a nested ConnectException as retryable" in:
-      InteractionConnector.isRetryableTransportFailure(
-        new RuntimeException(
-          new ConnectException("connection refused")
-        )
-      ) shouldBe true
-
-    "classify a nested UnknownHostException as retryable" in:
-      InteractionConnector.isRetryableTransportFailure(
-        new RuntimeException(
-          new UnknownHostException("rsd.example")
-        )
-      ) shouldBe true
-
-    "classify a nested SocketTimeoutException as retryable" in:
-      InteractionConnector.isRetryableTransportFailure(
-        new RuntimeException(
-          new SocketTimeoutException("socket read timed out")
-        )
-      ) shouldBe true
-
-    "classify HttpTimeoutException as retryable" in:
-      InteractionConnector.isRetryableTransportFailure(
-        new HttpTimeoutException("request timed out")
-      ) shouldBe true
-
-    "exclude SSL/TLS failures from retryable transport failures" in:
-      InteractionConnector.isRetryableTransportFailure(
+  "InteractionConnector.containsSslFailure" should:
+    "recognise a nested SSL/TLS failure" in :
+      InteractionConnector.containsSslFailure(
         new RuntimeException(
           new SSLException("certificate validation failed")
         )
+      ) shouldBe true
+
+    "return false for a non-SSL failure" in:
+      InteractionConnector.containsSslFailure(
+        new IllegalStateException("unexpected connector failure")
       ) shouldBe false
 
-    "classify unknown failures as non-retryable" in:
-      InteractionConnector.isRetryableTransportFailure(
-        new IllegalStateException("invalid configuration")
-      ) shouldBe false
-      

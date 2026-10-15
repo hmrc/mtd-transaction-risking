@@ -21,23 +21,20 @@ import play.api.http.Status.NO_CONTENT
 import play.api.libs.ws.writeableOf_JsValue
 import uk.gov.hmrc.http.HttpReads.Implicits.*
 import uk.gov.hmrc.http.client.HttpClientV2
-import uk.gov.hmrc.http.{BadGatewayException, GatewayTimeoutException, HeaderCarrier, HttpResponse, StringContextOps}
+import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse, StringContextOps}
 import uk.gov.hmrc.mtdtransactionrisking.config.AppConfig
 import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.auth.InteractionCredentials
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.SubmissionResult
 import play.api.libs.json.JsValue
 
-import java.net.{ConnectException, SocketException, UnknownHostException, SocketTimeoutException}
-import java.net.http.HttpTimeoutException
-import java.util.concurrent.TimeoutException
 import scala.annotation.tailrec
 import java.nio.charset.StandardCharsets.UTF_8
 import java.util.Base64
 import javax.inject.{Inject, Singleton}
 import javax.net.ssl.SSLException
 import scala.concurrent.{ExecutionContext, Future}
-import scala.reflect.ClassTag
+import scala.util.control.NonFatal
 
 @Singleton
 class InteractionConnector @Inject() (httpClient: HttpClientV2, appConfig: AppConfig)(implicit ec: ExecutionContext) extends Logging:
@@ -85,23 +82,23 @@ class InteractionConnector @Inject() (httpClient: HttpClientV2, appConfig: AppCo
                 SubmissionResult.PermanentFailure
           }
       }
-      .recoverWith {
+      .recover {
         case error if InteractionConnector.containsSslFailure(error) =>
           logger.warn(
             s"${correlationId.value}::[InteractionConnector][store] " +
               s"permanent SSL/TLS failure for $eventName, feedbackId $feedbackId",
             error
           )
-          Future.successful(SubmissionResult.PermanentFailure)
+          SubmissionResult.PermanentFailure
 
-        case error if InteractionConnector.isRetryableTransportFailure(error) =>
+        case NonFatal(error) =>
           logger.warn(
             s"${correlationId.value}::[InteractionConnector][store] " +
-              s"retryable RSD transport failure for $eventName, " +
-              s"feedbackId $feedbackId: ${error.getClass.getSimpleName}",
+              s"RSD request failed for $eventName, feedbackId $feedbackId; " +
+              "treating as retryable",
             error
           )
-          Future.successful(SubmissionResult.RetryableFailure)
+          SubmissionResult.RetryableFailure
 
       }
 
@@ -116,29 +113,11 @@ class InteractionConnector @Inject() (httpClient: HttpClientV2, appConfig: AppCo
     )
 
 object InteractionConnector:
-
   private[connectors] def containsSslFailure(error: Throwable): Boolean =
-    containsCause[SSLException](error)
 
-  private[connectors] def isRetryableTransportFailure(
-                                                       error: Throwable
-                                                     ): Boolean =
-    !containsSslFailure(error) && (
-      containsCause[GatewayTimeoutException](error) ||
-        containsCause[BadGatewayException](error) ||
-        containsCause[TimeoutException](error) ||
-        containsCause[SocketTimeoutException](error) ||
-        containsCause[HttpTimeoutException](error) ||
-        containsCause[ConnectException](error) ||
-        containsCause[SocketException](error) ||
-        containsCause[UnknownHostException](error))
-
-  private def containsCause[T <: Throwable: ClassTag](
-                                                       error: Throwable
-                                                     ): Boolean =
     @tailrec
     def loop(current: Throwable): Boolean =
-      if summon[ClassTag[T]].runtimeClass.isInstance(current) then
+      if current.isInstanceOf[SSLException] then
         true
       else
         Option(current.getCause) match

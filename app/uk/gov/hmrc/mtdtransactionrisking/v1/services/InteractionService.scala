@@ -16,12 +16,12 @@
 
 package uk.gov.hmrc.mtdtransactionrisking.v1.services
 
-import play.api.Logging
 import play.api.libs.json.{JsValue, Json}
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.mongo.workitem.WorkItem
 import uk.gov.hmrc.mtdtransactionrisking.config.{AppConfig, FeatureSwitch, RsdRetryFeature}
 import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
+import uk.gov.hmrc.mtdtransactionrisking.utils.Logging
 import uk.gov.hmrc.mtdtransactionrisking.v1.connectors.InteractionConnector
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.{AcknowledgeRequest, Interaction, SubmissionResult}
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.rsd.RsdInteractionWorkItem
@@ -31,7 +31,7 @@ import uk.gov.hmrc.mtdtransactionrisking.v1.repositories.RsdInteractionWorkItemS
 import java.time.{Clock, Instant}
 import javax.inject.{Inject, Provider, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
-import scala.util.{Failure, Try}
+import scala.util.{Failure, Success, Try}
 import scala.util.control.NonFatal
 
 @Singleton
@@ -141,7 +141,7 @@ class InteractionService @Inject() (
         case NonFatal(error) =>
           logger.warn(
             s"${correlationId.value}::[InteractionService] " +
-              s"RSD submission failed unexpectedly for $eventName; scheduling retry",
+              s"RSD submission failed unexpectedly for $eventName; treating as retryable",
             error
           )
           SubmissionResult.RetryableFailure
@@ -184,7 +184,7 @@ class InteractionService @Inject() (
           .markPermanentFailure(workItem)
           .map(_ => ())
 
-      case scala.util.Success(body) =>
+      case Success(body) =>
         given HeaderCarrier = HeaderCarrier()
 
         storeWithRecovery(
