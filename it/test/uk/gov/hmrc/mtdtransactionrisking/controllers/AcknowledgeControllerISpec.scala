@@ -53,7 +53,7 @@ class AcknowledgeControllerISpec extends IntegrationBaseSpec:
           wireMockServer.verify(postRequestedFor(urlPathMatching("/nrs-orchestrator/submission"))
               .withRequestBody(matchingJsonPath("$.metadata.notableEvent", equalTo("vata-acknowledge-report")))
               .withRequestBody(matchingJsonPath("$.metadata.searchKeys.vrn", equalTo(vrn)))
-              .withRequestBody(matchingJsonPath("$.metadata.searchKeys.reportId", equalTo(requestCorrelationId)))
+              .withRequestBody(matchingJsonPath("$.metadata.searchKeys.reportId", equalTo(reportId)))
           )
         }
 
