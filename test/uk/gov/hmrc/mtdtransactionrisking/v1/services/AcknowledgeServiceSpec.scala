@@ -85,7 +85,7 @@ class AcknowledgeServiceSpec extends UnitSpec, MockAcknowledgeConnector, MockInt
         .submit(
           evidence = Json.toJson(request),
           vrn = request.vrn,
-          reportId = request.correlationId,
+          reportId = request.reportId,
           submissionTimestamp = submissionTimestamp,
           identityData = identityData,
           userAuthToken = userAuthToken,
@@ -126,7 +126,7 @@ class AcknowledgeServiceSpec extends UnitSpec, MockAcknowledgeConnector, MockInt
         .submit(
           evidence = Json.toJson(request),
           vrn = request.vrn,
-          reportId = request.correlationId,
+          reportId = request.reportId,
           submissionTimestamp = submissionTimestamp,
           identityData = identityData,
           userAuthToken = userAuthToken,
