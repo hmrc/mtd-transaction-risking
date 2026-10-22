@@ -24,7 +24,7 @@ paths:
     post:
       tags:
         - Endpoints
-      summary: Request HMRC Assist feedback for VAT [test only]
+      summary: Request HMRC Assist for VAT feedback [test only]
       description: |
         Send draft VAT return data, to receive feedback from HMRC before formally submitting a VAT return. 
 
