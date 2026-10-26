@@ -30,41 +30,57 @@ object RdsStub:
       |                { "LINKTITLE": "string" }, { "LINKURL": "string" }, { "PATH": "string" } ] }""".stripMargin
 
   def reportGenerated(): StubMapping =
-    stubFor(
-      post(generateRdsUrl).willReturn(
-        created(
-          s"""
-             |{
-             |  "moduleId": "HMRC_ASSIST_VAT_FINSUB_FEEDBACK",
-             |  "executionState": "completed",
-             |  "outputs": [
-             |    { "name": "correlationId", "value": "E9F65715BBC9222477B27074804BBDD5C73CDE62F84D8B00CFD05B883534AF3D" },
-             |    { "name": "createdDttm", "value": "2026-10-09T19:00:19.246" },
-             |    {
-             |      "name": "englishActions",
-             |      "value": [
-             |        $actionColumns,
-             |        { "data": [ [ "1", "Please review your VAT return figures.", "Check your sales records.", "VAT Return Query",
-             |                      "VAT guidance", "https://www.gov.uk/vat-returns", "vatDueSales" ] ] }
-             |      ]
-             |    },
-             |    { "name": "feedbackId", "value": "f2fb30e5-4ab6-4a29-b3c1-c7264259ff1c" },
-             |    { "name": "vrn", "value": "123456789" },
-             |    {
-             |      "name": "welshActions",
-             |      "value": [
-             |        $actionColumns,
-             |        { "data": [ [ "1", "Adolygwch eich ffigurau.", "Gwiriwch eich cofnodion.", "Ymholiad Ffurflen TAW",
-             |                      "Canllawiau TAW", "https://www.gov.uk/ffurflenni-taw", "vatDueSales" ] ] }
-             |      ]
-             |    },
-             |    { "name": "rt_Record_Contacts_Outer", "value": "f9a5a9a7-09a2-a94b-a492-54c9fc91d5d2" }
-             |  ]
-             |}
-             |""".stripMargin
-        )
-      )
-    )
+    stubFor(post(generateRdsUrl).willReturn(created(report())))
+
+  // The report with one feedback message
+  private def report(responseCode: Option[Int] = None, includeFeedbackId: Boolean = true): String =
+    val responseCodeOutput = responseCode.fold("")(code => s"""{ "name": "responseCode", "value": $code.0 },""")
+    val feedbackIdOutput = if includeFeedbackId then """{ "name": "feedbackId", "value": "f2fb30e5-4ab6-4a29-b3c1-c7264259ff1c" },""" else ""
+
+    s"""
+       |{
+       |  "moduleId": "HMRC_ASSIST_VAT_FINSUB_FEEDBACK",
+       |  "executionState": "completed",
+       |  "outputs": [
+       |    { "name": "correlationId", "value": "E9F65715BBC9222477B27074804BBDD5C73CDE62F84D8B00CFD05B883534AF3D" },
+       |    { "name": "createdDttm", "value": "2026-10-09T19:00:19.246" },
+       |    $responseCodeOutput
+       |    {
+       |      "name": "englishActions",
+       |      "value": [
+       |        $actionColumns,
+       |        { "data": [ [ "1", "Please review your VAT return figures.", "Check your sales records.", "VAT Return Query",
+       |                      "VAT guidance", "https://www.gov.uk/vat-returns", "vatDueSales" ] ] }
+       |      ]
+       |    },
+       |    $feedbackIdOutput
+       |    { "name": "vrn", "value": "123456789" },
+       |    {
+       |      "name": "welshActions",
+       |      "value": [
+       |        $actionColumns,
+       |        { "data": [ [ "1", "Adolygwch eich ffigurau.", "Gwiriwch eich cofnodion.", "Ymholiad Ffurflen TAW",
+       |                      "Canllawiau TAW", "https://www.gov.uk/ffurflenni-taw", "vatDueSales" ] ] }
+       |      ]
+       |    },
+       |    { "name": "rt_Record_Contacts_Outer", "value": "f9a5a9a7-09a2-a94b-a492-54c9fc91d5d2" }
+       |  ]
+       |}
+       |""".stripMargin
+
+  private def created(body: String) =
+    aResponse()
+      .withStatus(CREATED)
+      .withHeader("Content-Type", "application/json")
+      .withBody(body)
+
+  // A 201 responseCode output says the report was not generated
+  def reportResponds(responseCode: Int): StubMapping =
+    stubFor(post(generateRdsUrl).willReturn(created(report(responseCode = Some(responseCode)))))
+
+  // A 201 that parses as a report but has no feedbackId to return to the vendor
+  def reportWithoutFeedbackId(): StubMapping =
+    stubFor(post(generateRdsUrl).willReturn(created(report(includeFeedbackId = false))))
 
   // Item 0 "no feedback" report (PATH "0", which we drop)
   def noFeedback(): StubMapping =
@@ -108,37 +124,18 @@ object RdsStub:
       )
     )
 
-  def mixedFeedback(): StubMapping =
-    stubFor(
-      post(generateRdsUrl).willReturn(
-        created(
-          s"""
-               |{
-               |  "outputs": [
-               |    { "name": "correlationId", "value": "E9F65715BBC9222477B27074804BBDD5C73CDE62F84D8B00CFD05B883534AF3D" },
-               |    { "name": "feedbackId", "value": "f2fb30e5-4ab6-4a29-b3c1-c7264259ff1c" },
-               |    { "name": "englishActions", "value": [
-               |        $actionColumns,
-               |        { "data": [
-               |          [ "0", "No messages.", "", "HMRC Feedback", "", "", "0" ],
-               |          [ "1", "Please review your VAT return figures.", "Check your sales records.", "VAT Return Query",
-               |            "VAT guidance", "https://www.gov.uk/vat-returns", "vatDueSales" ] ] }
-               |    ]},
-               |    { "name": "welshActions", "value": [
-               |        $actionColumns,
-               |        { "data": [
-               |          [ "0", "Dim negeseuon.", "", "Adborth CThEF", "", "", "0" ],
-               |          [ "1", "Adolygwch eich ffigurau.", "Gwiriwch eich cofnodion.", "Ymholiad Ffurflen TAW",
-               |            "Canllawiau TAW", "https://www.gov.uk/ffurflenni-taw", "vatDueSales" ] ] }
-               |    ]}
-               |  ]
-               |}
-               |""".stripMargin
-        )
-      )
-    )
+  def badRequest(): StubMapping =
+    stubFor(post(generateRdsUrl).willReturn(aResponse().withStatus(BAD_REQUEST)))
+
+  def unavailable(): StubMapping =
+    stubFor(post(generateRdsUrl).willReturn(aResponse().withStatus(SERVICE_UNAVAILABLE)))
+
+  def malformedReport(): StubMapping =
+    stubFor(post(generateRdsUrl).willReturn(created("""{"unexpected":"shape"}""")))
 
   def acknowledgeAccepted(): StubMapping = acknowledgeResponds(responseCode = 202, responseMessage = "Accepted")
+
+  def acknowledgeRejected(): StubMapping = acknowledgeResponds(responseCode = 401, responseMessage = "Acknowledgement validation failed")
 
   private def acknowledgeResponds(responseCode: Int, responseMessage: String): StubMapping =
     stubFor(
@@ -162,8 +159,6 @@ object RdsStub:
       )
     )
 
-  def acknowledgeRejected(): StubMapping = acknowledgeResponds(responseCode = 401, responseMessage = "Acknowledgement validation failed")
-
   def acknowledgeUnavailable(): StubMapping =
     stubFor(post(acknowledgeRdsUrl).willReturn(aResponse().withStatus(SERVICE_UNAVAILABLE)))
 
@@ -172,18 +167,3 @@ object RdsStub:
 
   def acknowledgeBadRequest(): StubMapping =
     stubFor(post(acknowledgeRdsUrl).willReturn(aResponse().withStatus(BAD_REQUEST)))
-
-  def badRequest(): StubMapping =
-    stubFor(post(generateRdsUrl).willReturn(aResponse().withStatus(BAD_REQUEST)))
-
-  def unavailable(): StubMapping =
-    stubFor(post(generateRdsUrl).willReturn(aResponse().withStatus(SERVICE_UNAVAILABLE)))
-
-  def malformedReport(): StubMapping =
-    stubFor(post(generateRdsUrl).willReturn(created("""{"unexpected":"shape"}""")))
-
-  private def created(body: String) =
-    aResponse()
-      .withStatus(CREATED)
-      .withHeader("Content-Type", "application/json")
-      .withBody(body)

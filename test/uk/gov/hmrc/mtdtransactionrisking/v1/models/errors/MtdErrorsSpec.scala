@@ -123,7 +123,7 @@ class MtdErrorsSpec extends UnitSpec:
 
     "generate the correct JSON and status for ServiceUnavailableError" in:
       Json.toJson(ServiceUnavailableError) shouldBe Json.parse(
-        """{"code": "SERVICE_UNAVAILABLE", "message": "Internal server error"}"""
+        """{"code": "SERVICE_UNAVAILABLE", "message": "The service is currently unavailable"}"""
       )
       ServiceUnavailableError.httpStatus shouldBe SERVICE_UNAVAILABLE
 
@@ -139,11 +139,11 @@ class MtdErrorsSpec extends UnitSpec:
       )
       UnauthorisedError.httpStatus shouldBe FORBIDDEN
 
-    "generate the correct JSON and status for InvalidBearerTokenError" in:
-      Json.toJson(InvalidBearerTokenError) shouldBe Json.parse(
-        """{"code": "UNAUTHORIZED", "message": "Bearer token is missing or not authorized"}"""
+    "generate the correct JSON and status for InvalidCredentialsError" in:
+      Json.toJson(InvalidCredentialsError) shouldBe Json.parse(
+        """{"code": "INVALID_CREDENTIALS", "message": "Invalid Authentication information provided"}"""
       )
-      InvalidBearerTokenError.httpStatus shouldBe UNAUTHORIZED
+      InvalidCredentialsError.httpStatus shouldBe UNAUTHORIZED
 
     "generate the correct JSON and status for InvalidAcceptHeaderError" in:
       Json.toJson(InvalidAcceptHeaderError) shouldBe Json.parse(

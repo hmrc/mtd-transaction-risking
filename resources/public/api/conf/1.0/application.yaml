@@ -7,7 +7,7 @@ info:
 
     The endpoints must be used in this order:
     1. Use the *feedback* endpoint to send draft return data, and receive HMRC Assist feedback messages about that data.
-    2. Use the *acknowledge* endpoint to confirm that your software has presented the HMRC Assist feedback messages to the user.
+    2. Use the *acknowledge* endpoint to confirm that your software has presented the HMRC Assist feedback messages to the user. If there is no feedback (a single message with *itemNumber* "0"), the response has no *correlationId* and you do not need to acknowledge it.
 
     Because this process operates on draft, unfinalised data, requesting feedback carries no formal declaration. Also, the process does not block formal declaration submission via the *returns* endpoint of the [VAT (MTD) API](https://developer.service.hmrc.gov.uk/api-documentation/docs/api/service/vat-api/). Your software must allow customers to submit their VAT return, irrespective of any HMRC Assist submission feedback.
 
@@ -48,11 +48,11 @@ paths:
             </tr>
             <tr>
               <td><p>MULTIPLE_FEEDBACK</p></td>
-              <td><p>Simulates the scenario where there are more than one HMRC VAT Assist feedback messages.</p></td>
+              <td><p>Simulates the scenario where there is more than one HMRC Assist feedback message.</p></td>
             </tr>
             <tr>
               <td><p>NO_FEEDBACK</p></td>
-              <td><p>Simulates the scenario where there is no HMRC VAT Assist feedback.</p></td>
+              <td><p>Simulates the scenario where there is no HMRC Assist feedback.</p></td>
             </tr>
             <tr>
               <td><p>INVALID_VRN</p></td>
@@ -64,7 +64,7 @@ paths:
             </tr>
             <tr>
               <td><p>INVALID_REQUEST</p></td>
-              <td><p>Submission has not passed validation. Invalid values.</p></td>
+              <td><p>Simulates the scenario where the request body has not passed validation.</p></td>
             </tr>
             <tr>
               <td><p>TAX_PERIOD_NOT_ENDED</p></td>
@@ -151,7 +151,7 @@ paths:
                         path: 'vatDueSales'
                     welshFeedback:
                       - itemNumber: '1'
-                        title: 'Mae TAW sy''n ddyledus ar werthiannau yn ymddangos yn isel'
+                        title: 'Adborth CThEF: Mae TAW sy''n ddyledus ar werthiannau yn ymddangos yn isel'
                         body: 'Mae''r ffigur TAW sy''n ddyledus ar werthiannau yn ymddangos yn is na''r disgwyl yn seiliedig ar gyfanswm eich gwerthiannau.'
                         action: 'Adolygwch flwch 1 a blwch 6 eich ffurflen TAW.'
                         links:
@@ -176,7 +176,7 @@ paths:
                             url: 'https://www.gov.uk/guidance/vat-notice-700-the-vat-guide'
                         path: 'vatDueSales'
                       - itemNumber: '2'
-                        title: 'Total value of purchases appears high'
+                        title: 'HMRC feedback: Total value of purchases appears high'
                         body: 'The total value of purchases appears higher than expected based on your total sales value.'
                         action: 'Please review box 7 of your VAT return.'
                         links:
@@ -185,7 +185,7 @@ paths:
                         path: 'totalValuePurchasesExVAT'
                     welshFeedback:
                       - itemNumber: '1'
-                        title: 'Mae TAW sy''n ddyledus ar werthiannau yn ymddangos yn isel'
+                        title: 'Adborth CThEF: Mae TAW sy''n ddyledus ar werthiannau yn ymddangos yn isel'
                         body: 'Mae''r ffigur TAW sy''n ddyledus ar werthiannau yn ymddangos yn is na''r disgwyl yn seiliedig ar gyfanswm eich gwerthiannau.'
                         action: 'Adolygwch flwch 1 a blwch 6 eich ffurflen TAW.'
                         links:
@@ -193,7 +193,7 @@ paths:
                             url: 'https://www.gov.uk/guidance/vat-notice-700-the-vat-guide'
                         path: 'vatDueSales'
                       - itemNumber: '2'
-                        title: 'Mae cyfanswm pryniannau''n uchel'
+                        title: 'Adborth CThEF: Mae cyfanswm pryniannau''n uchel'
                         body: 'Mae cyfanswm y pryniannau''n ymddangos yn uwch na''r disgwyl.'
                         action: 'Adolygwch flwch 7 o''ch ffurflen TAW.'
                         links:
@@ -210,17 +210,15 @@ paths:
                     englishFeedback:
                       - itemNumber: '0'
                         title: 'HMRC feedback: HMRC Assist has not returned any messages.'
-                        body: 'This is not a complete check of your return or confirmation that your return is accurate. Your return has
-                               not been submitted at this stage.'
+                        body: 'This is not a complete check of your return or confirmation that your return is accurate. Your return has not been submitted at this stage.'
                         action: 'Consider any further checks before finalising your return.'
                         links:
                           - title: 'Go to GOV.UK for more information on HMRC Assist'
                             url: 'https://www.gov.uk'
                     welshFeedback:
                       - itemNumber: '0'
-                        title: 'Nid yw HMRC Assist wedi dychwelyd unrhyw negeseuon.'
-                        body: 'Nid yw hwn yn wiriad cyflawn o''ch datganiad nac yn gadarnhad bod 
-                               eich datganiad yn gywir. Nid yw eich datganiad wedi''i gyflwyno ar y cam hwn.'
+                        title: 'Adborth CThEF: Nid yw HMRC Assist wedi dychwelyd unrhyw negeseuon.'
+                        body: 'Nid yw hwn yn wiriad cyflawn o''ch datganiad nac yn gadarnhad bod eich datganiad yn gywir. Nid yw eich datganiad wedi''i gyflwyno ar y cam hwn.'
                         action: 'Ystyriwch unrhyw wiriadau pellach cyn cwblhau eich datganiad.'
                         links:
                           - title: 'Ewch i GOV.UK am ragor o wybodaeth am HMRC Assist'
@@ -230,11 +228,7 @@ paths:
           content:
             application/json:
               schema:
-                allOf:
-                  - $ref: '#/components/schemas/ErrorResponse'
-                  -  example:
-                       code: 'INVALID_VRN'
-                       message: 'The provided VRN is invalid.'
+                $ref: '#/components/schemas/ErrorResponse'
               examples:
                 invalidVrn:
                   description: Invalid VRN
@@ -267,38 +261,43 @@ paths:
                     code: INVALID_NUMERIC_VALUE
                     message: please provide a numeric field
                 invalidMonetaryAmount:
-                  description: The monetary amount is invalid
+                  description: A monetary amount is outside the permitted range or has more than 2 decimal places.
                   value:
                     code: INVALID_MONETARY_AMOUNT
                     message: amount should be a monetary value (to 2 decimal places), between 0 and 99,999,999,999.99
-        '403':
-          description: Forbidden. The client is not authorised to access this resource.
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/ErrorResponse'
-                  - example:
-                      code: 'CLIENT_OR_AGENT_NOT_AUTHORISED'
-                      message: 'The client and/or agent is not authorised.'
-              examples:
                 submittedTooEarly:
                   description: Return submitted too early
                   value:
                     code: TAX_PERIOD_NOT_ENDED
                     message: The remote endpoint has indicated that the submission is for a tax period that has not ended
-                clientNotSubscribedToMTD:
-                  description: 'The client and/or agent is not authorised. This is normally because: the client is not subscribed to MTD, the agent is not subscribed to Agent Services, or the client has not authorised the agent to act on their behalf.'
-                  value:
-                    code: CLIENT_OR_AGENT_NOT_AUTHORISED
-                    message: The client and/or agent is not authorised
                 ruleInsolventTrader:
                   description: The request could not be completed as it relates to an insolvent trader, which are not supported by this API.
                   value:
                     code: RULE_INSOLVENT_TRADER
                     message: The remote endpoint has indicated that the Trader is insolvent
+        '401':
+          description: Unauthorised. Invalid authentication information provided.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: 'INVALID_CREDENTIALS'
+                message: 'Invalid Authentication information provided'
+        '403':
+          description: Forbidden.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                clientNotSubscribedToMTD:
+                  description: 'The client and/or agent is not authorised. This is normally because: the client is not subscribed to MTD, the agent is not subscribed to Agent Services, or the client has not authorised the agent to act on their behalf.'
+                  value:
+                    code: CLIENT_OR_AGENT_NOT_AUTHORISED
+                    message: The client and/or agent is not authorised
         '404':
-          description: Not found. The VRN could not be found.
+          description: Not found. The VRN could not be found. This response cannot be simulated in the sandbox.
           content:
             application/json:
               schema:
@@ -315,6 +314,8 @@ paths:
               example:
                 code: 'INTERNAL_SERVER_ERROR'
                 message: 'An unexpected error occurred.'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
       security:
         - userRestricted:
             - write:vat
@@ -339,35 +340,39 @@ paths:
           <tbody>
             <tr>
               <td><p>Default (No header value)</p></td>
-              <td><p>Acknowledgement received.</p></td>
+              <td><p>Simulates the scenario where the acknowledgement is received.</p></td>
             </tr>
             <tr>
               <td><p>INVALID_VRN</p></td>
-              <td><p>Scenario where the VRN has not passed validation.</p></td>
+              <td><p>Simulates the scenario where the VRN has not passed validation.</p></td>
             </tr>
             <tr>
               <td><p>INVALID_REPORTID</p></td>
-              <td><p>Scenario where the reportId has not passed validation.</p></td>
+              <td><p>Simulates the scenario where the reportId has not passed validation.</p></td>
+            </tr>
+            <tr>
+              <td><p>INVALID_CORRELATIONID</p></td>
+              <td><p>Simulates the scenario where the correlationId has not passed validation.</p></td>
             </tr>
             <tr>
               <td><p>INVALID_DATETIME</p></td>
-              <td><p>Scenario where the presented DateTime has not passed validation.</p></td>
+              <td><p>Simulates the scenario where the presentedDateTime has not passed validation.</p></td>
             </tr>
             <tr>
               <td><p>INVALID_CREDENTIALS</p></td>
-              <td><p>Scenario where invalid authentication information is provided.</p></td>
+              <td><p>Simulates the scenario where invalid authentication information is provided.</p></td>
             </tr>
             <tr>
               <td><p>NOT_AUTHORISED</p></td>
-              <td><p>Scenario where the client or their agent is not authorised.</p></td>
+              <td><p>Simulates the scenario where the client or their agent is not authorised.</p></td>
             </tr>
             <tr>
-              <td><p>CORRELATION_ID</p></td>
-              <td><p>Scenario where the correlation ID does not match.</p></td>
+              <td><p>ACKNOWLEDGEMENT_VALIDATION_FAILED</p></td>
+              <td><p>Simulates the scenario where the VRN, reportId and correlationId do not match a report issued by HMRC Assist.</p></td>
             </tr>
             <tr>
               <td><p>NOT_FOUND</p></td>
-              <td><p>Simulates the scenario where the report cannot be found.</p></td>
+              <td><p>Simulates the scenario where the request does not match the API.</p></td>
             </tr>
           </tbody>
         </table>
@@ -395,11 +400,12 @@ paths:
             example: 'f2fb30e5-4ab6-4a29-b3c1-c00000000001'
         - name: correlationId
           in: path
-          description: The correlation ID of the report, as returned by the *feedback* endpoint.
+          description: The correlation ID of the report, as returned by the *feedback* endpoint. 64 hexadecimal characters.
           required: true
           style: simple
           schema:
             type: string
+            pattern: '^[0-9A-Fa-f]{64}$'
             example: 'E9F65715BBC9222477B27074804BBDD5C73CDE62F84D8B00CFD05B883534AF3D'
         - name: presentedDateTime
           in: query
@@ -443,17 +449,28 @@ paths:
                   summary: Invalid VRN
                   value:
                     code: 'VRN_INVALID'
-                    message: 'The provided VRN is invalid.'
-                FORMAT_REPORT_ID:
-                  summary: Invalid Report ID
+                    message: 'The provided VRN is invalid'
+                REPORT_ID_INVALID:
+                  summary: Invalid report ID
                   value:
-                    code: 'FORMAT_REPORT_ID'
-                    message: 'The provided Report ID is invalid.'
-                FORMAT_DATETIME:
-                  summary: Invalid presentedDateTime
+                    code: 'REPORT_ID_INVALID'
+                    message: 'The provided report ID is invalid'
+                CORRELATION_ID_INVALID:
+                  summary: Invalid correlation ID
                   value:
-                    code: 'FORMAT_DATETIME'
-                    message: 'The provided Presented Date Time is invalid.'
+                    code: 'CORRELATION_ID_INVALID'
+                    message: 'The provided correlation ID is invalid'
+                PRESENTED_DATE_TIME_INVALID:
+                  summary: Missing or invalid presentedDateTime
+                  value:
+                    code: 'PRESENTED_DATE_TIME_INVALID'
+                    message: 'The presentedDateTime query parameter is missing or invalid'
+                ACKNOWLEDGEMENT_VALIDATION_FAILED:
+                  summary: Acknowledgement not accepted
+                  description: The VRN, report ID and correlation ID do not match a report issued by HMRC Assist.
+                  value:
+                    code: 'ACKNOWLEDGEMENT_VALIDATION_FAILED'
+                    message: 'The acknowledgement request failed validation'
         '401':
           description: Unauthorised. Invalid authentication information provided.
           content:
@@ -474,12 +491,7 @@ paths:
                   summary: Client and/or agent not authorised
                   value:
                     code: 'CLIENT_OR_AGENT_NOT_AUTHORISED'
-                    message: 'Client and/or agent is not authorised.'
-                CORRELATION_ID:
-                  summary: Mismatching correlation ID
-                  value:
-                    code: 'CORRELATION_ID'
-                    message: 'The Correlation ID is not the expected value for this report.'
+                    message: 'The client and/or agent is not authorised'
         '404':
           description: Not found.
           content:
@@ -498,11 +510,23 @@ paths:
               example:
                 code: 'INTERNAL_SERVER_ERROR'
                 message: 'An unexpected error occurred.'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
       security:
         - userRestricted:
             - write:vat
 
 components:
+  responses:
+    ServiceUnavailable:
+      description: Service unavailable. A service that HMRC Assist depends on is temporarily unavailable. Try again later.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            code: 'SERVICE_UNAVAILABLE'
+            message: 'The service is currently unavailable'
   parameters:
     acceptHeader:
       name: "Accept"
@@ -654,10 +678,11 @@ components:
           example: 'f2fb30e5-4ab6-4a29-b3c1-c00000000001'
         correlationId:
           type: string
+          pattern: '^[0-9A-Fa-f]{64}$'
           description: |
-            The correlation ID of the report.
-            
-            It will not be present in the scenario where there is no HMRC Assist feedback.
+            The correlation ID of the report. Use it with *reportId* to call the *acknowledge* endpoint.
+
+            It will not be present in the scenario where there is no HMRC Assist feedback as no acknowledgement is needed.
           example: 'E9F65715BBC9222477B27074804BBDD5C73CDE62F84D8B00CFD05B883534AF3D'
         englishFeedback:
           type: array
@@ -686,7 +711,7 @@ components:
       properties:
         itemNumber:
           type: string
-          pattern: '^[0-9]{3}$'
+          pattern: '^[0-9]+$'
           description: |
             The unique identifier for the feedback message. Corresponding English and Welsh feedback messages will have the same number.
 
@@ -746,11 +771,11 @@ components:
         code:
           type: string
           description: The error code.
-          example: 'INVALID_VRN'
+          example: 'VRN_INVALID'
         message:
           type: string
           description: A human-readable description of the error.
-          example: 'The provided VRN is invalid.'
+          example: 'The provided VRN is invalid'
 
   securitySchemes:
     userRestricted:

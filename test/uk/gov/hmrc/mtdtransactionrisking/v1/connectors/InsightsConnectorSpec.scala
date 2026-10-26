@@ -25,7 +25,7 @@ import play.api.test.Injecting
 import uk.gov.hmrc.http.client.HttpClientV2
 import uk.gov.hmrc.mtdtransactionrisking.support.{ConnectorSpec, MockAppConfig}
 import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
-import uk.gov.hmrc.mtdtransactionrisking.v1.models.errors.{DownstreamError, ErrorWrapper}
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.errors.{DownstreamError, ErrorWrapper, ServiceUnavailableError}
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.outcomes.ResponseWrapper
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.InsightsRequest
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.{Insights, InsightsResponse, StrategicRisk}
@@ -105,10 +105,15 @@ class InsightsConnectorSpec extends ConnectorSpec, BeforeAndAfterAll, Injecting,
         await(connector.getRiskInsights(request)) shouldBe Left(ErrorWrapper(correlationId, DownstreamError))
 
     "the proxy responds with an error status" should:
-      Seq(BAD_REQUEST, NOT_FOUND, INTERNAL_SERVER_ERROR, SERVICE_UNAVAILABLE).foreach: status =>
+      Seq(BAD_REQUEST, NOT_FOUND, INTERNAL_SERVER_ERROR).foreach: status =>
         s"return Left(DownstreamError) on $status" in new Test:
           stubInsights(None, status)
           await(connector.getRiskInsights(request)) shouldBe Left(ErrorWrapper(correlationId, DownstreamError))
+
+    "the proxy responds with an 503 status" should :
+        "return Left(ServiceUnavailableError)" in new Test:
+          stubInsights(None, SERVICE_UNAVAILABLE)
+          await(connector.getRiskInsights(request)) shouldBe Left(ErrorWrapper(correlationId, ServiceUnavailableError))
 
     "the connection faults" should:
       "return Left(DownstreamError) via recover" in new Test:

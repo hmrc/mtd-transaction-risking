@@ -71,7 +71,7 @@ object BadRequestError extends MtdError("INVALID_REQUEST", "Invalid request", BA
 object AcknowledgementValidationFailedError
     extends MtdError("ACKNOWLEDGEMENT_VALIDATION_FAILED", "The acknowledgement request failed validation", BAD_REQUEST)
 
-object ServiceUnavailableError extends MtdError("SERVICE_UNAVAILABLE", "Internal server error", SERVICE_UNAVAILABLE)
+object ServiceUnavailableError extends MtdError("SERVICE_UNAVAILABLE", "The service is currently unavailable", SERVICE_UNAVAILABLE)
 
 object InvalidJson extends MtdError("INVALID_JSON", "Invalid JSON received", BAD_REQUEST)
 
@@ -82,7 +82,7 @@ object UnexpectedFailure:
 // Authorisation Errors
 object UnauthorisedError extends MtdError("CLIENT_OR_AGENT_NOT_AUTHORISED", "The client and/or agent is not authorised", FORBIDDEN)
 
-object InvalidBearerTokenError extends MtdError("UNAUTHORIZED", "Bearer token is missing or not authorized", UNAUTHORIZED)
+object InvalidCredentialsError extends MtdError("INVALID_CREDENTIALS", "Invalid Authentication information provided", UNAUTHORIZED)
 
 // Accept header Errors
 object InvalidAcceptHeaderError extends MtdError("ACCEPT_HEADER_INVALID", "The accept header is missing or invalid", NOT_ACCEPTABLE)
