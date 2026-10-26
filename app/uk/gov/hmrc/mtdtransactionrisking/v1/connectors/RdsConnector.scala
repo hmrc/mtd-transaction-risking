@@ -95,14 +95,7 @@ class RdsConnector @Inject() (httpClient: HttpClientV2, appConfig: AppConfig)(im
           logger.error(s"${correlationId.value}::[RdsConnector][acknowledge] unexpected exception", ex)
           Left(ErrorWrapper(correlationId, DownstreamError))
 
-  private def buildHeaders(correlationId: CorrelationId, appName: String, credentials: Option[RdsAuthCredentials]): Seq[(String, String)] =
-    Seq(
-      "User-Agent" -> appName,
-      "Content-Type" -> "application/json",
-      "X-CorrelationId" -> correlationId.value
-    ) ++ credentials.map(_.bearerHeader)
-
-  // A 201 means the module executed and produced a report
+  // Outer 201 = module executed and Inner responseCode: absent/201 = feedback, 204 = no feedback applicable
   def generateReport(vrn: String, request: ReportRequest, credentials: Option[RdsAuthCredentials])(implicit
       hc: HeaderCarrier,
       correlationId: CorrelationId): Future[ServiceOutcome[FeedbackResponse]] =
@@ -152,18 +145,29 @@ class RdsConnector @Inject() (httpClient: HttpClientV2, appConfig: AppConfig)(im
 
       case Some(report) =>
         report.responseCode match
-          case Some(code) if code != CREATED =>
+          case None | Some(CREATED) | Some(NO_CONTENT) =>
+            if report.responseCode.contains(NO_CONTENT) then
+              logger.info(
+                s"${correlationId.value}::[RdsConnector][generateReport] no feedback applicable: " +
+                  s"${report.responseMessage.getOrElse("no message")}")
+
+            ReportResponseTransform.toFeedbackResponse(report) match
+              case Some(feedback) =>
+                logger.info(s"${correlationId.value}::[RdsConnector][generateReport] report generated")
+                Right(ResponseWrapper(correlationId, feedback))
+              case None =>
+                logger.error(s"${correlationId.value}::[RdsConnector][generateReport] report has no feedbackId")
+                Left(ErrorWrapper(correlationId, DownstreamError))
+
+          case Some(code) =>
             logger.error(
               s"${correlationId.value}::[RdsConnector][generateReport] unexpected responseCode $code: " +
                 s"${report.responseMessage.getOrElse("no message")}")
             Left(ErrorWrapper(correlationId, DownstreamError))
 
-          case _ =>
-            ReportResponseTransform.toFeedbackResponse(report) match
-              case Some(feedback) =>
-                logger.info(s"${correlationId.value}::[RdsConnector][generateReport] report generated")
-                Right(ResponseWrapper(correlationId, feedback))
-
-              case None =>
-                logger.error(s"${correlationId.value}::[RdsConnector][generateReport] report has no feedbackId")
-                Left(ErrorWrapper(correlationId, DownstreamError))
+  private def buildHeaders(correlationId: CorrelationId, appName: String, credentials: Option[RdsAuthCredentials]): Seq[(String, String)] =
+    Seq(
+      "User-Agent" -> appName,
+      "Content-Type" -> "application/json",
+      "X-CorrelationId" -> correlationId.value
+    ) ++ credentials.map(_.bearerHeader)
