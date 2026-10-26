@@ -33,6 +33,7 @@ import java.util.concurrent.TimeoutException
 import javax.inject.{Inject, Singleton}
 import scala.annotation.tailrec
 import scala.concurrent.{ExecutionContext, Future}
+import scala.util.Try
 
 @Singleton
 class NrsConnector @Inject()(
@@ -56,9 +57,9 @@ class NrsConnector @Inject()(
       .map { response =>
         response.status match
           case ACCEPTED =>
+            val nrsSubmissionId = Try((response.json \ "nrSubmissionId").asOpt[String]).toOption.flatten
             logger.info(
-              s"${correlationId.value}::[NrsConnector][submit] " +
-                "NRS submission accepted"
+              s"${correlationId.value}::[NrsConnector][submit] NRS submission accepted nrsSubmissionId=${nrsSubmissionId.getOrElse("<not returned>")}"
             )
             SubmissionResult.Success
 

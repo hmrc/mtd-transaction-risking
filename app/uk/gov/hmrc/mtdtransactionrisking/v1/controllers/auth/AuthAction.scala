@@ -23,12 +23,14 @@ import play.api.mvc.Results.{BadRequest, Forbidden, Unauthorized}
 import uk.gov.hmrc.auth.core.authorise.Predicate
 import uk.gov.hmrc.auth.core.retrieve.v2.Retrievals.*
 import uk.gov.hmrc.auth.core.retrieve.{ItmpAddress, ItmpName, ~}
-import uk.gov.hmrc.auth.core.{AuthConnector, AuthorisationException, AuthorisedFunctions, Enrolment}
+import uk.gov.hmrc.auth.core.{AuthConnector, AuthorisationException, AuthorisedFunctions, Enrolment, NoActiveSession}
 import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
 import uk.gov.hmrc.mtdtransactionrisking.utils.{IdGenerator, Logging}
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.auth.IdentityData
-import uk.gov.hmrc.mtdtransactionrisking.v1.models.errors.{ErrorWrapper, VrnFormatError}
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.errors.{ErrorWrapper, MtdError, VrnFormatError}
+import uk.gov.hmrc.auth.core.{AuthConnector, AuthorisationException, AuthorisedFunctions, Enrolment, NoActiveSession}
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.errors.{ErrorWrapper, InvalidCredentialsError, MtdError, UnauthorisedError, VrnFormatError}
 import uk.gov.hmrc.play.http.HeaderCarrierConverter
 
 import javax.inject.Inject
@@ -126,27 +128,34 @@ class VATAuthAction @Inject() (override val authConnector: AuthConnector, config
 
                 maybeVrn match
                   case None =>
-                    logger.warn("User has no MTD VAT enrolment")
-                    Future.successful(Forbidden("User has no MTD VAT enrolment"))
+                    logger.warn(s"${correlationId.value}::[VATAuthAction] user has no MTD VAT enrolment")
+                    Future.successful(errorResult(Forbidden, UnauthorisedError, correlationId))
 
                   case Some(vrn) if vrn != requestedVRN =>
-                    logger.warn(s"User VRN ($vrn) does not match requested VRN ($requestedVRN)")
-                    Future.successful(Forbidden("User VRN does not match requested VRN"))
+                    logger.warn(s"${correlationId.value}::[VATAuthAction] user VRN does not match requested VRN")
+                    Future.successful(errorResult(Forbidden, UnauthorisedError, correlationId))
 
                   case Some(vrn) =>
                     block(AuthenticatedVATRequest(request, userId, vrn, arn, Some(identityData)))
 
               case _ =>
-                logger.warn("Unable to retrieve required auth values")
-                Future.successful(Unauthorized("Unable to retrieve required auth values"))
+                logger.warn(s"${correlationId.value}::[VATAuthAction] unable to retrieve required auth values")
+                Future.successful(errorResult(Unauthorized, InvalidCredentialsError, correlationId))
             }
-            .recover { case e: AuthorisationException =>
-              val error = s"Failed to authorise request $e"
-              logger.warn(error)
-              Unauthorized(error)
+            .recover {
+              case e: NoActiveSession =>
+                logger.warn(s"${correlationId.value}::[VATAuthAction] no active session: ${e.getClass.getSimpleName}")
+                errorResult(Unauthorized, InvalidCredentialsError, correlationId)
+
+              case e: AuthorisationException =>
+                logger.warn(s"${correlationId.value}::[VATAuthAction] not authorised: ${e.getClass.getSimpleName}")
+                errorResult(Forbidden, UnauthorisedError, correlationId)
             }
 
   private def predicate(vrn: String): Predicate =
     Enrolment("HMRC-MTD-VAT")
       .withIdentifier("VRN", vrn)
       .withDelegatedAuthRule("mtd-vat-auth")
+
+  private def errorResult(status: Results.Status, error: MtdError, correlationId: CorrelationId): Result =
+    status(Json.toJson(ErrorWrapper(correlationId, error))).withHeaders("X-CorrelationId" -> correlationId.value)  

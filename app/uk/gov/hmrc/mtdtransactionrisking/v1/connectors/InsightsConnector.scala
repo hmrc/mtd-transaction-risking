@@ -18,14 +18,14 @@ package uk.gov.hmrc.mtdtransactionrisking.v1.connectors
 
 import play.api.Logging
 import play.api.libs.json.Json
-import play.api.http.Status.OK
+import play.api.http.Status.{OK, SERVICE_UNAVAILABLE}
 import play.api.libs.ws.writeableOf_JsValue
 import uk.gov.hmrc.http.HttpReads.Implicits.*
 import uk.gov.hmrc.http.client.HttpClientV2
 import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse, StringContextOps}
 import uk.gov.hmrc.mtdtransactionrisking.config.AppConfig
 import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
-import uk.gov.hmrc.mtdtransactionrisking.v1.models.errors.{DownstreamError, ErrorWrapper}
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.errors.{DownstreamError, ErrorWrapper, ServiceUnavailableError}
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.outcomes.ResponseWrapper
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.InsightsRequest
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.InsightsResponse
@@ -59,6 +59,9 @@ class InsightsConnector @Inject() (
               case None =>
                 logger.error(s"${correlationId.value}::[InsightsConnector:getRiskInsights] malformed response")
                 Left(ErrorWrapper(correlationId, DownstreamError))
+          case SERVICE_UNAVAILABLE =>
+            logger.error(s"${correlationId.value}::[InsightsConnector][getRiskInsights] insights-proxy unavailable")
+            Left(ErrorWrapper(correlationId, ServiceUnavailableError))
           case status =>
             logger.error(s"${correlationId.value}::[InsightsConnector:getRiskInsights] failed status $status: ${response.body}")
             Left(ErrorWrapper(correlationId, DownstreamError))

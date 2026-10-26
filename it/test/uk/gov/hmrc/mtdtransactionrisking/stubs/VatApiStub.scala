@@ -18,7 +18,7 @@ package uk.gov.hmrc.mtdtransactionrisking.stubs
 
 import com.github.tomakehurst.wiremock.client.WireMock.*
 import com.github.tomakehurst.wiremock.stubbing.StubMapping
-import play.api.http.Status.{BAD_REQUEST, OK, SERVICE_UNAVAILABLE}
+import play.api.http.Status.{BAD_REQUEST, FORBIDDEN, OK, SERVICE_UNAVAILABLE}
 
 /** Stubs vat-api's internal validate endpoint, which validates a VAT return and returns the open
  * obligation matching its period key.
@@ -27,7 +27,7 @@ object VatApiStub:
 
   private val validateUrl = urlPathMatching("/internal/validate/.*")
 
-  // Validation passed and an obligation was matched — 200 with the obligation.
+  // Validation passed and an obligation was matched
   def validationPasses(periodKey: String = "AB12", fromDate: String = "2020-01-01", toDate: String = "2020-03-31"): StubMapping =
     stubFor(
       post(validateUrl).willReturn(
@@ -59,7 +59,7 @@ object VatApiStub:
       )
     )
 
-  // The VAT return failed validation — 400 with the field errors.
+  // The VAT return failed validation
   def validationFails(): StubMapping =
     stubFor(
       post(validateUrl).willReturn(
@@ -84,7 +84,7 @@ object VatApiStub:
       )
     )
 
-  // The period key matched an obligation, but that period has not yet ended — 400.
+  // The period key matched an obligation with a period that has not yet ended.
   def taxPeriodNotEnded(): StubMapping =
     stubFor(
       post(validateUrl).willReturn(
@@ -102,7 +102,7 @@ object VatApiStub:
       )
     )
 
-  // vat-api's obligations lookup failed — 503.
+  // 503 with vat-api's obligations lookup failed.
   def serviceUnavailable(): StubMapping =
     stubFor(
       post(validateUrl).willReturn(
@@ -114,6 +114,23 @@ object VatApiStub:
               |{
               |  "code": "SERVICE_UNAVAILABLE",
               |  "message": "Internal server error"
+              |}
+              |""".stripMargin
+          )
+      )
+    )
+
+  def clientOrAgentNotAuthorised(): StubMapping =
+    stubFor(
+      post(validateUrl).willReturn(
+        aResponse()
+          .withStatus(FORBIDDEN)
+          .withHeader("Content-Type", "application/json")
+          .withBody(
+            """
+              |{
+              |  "code": "CLIENT_OR_AGENT_NOT_AUTHORISED",
+              |  "message": "The client and/or agent is not authorised"
               |}
               |""".stripMargin
           )

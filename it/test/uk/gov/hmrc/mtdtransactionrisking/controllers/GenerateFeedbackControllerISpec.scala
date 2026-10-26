@@ -17,449 +17,404 @@
 package uk.gov.hmrc.mtdtransactionrisking.controllers
 
 import com.github.tomakehurst.wiremock.client.WireMock.{equalTo, matchingJsonPath, postRequestedFor, urlPathMatching}
-import com.github.tomakehurst.wiremock.stubbing.StubMapping
-import play.api.http.Status.*
 import play.api.libs.json.{JsValue, Json}
-import play.api.mvc.Result
-import play.api.test.FakeRequest
-import play.api.test.Helpers.{contentAsJson, contentAsString, defaultAwaitTimeout, headers, status}
-import uk.gov.hmrc.http.SessionKeys.authToken
+import play.api.libs.ws.{WSResponse, writeableOf_JsValue, writeableOf_String}
+import play.api.test.Helpers.*
 import uk.gov.hmrc.mtdtransactionrisking.stubs.*
 import uk.gov.hmrc.mtdtransactionrisking.support.IntegrationBaseSpec
-import uk.gov.hmrc.mtdtransactionrisking.v1.controllers.GenerateFeedbackController
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.response.{FeedbackLink, FeedbackMessage, FeedbackResponse}
 
-import scala.concurrent.Future
+import scala.concurrent.duration.*
 
 class GenerateFeedbackControllerISpec extends IntegrationBaseSpec:
 
-  "GenerateFeedbackController" when:
+  private val vrn = CommonTestData.simpleVrn
+  private val periodKey = "AB12"
+  private val fromDate = "2020-01-01"
+  private val toDate = "2020-03-31"
+  private val rdsReportId = "f2fb30e5-4ab6-4a29-b3c1-c7264259ff1c"
+  private val rdsCorrelationId = "E9F65715BBC9222477B27074804BBDD5C73CDE62F84D8B00CFD05B883534AF3D"
 
-    "POST /feedback/:vrn" should:
+  private val authPath = "/auth/authorise"
+  private val vatApiValidatePath = "/internal/validate/.*"
+  private val rdsGeneratePath = "/rds/assessments/generate"
+  private val rsdPath = "/rsd/receive-and-store"
+  private val nrsPath = "/nrs-orchestrator/submission"
 
-      "return 200" when:
+  private val validVatReturn: JsValue = Json.obj(
+    "periodKey" -> periodKey,
+    "vatDueSales" -> 100.00,
+    "vatDueAcquisitions" -> 100.00,
+    "totalVatDue" -> 200.00,
+    "vatReclaimedCurrPeriod" -> 100.00,
+    "netVatDue" -> 100.00,
+    "totalValueSalesExVAT" -> 500,
+    "totalValuePurchasesExVAT" -> 500,
+    "totalValueGoodsSuppliedExVAT" -> 500,
+    "totalAcquisitionsExVAT" -> 500
+  )
 
-        "every downstream responds successfully" in new Test:
-          override def setupStubs(): StubMapping =
-            AuthStub.successfulAuthWith(vrn)
-            VatApiStub.validationPasses(periodKey, fromDate, toDate)
-            InsightsRiskStub.successResponse(vrn)
-            RdsStub.reportGenerated()
-            InteractionStub.stores()
-            NrsStub.accepts()
+  private val acceptHeader = "Accept" -> "application/vnd.hmrc.1.0+json"
+  private val authHeader = "Authorization" -> "Bearer abc123"
 
-          val response: Future[Result] = request(vrn)
+  "POST /feedback/:vrn" when:
 
-          status(response) shouldBe OK
-          headers(response).get("X-CorrelationId") shouldBe defined
+    "every downstream responds successfully" should:
 
-          val feedback: FeedbackResponse = contentAsJson(response).as[FeedbackResponse]
+      "return 200 with the feedback from RDS" in:
+        stubFullJourney()
 
-          val rdsReportId = "f2fb30e5-4ab6-4a29-b3c1-c7264259ff1c"
+        val response = feedback()
 
-          feedback.reportId shouldBe rdsReportId
-          feedback.englishFeedback should have size 1
-          feedback.welshFeedback should have size 1
+        response.status shouldBe OK
+        response.header("X-CorrelationId") shouldBe defined
 
-          feedback.correlationId shouldBe Some("E9F65715BBC9222477B27074804BBDD5C73CDE62F84D8B00CFD05B883534AF3D")
+        val result = response.json.as[FeedbackResponse]
 
-          feedback.englishFeedback.head shouldBe FeedbackMessage(
-            itemNumber = "1",
-            title = "VAT Return Query",
-            body = "Please review your VAT return figures.",
-            action = Some("Check your sales records."),
-            links = Some(List(FeedbackLink("VAT guidance", "https://www.gov.uk/vat-returns"))),
-            path = Some("vatDueSales")
-          )
+        result.reportId shouldBe rdsReportId
+        result.correlationId shouldBe Some(rdsCorrelationId)
+        result.englishFeedback should have size 1
+        result.welshFeedback should have size 1
 
-          feedback.welshFeedback.head.links shouldBe Some(List(FeedbackLink("Canllawiau TAW", "https://www.gov.uk/ffurflenni-taw")))
+        result.englishFeedback.head shouldBe FeedbackMessage(
+          itemNumber = "1",
+          title = "VAT Return Query",
+          body = "Please review your VAT return figures.",
+          action = Some("Check your sales records."),
+          links = Some(List(FeedbackLink("VAT guidance", "https://www.gov.uk/vat-returns"))),
+          path = Some("vatDueSales")
+        )
 
-          // Since rsd call is fire and forget this confirms the call was actually made
-          eventually {
-            wireMockServer.verify(postRequestedFor(urlPathMatching("/rsd/receive-and-store")))
+        result.welshFeedback.head.links shouldBe Some(List(FeedbackLink("Canllawiau TAW", "https://www.gov.uk/ffurflenni-taw")))
 
-            wireMockServer.verify(
-              postRequestedFor(urlPathMatching("/nrs-orchestrator/submission"))
-                .withRequestBody(matchingJsonPath("$.metadata.notableEvent", equalTo("vata-request-feedback")))
-                .withRequestBody(matchingJsonPath("$.metadata.searchKeys.vrn", equalTo(vrn)))
-                .withRequestBody(matchingJsonPath("$.metadata.searchKeys.reportId", equalTo(rdsReportId))))
+      "send the period key and obligation dates to RDS" in:
+        stubFullJourney()
 
-            wireMockServer.verify(
-              postRequestedFor(urlPathMatching("/nrs-orchestrator/submission"))
-                .withRequestBody(matchingJsonPath("$.metadata.notableEvent", equalTo("vata-generate-report")))
-                .withRequestBody(matchingJsonPath("$.metadata.searchKeys.vrn", equalTo(vrn)))
-                .withRequestBody(matchingJsonPath("$.metadata.searchKeys.reportId", equalTo(rdsReportId))))
-          }
+        feedback().status shouldBe OK
 
-        "RDS returns the no-feedback item 0 report" in new Test:
-          override def setupStubs(): StubMapping =
-            AuthStub.successfulAuthWith(vrn)
-            VatApiStub.validationPasses(periodKey, fromDate, toDate)
-            InsightsRiskStub.successResponse(vrn)
-            RdsStub.noFeedback()
-            InteractionStub.stores()
-            NrsStub.accepts()
+        wireMockServer.verify(
+          postRequestedFor(urlPathMatching(rdsGeneratePath))
+            .withRequestBody(matchingJsonPath("$.inputs[?(@.name == 'periodKey')].value", equalTo(periodKey)))
+            .withRequestBody(matchingJsonPath("$.inputs[?(@.name == 'startDate')].value", equalTo(fromDate)))
+            .withRequestBody(matchingJsonPath("$.inputs[?(@.name == 'endDate')].value", equalTo(toDate)))
+        )
 
-          val response: Future[Result] = request(vrn)
+      "store the interaction in RSD with the obligation dates and message paths" in:
+        stubFullJourney()
 
-          status(response) shouldBe OK
-          headers(response).get("X-CorrelationId") shouldBe defined
+        feedback().status shouldBe OK
 
-          val json: JsValue = contentAsJson(response)
-          val feedback: FeedbackResponse = json.as[FeedbackResponse]
-
-          feedback.correlationId shouldBe None
-          (json \ "correlationId").toOption shouldBe None
-
-          feedback.englishFeedback should have size 1
-          feedback.welshFeedback should have size 1
-
-          feedback.englishFeedback.head.itemNumber shouldBe "0"
-          feedback.englishFeedback.head.path shouldBe None
-
-          feedback.welshFeedback.head.itemNumber shouldBe "0"
-          feedback.welshFeedback.head.path shouldBe None
-
-          (json \ "englishFeedback" \ 0 \ "path").toOption shouldBe None
-          (json \ "welshFeedback" \ 0 \ "path").toOption shouldBe None
-
-          wireMockServer.verify(0, postRequestedFor(urlPathMatching("/rsd/receive-and-store")))
-          wireMockServer.verify(0, postRequestedFor(urlPathMatching("/nrs-orchestrator/submission")))
-
-        "RDS returns item 0 alongside actual feedback" in new Test:
-          override def setupStubs(): StubMapping =
-            AuthStub.successfulAuthWith(vrn)
-            VatApiStub.validationPasses(periodKey, fromDate, toDate)
-            InsightsRiskStub.successResponse(vrn)
-            RdsStub.mixedFeedback()
-            InteractionStub.stores()
-            NrsStub.accepts()
-
-          val response: Future[Result] = request(vrn)
-
-          status(response) shouldBe OK
-
-          val json: JsValue = contentAsJson(response)
-
-          (json \ "englishFeedback" \ 0 \ "itemNumber").as[String] shouldBe "0"
-          (json \ "englishFeedback" \ 0 \ "path").toOption shouldBe None
-          (json \ "englishFeedback" \ 1 \ "path").as[String] shouldBe "vatDueSales"
-
-          eventually {
-            wireMockServer.verify(
-              postRequestedFor(urlPathMatching("/rsd/receive-and-store"))
-                .withRequestBody(matchingJsonPath("$.payload.messages[0].englishActions.path", equalTo("0")))
-                .withRequestBody(matchingJsonPath("$.payload.messages[0].welshActions.path", equalTo("0")))
-                .withRequestBody(matchingJsonPath("$.payload.messages[1].englishActions.path", equalTo("vatDueSales")))
-            )
-            wireMockServer.verify(2, postRequestedFor(urlPathMatching("/nrs-orchestrator/submission")))
-          }
-
-        "the interactions datastore is unavailable" in new Test:
-          // Storage and NRS are both loose-coupled to the successful vendor response
-          override def setupStubs(): StubMapping =
-            AuthStub.successfulAuthWith(vrn)
-            VatApiStub.validationPasses(periodKey, fromDate, toDate)
-            InsightsRiskStub.successResponse(vrn)
-            RdsStub.reportGenerated()
-            InteractionStub.unavailable()
-            NrsStub.accepts()
-
-          val response: Future[Result] = request(vrn)
-
-          status(response) shouldBe OK
-
-          eventually {
-            wireMockServer.verify(postRequestedFor(urlPathMatching("/rsd/receive-and-store")))
-            wireMockServer.verify(2, postRequestedFor(urlPathMatching("/nrs-orchestrator/submission")))
-          }
-
-        "NRS is unavailable after RDS returns actual feedback" in new Test:
-          override def setupStubs(): StubMapping =
-            AuthStub.successfulAuthWith(vrn)
-            VatApiStub.validationPasses(periodKey, fromDate, toDate)
-            InsightsRiskStub.successResponse(vrn)
-            RdsStub.reportGenerated()
-            InteractionStub.stores()
-            NrsStub.unavailable()
-
-          val response: Future[Result] = request(vrn)
-
-          status(response) shouldBe OK
-
-          eventually {
-            /*
-             * Both direct NRS submissions are attempted, but their 503
-             * responses do not affect the successful VAT Assist response.
-             */
-            wireMockServer.verify(2, postRequestedFor(urlPathMatching("/nrs-orchestrator/submission")))
-          }
-
-        "The user is an organisation" in new Test:
-
-          override def setupStubs(): StubMapping =
-            AuthStub.successfulAuthWithOrganisation(vrn)
-            VatApiStub.validationPasses(periodKey, fromDate, toDate)
-            InsightsRiskStub.successResponse(vrn)
-            RdsStub.reportGenerated()
-            InteractionStub.stores()
-            NrsStub.accepts()
-
-          status(request(vrn)) shouldBe OK
-
-          eventually { wireMockServer.verify(2, postRequestedFor(urlPathMatching("/nrs-orchestrator/submission"))) }
-
-        "the user is an agent, and the ARN is sent to RDS" in new Test:
-
-          val arn = "LARN0085901"
-
-          override def setupStubs(): StubMapping =
-            AuthStub.successfulAuthWithAgent(vrn, arn)
-            VatApiStub.validationPasses(periodKey, fromDate, toDate)
-            InsightsRiskStub.successResponse(vrn)
-            RdsStub.reportGenerated()
-            InteractionStub.stores()
-            NrsStub.accepts()
-
-          status(request(vrn)) shouldBe OK
-
-          eventually {
-            wireMockServer.verify(
-              postRequestedFor(urlPathMatching("/rds/assessments/generate"))
-                .withRequestBody(matchingJsonPath("$.inputs[?(@.name == 'agentReferenceNumber')].value", equalTo(arn)))
-            )
-
-            wireMockServer.verify(2, postRequestedFor(urlPathMatching("/nrs-orchestrator/submission")))
-          }
-
-      "return 400" when:
-
-        "the VRN in the request is invalid" in new Test:
-          override def setupStubs(): StubMapping = InsightsRiskStub.successResponse(vrn)
-
-          val response: Future[Result] = request("Bad-vrn-1234")
-
-          status(response) shouldBe BAD_REQUEST
-          contentAsString(response) should include("VRN_INVALID")
-          contentAsString(response) should include("The provided VRN is invalid")
-
-        "vat-api rejects the VAT return with validation errors" in new Test:
-          override def setupStubs(): StubMapping =
-            AuthStub.successfulAuthWith(vrn)
-            VatApiStub.validationFails()
-
-          val response: Future[Result] = request(vrn)
-
-          status(response) shouldBe BAD_REQUEST
-          (contentAsJson(response) \ "code").as[String] shouldBe "INVALID_REQUEST"
-
+        // The RSD call is made in the background after the response
+        eventually {
           wireMockServer.verify(
-            0,
-            postRequestedFor(urlPathMatching("/nrs-orchestrator/submission"))
+            postRequestedFor(urlPathMatching(rsdPath))
+              .withRequestBody(matchingJsonPath("$.eventName", equalTo("generate-report")))
+              .withRequestBody(matchingJsonPath("$.metadata[0].vrn", equalTo(vrn)))
+              .withRequestBody(matchingJsonPath("$.metadata[0].start", equalTo(fromDate)))
+              .withRequestBody(matchingJsonPath("$.metadata[0].end", equalTo(toDate)))
+              .withRequestBody(matchingJsonPath("$.payload.reportId", equalTo(rdsReportId)))
+              .withRequestBody(matchingJsonPath("$.payload.messages[0].englishActions.path", equalTo("vatDueSales")))
+              .withRequestBody(matchingJsonPath("$.payload.messages[0].welshActions.path", equalTo("vatDueSales")))
           )
+        }
 
-        "vat-api reports that the tax period has not ended" in new Test:
-          override def setupStubs(): StubMapping =
-            AuthStub.successfulAuthWith(vrn)
-            VatApiStub.taxPeriodNotEnded()
+      "submit the request-feedback and generate-report events to NRS" in:
+        stubFullJourney()
 
-          val response: Future[Result] = request(vrn)
+        feedback().status shouldBe OK
 
-          status(response) shouldBe BAD_REQUEST
-          (contentAsJson(response) \ "code").as[String] shouldBe "TAX_PERIOD_NOT_ENDED"
+        // The NRS calls are made in the background after the response
+        eventually {
+          Seq("vata-request-feedback", "vata-generate-report").foreach { event =>
+            wireMockServer.verify(
+              postRequestedFor(urlPathMatching(nrsPath))
+                .withRequestBody(matchingJsonPath("$.metadata.notableEvent", equalTo(event)))
+                .withRequestBody(matchingJsonPath("$.metadata.searchKeys.vrn", equalTo(vrn)))
+                .withRequestBody(matchingJsonPath("$.metadata.searchKeys.reportId", equalTo(rdsReportId)))
+            )
+          }
+        }
 
-          wireMockServer.verify(0, postRequestedFor(urlPathMatching("/nrs-orchestrator/submission")))
+    "RDS returns the no-feedback item 0" should:
 
-      "return 401" when:
+      "return 200 with item 0, and no correlationId or path" in:
+        stubUntilRds()
+        RdsStub.noFeedback()
 
-        "the request carries no authorisation" in new Test:
-          override def setupStubs(): StubMapping = InsightsRiskStub.successResponse(vrn)
+        val response = feedback()
 
-          val response: Future[Result] = requestWithoutAuth(vrn)
+        response.status shouldBe OK
+        response.header("X-CorrelationId") shouldBe defined
+        (response.json \ "correlationId").toOption shouldBe None
 
-          status(response) shouldBe UNAUTHORIZED
-          contentAsString(response) should include("Failed to authorise request")
-          contentAsString(response) should include("MissingBearerToken")
+        Seq("englishFeedback", "welshFeedback").foreach { language =>
+          (response.json \ language).as[Seq[JsValue]] should have size 1
+          (response.json \ language \ 0 \ "itemNumber").as[String] shouldBe "0"
+          (response.json \ language \ 0 \ "path").toOption shouldBe None
+        }
 
-        "the auth response is missing required values" in new Test:
-          override def setupStubs(): StubMapping = AuthStub.successfulAuthWithNoUserId()
+      "not store an interaction in RSD or submit to NRS" in:
+        stubUntilRds()
+        RdsStub.noFeedback()
+        InteractionStub.stores()
+        NrsStub.accepts()
 
-          val response: Future[Result] = request(vrn)
+        feedback().status shouldBe OK
 
-          status(response) shouldBe UNAUTHORIZED
-          contentAsString(response) shouldBe "Unable to retrieve required auth values"
+        assertNeverCalled(rsdPath)
+        assertNeverCalled(nrsPath)
 
-      "return 403" when:
+    "the user is an agent" should:
 
-        "the user has no MTD VAT enrolment" in new Test:
-          override def setupStubs(): StubMapping = AuthStub.successfulAuthWithNoEnrolments()
+      "send the ARN to RDS" in:
+        val arn = "LARN0085901"
 
-          val response: Future[Result] = request(vrn)
+        AuthStub.successfulAuthWithAgent(vrn, arn)
+        VatApiStub.validationPasses(periodKey, fromDate, toDate)
+        InsightsRiskStub.successResponse(vrn)
+        RdsStub.reportGenerated()
+        InteractionStub.stores()
+        NrsStub.accepts()
 
-          status(response) shouldBe FORBIDDEN
-          contentAsString(response) shouldBe "User has no MTD VAT enrolment"
+        feedback().status shouldBe OK
 
-        "the user's VRN does not match the one requested" in new Test:
-          override def setupStubs(): StubMapping = AuthStub.successfulAuthWith("not-the-vrn")
+        wireMockServer.verify(
+          postRequestedFor(urlPathMatching(rdsGeneratePath))
+            .withRequestBody(matchingJsonPath("$.inputs[?(@.name == 'agentReferenceNumber')].value", equalTo(arn)))
+        )
 
-          val response: Future[Result] = request(vrn)
+    "the user is an organisation" should:
 
-          status(response) shouldBe FORBIDDEN
-          contentAsString(response) shouldBe "User VRN does not match requested VRN"
+      "submit NRS evidence with the organisation's identity" in:
+        AuthStub.successfulAuthWithOrganisation(vrn)
+        VatApiStub.validationPasses(periodKey, fromDate, toDate)
+        InsightsRiskStub.successResponse(vrn)
+        RdsStub.reportGenerated()
+        InteractionStub.stores()
+        NrsStub.accepts()
 
-      "return 500" when:
+        feedback().status shouldBe OK
 
-        "RDS rejects the report request with 400, and does not store an interaction" in new Test:
-          override def setupStubs(): StubMapping =
-            AuthStub.successfulAuthWith(vrn)
-            VatApiStub.validationPasses(periodKey, fromDate, toDate)
-            InsightsRiskStub.successResponse(vrn)
-            RdsStub.badRequest()
-
-          status(request(vrn)) shouldBe INTERNAL_SERVER_ERROR
-
-          wireMockServer.verify(0, postRequestedFor(urlPathMatching("/rsd/receive-and-store")))
-          wireMockServer.verify(0, postRequestedFor(urlPathMatching("/nrs-orchestrator/submission")))
-
-        "vat-api returns 200 with a body that is not an obligation" in new Test:
-          override def setupStubs(): StubMapping =
-            AuthStub.successfulAuthWith(vrn)
-            VatApiStub.malformedObligation()
-
-          val response: Future[Result] = request(vrn)
-
-          status(response) shouldBe INTERNAL_SERVER_ERROR
-
+        eventually {
           wireMockServer.verify(
-            0,
-            postRequestedFor(urlPathMatching("/nrs-orchestrator/submission"))
+            2,
+            postRequestedFor(urlPathMatching(nrsPath))
+              .withRequestBody(matchingJsonPath("$.metadata.identityData.affinityGroup", equalTo("Organisation")))
           )
+        }
 
-        "insights-proxy returns 500" in new Test:
-          override def setupStubs(): StubMapping =
-            AuthStub.successfulAuthWith(vrn)
-            VatApiStub.validationPasses(periodKey, fromDate, toDate)
-            InsightsRiskStub.serverErrorResponse()
+    "RSD or NRS fail after the report is generated" should:
 
-          val response: Future[Result] = request(vrn)
+      "return 200 and still submit to NRS when RSD is unavailable" in:
+        stubUntilRds()
+        RdsStub.reportGenerated()
+        InteractionStub.unavailable()
+        NrsStub.accepts()
 
-          status(response) shouldBe INTERNAL_SERVER_ERROR
+        feedback().status shouldBe OK
 
-          wireMockServer.verify(0, postRequestedFor(urlPathMatching("/nrs-orchestrator/submission")))
+        eventually {
+          wireMockServer.verify(postRequestedFor(urlPathMatching(rsdPath)))
+          wireMockServer.verify(2, postRequestedFor(urlPathMatching(nrsPath)))
+        }
 
-        "insights-proxy returns 503" in new Test:
-          override def setupStubs(): StubMapping =
-            AuthStub.successfulAuthWith(vrn)
-            VatApiStub.validationPasses(periodKey, fromDate, toDate)
-            InsightsRiskStub.serviceUnavailableResponse()
+      "return 200 and still store in RSD when NRS is unavailable" in:
+        stubUntilRds()
+        RdsStub.reportGenerated()
+        InteractionStub.stores()
+        NrsStub.unavailable()
 
-          val response: Future[Result] = request(vrn)
+        feedback().status shouldBe OK
 
-          status(response) shouldBe INTERNAL_SERVER_ERROR
+        eventually {
+          wireMockServer.verify(postRequestedFor(urlPathMatching(rsdPath)))
+          wireMockServer.verify(2, postRequestedFor(urlPathMatching(nrsPath)))
+        }
 
-          wireMockServer.verify(0, postRequestedFor(urlPathMatching("/nrs-orchestrator/submission")))
+    "the request is invalid" should:
 
-        "insights-proxy returns malformed JSON" in new Test:
-          override def setupStubs(): StubMapping =
-            AuthStub.successfulAuthWith(vrn)
-            VatApiStub.validationPasses(periodKey, fromDate, toDate)
-            InsightsRiskStub.malformedJsonResponse()
+      "return 400 VRN_INVALID without calling auth or any downstream" in:
+        val response = feedback(vrn = "Bad-vrn-1234")
 
-          val response: Future[Result] = request(vrn)
+        assertError(response, BAD_REQUEST, "VRN_INVALID")
+        assertNotCalled(authPath, vatApiValidatePath, rdsGeneratePath, rsdPath, nrsPath)
 
-          status(response) shouldBe INTERNAL_SERVER_ERROR
+      "return 400 for malformed JSON without calling auth or any downstream" in:
+        val response = await(
+          buildRequest(s"/feedback/$vrn")
+            .withHttpHeaders(acceptHeader, authHeader, "Content-Type" -> "application/json")
+            .post("""{"periodKey":""")
+        )
 
-          wireMockServer.verify(0, postRequestedFor(urlPathMatching("/nrs-orchestrator/submission")))
+        // The body is parsed before the auth action runs
+        response.status shouldBe BAD_REQUEST
+        assertNotCalled(authPath, vatApiValidatePath, rdsGeneratePath, rsdPath, nrsPath)
 
-        "RDS returns 201 with a malformed report, and does not store an interaction" in new Test:
-          override def setupStubs(): StubMapping =
-            AuthStub.successfulAuthWith(vrn)
-            VatApiStub.validationPasses(periodKey, fromDate, toDate)
-            InsightsRiskStub.successResponse(vrn)
-            RdsStub.malformedReport()
+    "vat-api rejects the VAT return" should:
 
-          status(request(vrn)) shouldBe INTERNAL_SERVER_ERROR
+      "return 400 INVALID_REQUEST and not call RDS" in:
+        AuthStub.successfulAuthWith(vrn)
+        VatApiStub.validationFails()
 
-          wireMockServer.verify(0, postRequestedFor(urlPathMatching("/rsd/receive-and-store")))
+        assertError(feedback(), BAD_REQUEST, "INVALID_REQUEST")
+        assertNotCalled(rdsGeneratePath, rsdPath, nrsPath)
 
-          wireMockServer.verify(0, postRequestedFor(urlPathMatching("/nrs-orchestrator/submission")))
+      "return 400 TAX_PERIOD_NOT_ENDED and not call RDS" in:
+        AuthStub.successfulAuthWith(vrn)
+        VatApiStub.taxPeriodNotEnded()
 
-      "return 503" when:
+        assertError(feedback(), BAD_REQUEST, "TAX_PERIOD_NOT_ENDED")
+        assertNotCalled(rdsGeneratePath, rsdPath, nrsPath)
 
-        "vat-api's obligations lookup is unavailable" in new Test:
-          override def setupStubs(): StubMapping =
-            AuthStub.successfulAuthWith(vrn)
-            VatApiStub.serviceUnavailable()
+      "return 403 CLIENT_OR_AGENT_NOT_AUTHORISED and not call RDS" in:
+        AuthStub.successfulAuthWith(vrn)
+        VatApiStub.clientOrAgentNotAuthorised()
 
-          val response: Future[Result] = request(vrn)
+        assertError(feedback(), FORBIDDEN, "CLIENT_OR_AGENT_NOT_AUTHORISED")
+        assertNotCalled(rdsGeneratePath, rsdPath, nrsPath)
 
-          status(response) shouldBe SERVICE_UNAVAILABLE
+    // Status only for now: VATAuthAction returns plain text. Assert the JSON codes
+    // (INVALID_CREDENTIALS / CLIENT_OR_AGENT_NOT_AUTHORISED) once it returns MtdErrors.
+    "the user is not authorised" should:
 
-          wireMockServer.verify(0, postRequestedFor(urlPathMatching("/nrs-orchestrator/submission")))
+      "return 401 when the request has no Authorization header" in:
+        val response = await(
+          buildRequest(s"/feedback/$vrn")
+            .withHttpHeaders(acceptHeader)
+            .post(validVatReturn)
+        )
 
-        "RDS is unavailable, and does not store an interaction" in new Test:
-          override def setupStubs(): StubMapping =
-            AuthStub.successfulAuthWith(vrn)
-            VatApiStub.validationPasses(periodKey, fromDate, toDate)
-            InsightsRiskStub.successResponse(vrn)
-            RdsStub.unavailable()
+        response.status shouldBe UNAUTHORIZED
+        assertNotCalled(vatApiValidatePath, rdsGeneratePath)
 
-          status(request(vrn)) shouldBe SERVICE_UNAVAILABLE
+      "return 401 when auth does not return the required values" in:
+        AuthStub.successfulAuthWithNoUserId()
 
-          wireMockServer.verify(0, postRequestedFor(urlPathMatching("/rsd/receive-and-store")))
-          wireMockServer.verify(0, postRequestedFor(urlPathMatching("/nrs-orchestrator/submission")))
+        feedback().status shouldBe UNAUTHORIZED
+        assertNotCalled(vatApiValidatePath, rdsGeneratePath)
 
-  private trait Test:
+      "return 403 when the user has no MTD VAT enrolment" in:
+        AuthStub.successfulAuthWithNoEnrolments()
 
-    val periodKey: String = "AB12"
-    val fromDate: String = "2020-01-01"
-    val toDate: String = "2020-03-31"
+        feedback().status shouldBe FORBIDDEN
+        assertNotCalled(vatApiValidatePath, rdsGeneratePath)
 
-    private val validVatReturnBody: JsValue = Json.parse(
-      """
-        |{
-        |  "periodKey": "AB12",
-        |  "vatDueSales": 100.00,
-        |  "vatDueAcquisitions": 100.00,
-        |  "totalVatDue": 200.00,
-        |  "vatReclaimedCurrPeriod": 100.00,
-        |  "netVatDue": 100.00,
-        |  "totalValueSalesExVAT": 500,
-        |  "totalValuePurchasesExVAT": 500,
-        |  "totalValueGoodsSuppliedExVAT": 500,
-        |  "totalAcquisitionsExVAT": 500
-        |}
-        |""".stripMargin
+      "return 403 when the user's VRN does not match the one requested" in:
+        AuthStub.successfulAuthWith("999999999")
+
+        feedback().status shouldBe FORBIDDEN
+        assertNotCalled(vatApiValidatePath, rdsGeneratePath)
+
+    "a downstream service returns an error or an unusable response" should:
+
+      "return 500 when vat-api returns 200 with a body that is not an obligation" in:
+        AuthStub.successfulAuthWith(vrn)
+        VatApiStub.malformedObligation()
+
+        assertError(feedback(), INTERNAL_SERVER_ERROR, "INTERNAL_SERVER_ERROR")
+        assertNotCalled(rdsGeneratePath, rsdPath, nrsPath)
+
+      "return 500 when insights-proxy returns 500" in:
+        AuthStub.successfulAuthWith(vrn)
+        VatApiStub.validationPasses(periodKey, fromDate, toDate)
+        InsightsRiskStub.serverErrorResponse()
+
+        assertError(feedback(), INTERNAL_SERVER_ERROR, "INTERNAL_SERVER_ERROR")
+        assertNotCalled(rdsGeneratePath, rsdPath, nrsPath)
+
+      "return 500 when insights-proxy returns malformed JSON" in:
+        AuthStub.successfulAuthWith(vrn)
+        VatApiStub.validationPasses(periodKey, fromDate, toDate)
+        InsightsRiskStub.malformedJsonResponse()
+
+        assertError(feedback(), INTERNAL_SERVER_ERROR, "INTERNAL_SERVER_ERROR")
+        assertNotCalled(rdsGeneratePath, rsdPath, nrsPath)
+
+      "return 500 when RDS rejects the report request with 400" in:
+        stubUntilRds()
+        RdsStub.badRequest()
+
+        assertError(feedback(), INTERNAL_SERVER_ERROR, "INTERNAL_SERVER_ERROR")
+        assertNotCalled(rsdPath, nrsPath)
+
+      "return 500 when RDS returns 201 with a malformed report" in:
+        stubUntilRds()
+        RdsStub.malformedReport()
+
+        assertError(feedback(), INTERNAL_SERVER_ERROR, "INTERNAL_SERVER_ERROR")
+        assertNotCalled(rsdPath, nrsPath)
+
+      "return 500 when RDS returns 201 with a responseCode other than 201" in:
+        stubUntilRds()
+        RdsStub.reportResponds(responseCode = 500)
+
+        assertError(feedback(), INTERNAL_SERVER_ERROR, "INTERNAL_SERVER_ERROR")
+        assertNotCalled(rsdPath, nrsPath)
+
+      "return 500 when RDS returns a report with no feedbackId" in:
+        stubUntilRds()
+        RdsStub.reportWithoutFeedbackId()
+
+        assertError(feedback(), INTERNAL_SERVER_ERROR, "INTERNAL_SERVER_ERROR")
+        assertNotCalled(rsdPath, nrsPath)
+
+    "a downstream service is unavailable" should:
+
+      "return 503 when vat-api's obligations lookup is unavailable" in:
+        AuthStub.successfulAuthWith(vrn)
+        VatApiStub.serviceUnavailable()
+
+        // vat-api's body is relayed as it is so only the status is from us
+        feedback().status shouldBe SERVICE_UNAVAILABLE
+        assertNotCalled(rdsGeneratePath, rsdPath, nrsPath)
+
+      "return 503 when insights-proxy is unavailable" in:
+        AuthStub.successfulAuthWith(vrn)
+        VatApiStub.validationPasses(periodKey, fromDate, toDate)
+        InsightsRiskStub.serviceUnavailableResponse()
+
+        assertError(feedback(), SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE")
+        assertNotCalled(rdsGeneratePath, rsdPath, nrsPath)
+
+      "return 503 when RDS is unavailable" in:
+        stubUntilRds()
+        RdsStub.unavailable()
+
+        assertError(feedback(), SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE")
+        assertNotCalled(rsdPath, nrsPath)
+
+  private def feedback(vrn: String = vrn, body: JsValue = validVatReturn): WSResponse =
+    await(
+      buildRequest(s"/feedback/$vrn")
+        .withHttpHeaders(acceptHeader, authHeader)
+        .post(body)
     )
 
-    def vrn: String = CommonTestData.simpleVrn
+  private def stubFullJourney(): Unit =
+    stubUntilRds()
+    RdsStub.reportGenerated()
+    InteractionStub.stores()
+    NrsStub.accepts()
 
-    def setupStubs(): StubMapping
+  // Auth, vat-api and insights succeed, so each test only sets up what happens at RDS and after
+  private def stubUntilRds(): Unit =
+    AuthStub.successfulAuthWith(vrn)
+    VatApiStub.validationPasses(periodKey, fromDate, toDate)
+    InsightsRiskStub.successResponse(vrn)
 
-    def request(vrn: String): Future[Result] =
-      setupStubs()
-      app.injector
-        .instanceOf[GenerateFeedbackController]
-        .generateFeedback(vrn)(
-          FakeRequest("POST", s"/feedback/$vrn")
-            .withSession(authToken -> vrn)
-            .withHeaders(
-              "Authorization" -> "Bearer abc123",
-              "Accept" -> "application/vnd.hmrc.1.0+json",
-              "Content-Type" -> "application/json"
-            )
-            .withBody(validVatReturnBody)
-        )
+  private def assertError(response: WSResponse, status: Int, code: String): Unit =
+    withClue(s"Response body: ${response.body}. ") {
+      response.status shouldBe status
+      (response.json \ "code").as[String] shouldBe code
+    }
 
-    def requestWithoutAuth(vrn: String): Future[Result] =
-      setupStubs()
-      app.injector
-        .instanceOf[GenerateFeedbackController]
-        .generateFeedback(vrn)(
-          FakeRequest("POST", s"/feedback/$vrn")
-            .withHeaders(
-              "Accept" -> "application/vnd.hmrc.1.0+json",
-              "Content-Type" -> "application/json"
-            )
-            .withBody(validVatReturnBody)
-        )
+  // For paths that are called before the response is returned, or not at all once the journey has stopped
+  private def assertNotCalled(paths: String*): Unit =
+    paths.foreach(path => wireMockServer.verify(0, postRequestedFor(urlPathMatching(path))))
+
+  // RSD and NRS are called in the background after the response, so watch for a short time rather than checking once
+  private def assertNeverCalled(path: String, within: FiniteDuration = 2.seconds): Unit =
+    val deadline = System.nanoTime() + within.toNanos
+    while System.nanoTime() < deadline do
+      wireMockServer.verify(0, postRequestedFor(urlPathMatching(path)))
+      Thread.sleep(100)
