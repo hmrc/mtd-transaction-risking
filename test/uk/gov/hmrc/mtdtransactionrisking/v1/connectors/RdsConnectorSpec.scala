@@ -93,6 +93,10 @@ class RdsConnectorSpec extends ConnectorSpec, BeforeAndAfterAll, Injecting, Mock
   )
   private val acknowledgeWithoutResponseCode: JsValue = acknowledgeJson(responseCode = None)
 
+  private val reportColumns =
+    """{ "metadata": [ { "ITEMNUMBER": "string" }, { "MESSAGE": "string" }, { "ACTION": "string" }, { "TITLE": "string" },
+      |                { "LINKTITLE": "string" }, { "LINKURL": "string" }, { "PATH": "string" } ] }""".stripMargin
+
   def port: Int = wireMockServer.port()
 
   override def beforeAll(): Unit = wireMockServer.start()
@@ -117,15 +121,12 @@ class RdsConnectorSpec extends ConnectorSpec, BeforeAndAfterAll, Injecting, Mock
       )
     )
 
+  // Report with real feedback (item 1). With no responseCode
   private def reportJson(responseCode: Option[Int] = None, correlationId: Option[String] = None): JsValue =
     val optionalOutputs =
       responseCode.map(code => s"""{ "name": "responseCode", "value": $code },""").getOrElse("")
 
     val correlationIdValue = correlationId.map(id => s""""$id"""").getOrElse("null")
-
-    val columns =
-      """{ "metadata": [ { "ITEMNUMBER": "string" }, { "MESSAGE": "string" }, { "ACTION": "string" }, { "TITLE": "string" },
-        |                { "LINKTITLE": "string" }, { "LINKURL": "string" }, { "PATH": "string" } ] }""".stripMargin
 
     Json.parse(
       s"""
@@ -142,7 +143,7 @@ class RdsConnectorSpec extends ConnectorSpec, BeforeAndAfterAll, Injecting, Mock
          |    {
          |      "name": "englishActions",
          |      "value": [
-         |        $columns,
+         |        $reportColumns,
          |        { "data": [ [ "1", "Please review your VAT return figures.", "Check your sales records.", "VAT Return Query",
          |                      "VAT guidance", "https://www.gov.uk/vat-returns", "vatDueSales" ] ] }
          |      ]
@@ -152,12 +153,64 @@ class RdsConnectorSpec extends ConnectorSpec, BeforeAndAfterAll, Injecting, Mock
          |    {
          |      "name": "welshActions",
          |      "value": [
-         |        $columns,
+         |        $reportColumns,
          |        { "data": [ [ "1", "Adolygwch eich ffigurau.", "Gwiriwch eich cofnodion.", "Ymholiad Ffurflen TAW",
          |                      "Canllawiau TAW", "https://www.gov.uk/ffurflenni-taw", "vatDueSales" ] ] }
          |      ]
          |    },
          |    { "name": "rt_Record_Contacts_Outer", "value": "f9a5a9a7-09a2-a94b-a492-54c9fc91d5d2" }
+         |  ]
+         |}
+         |""".stripMargin
+    )
+
+  private def noFeedbackReportJson(includeFeedbackId: Boolean = true): JsValue =
+    val feedbackIdOutput =
+      if includeFeedbackId then s"""{ "name": "feedbackId", "value": "$feedbackId" },""" else ""
+
+    Json.parse(
+      s"""
+         |{
+         |  "links": [],
+         |  "version": 2,
+         |  "moduleId": "HMRC_ASSIST_VAT_FINSUB_FEEDBACK",
+         |  "stepId": "execute",
+         |  "executionState": "completed",
+         |  "metadata": { "module_id": "HMRC_ASSIST_VAT_FINSUB_FEEDBACK", "step_id": "execute" },
+         |  "outputs": [
+         |    { "name": "correlationId", "value": null },
+         |    { "name": "createdDttm", "value": "2026-10-26T14:16:55.341" },
+         |    {
+         |      "name": "englishActions",
+         |      "value": [
+         |        $reportColumns,
+         |        { "data": [ [ "0",
+         |          "This is not a complete check of your return or confirmation that your return is accurate. Your return has not been submitted at this stage.",
+         |          "Consider any further checks before finalising your return.",
+         |          "HMRC Feedback: HMRC Assist has not returned any messages.",
+         |          "Go to GOV.UK for more information on HMRC Assist",
+         |          "https://www.gov.uk",
+         |          "0" ] ] }
+         |      ]
+         |    },
+         |    $feedbackIdOutput
+         |    { "name": "responseCode", "value": 204.0 },
+         |    { "name": "responseMessage", "value": "No feedback applicable - Suppressed Messages" },
+         |    { "name": "vrn", "value": "$vrn" },
+         |    {
+         |      "name": "welshActions",
+         |      "value": [
+         |        $reportColumns,
+         |        { "data": [ [ "0",
+         |          "Nid yw hwn yn wiriad cyflawn o’ch Ffurflen Dreth nac yn gadarnhad bod eich Ffurflen Dreth yn gywir.",
+         |          "Ystyriwch unrhyw wiriadau pellach cyn cadarnhau’ch Ffurflen Dreth yn derfynol.",
+         |          "Adborth CThEF: Nid yw HMRC Assist wedi dychwelyd unrhyw negeseuon.",
+         |          "Ewch i GOV.UK i gael rhagor o wybodaeth am HMRC Assist",
+         |          "https://www.gov.uk",
+         |          "0" ] ] }
+         |      ]
+         |    },
+         |    { "name": "rt_Record_Contacts_Outer", "value": "630982f2-cf51-f94e-9529-8bb1a1ce2927" }
          |  ]
          |}
          |""".stripMargin
@@ -299,7 +352,7 @@ class RdsConnectorSpec extends ConnectorSpec, BeforeAndAfterAll, Injecting, Mock
       "return the transformed feedback" in new Test:
         stubReport(Some(reportJson().toString), CREATED)
 
-        private val feedback = await(generateReport()).value.responseData
+        val feedback: FeedbackResponse = await(generateReport()).value.responseData
 
         feedback.reportId shouldBe feedbackId
         feedback.correlationId shouldBe None
@@ -309,7 +362,7 @@ class RdsConnectorSpec extends ConnectorSpec, BeforeAndAfterAll, Injecting, Mock
       "build links from the separate link title and url columns" in new Test:
         stubReport(Some(reportJson().toString), CREATED)
 
-        private val feedback = await(generateReport()).value.responseData
+        val feedback: FeedbackResponse = await(generateReport()).value.responseData
 
         feedback.englishFeedback.head.links shouldBe Some(List(FeedbackLink("VAT guidance", "https://www.gov.uk/vat-returns")))
 
@@ -326,8 +379,51 @@ class RdsConnectorSpec extends ConnectorSpec, BeforeAndAfterAll, Injecting, Mock
 
         await(generateReport()).value.responseData.reportId shouldBe feedbackId
 
+      "succeed when it is 204 with no feedback applicable" in new Test:
+        stubReport(Some(reportJson(responseCode = Some(204)).toString), CREATED)
+
+        await(generateReport()).value.responseData.reportId shouldBe feedbackId
+
       "return DownstreamError when it is anything else" in new Test:
         stubReport(Some(reportJson(responseCode = Some(500)).toString), CREATED)
+
+        await(generateReport()) shouldBe Left(ErrorWrapper(correlationId, DownstreamError))
+
+    "RDS returns its no-feedback report responseCode 204.0" should:
+
+      "return the no-feedback response rather than an error" in new Test:
+        stubReport(Some(noFeedbackReportJson().toString), CREATED)
+
+        val result: ServiceOutcome[FeedbackResponse] = await(generateReport())
+
+        result.isRight shouldBe true
+        result.value.responseData.reportId shouldBe feedbackId
+
+      "return a single item 0 in both languages" in new Test:
+        stubReport(Some(noFeedbackReportJson().toString), CREATED)
+
+        val feedback: FeedbackResponse = await(generateReport()).value.responseData
+
+        feedback.englishFeedback.map(_.itemNumber) shouldBe List("0")
+        feedback.welshFeedback.map(_.itemNumber) shouldBe List("0")
+        feedback.englishFeedback.head.title shouldBe "HMRC Feedback: HMRC Assist has not returned any messages."
+        feedback.welshFeedback.head.title shouldBe "Adborth CThEF: Nid yw HMRC Assist wedi dychwelyd unrhyw negeseuon."
+
+      "build the link from the link title and url columns" in new Test:
+        stubReport(Some(noFeedbackReportJson().toString), CREATED)
+
+        val feedback: FeedbackResponse = await(generateReport()).value.responseData
+
+        feedback.englishFeedback.head.links shouldBe
+          Some(List(FeedbackLink("Go to GOV.UK for more information on HMRC Assist", "https://www.gov.uk")))
+
+      "pass through a null correlation id as None" in new Test:
+        stubReport(Some(noFeedbackReportJson().toString), CREATED)
+
+        await(generateReport()).value.responseData.correlationId shouldBe None
+
+      "return DownstreamError when the report has no feedback id" in new Test:
+        stubReport(Some(noFeedbackReportJson(includeFeedbackId = false).toString), CREATED)
 
         await(generateReport()) shouldBe Left(ErrorWrapper(correlationId, DownstreamError))
 
