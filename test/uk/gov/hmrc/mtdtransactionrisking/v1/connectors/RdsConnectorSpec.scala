@@ -104,9 +104,9 @@ class RdsConnectorSpec extends ConnectorSpec, BeforeAndAfterAll, Injecting, Mock
   override def afterAll(): Unit = wireMockServer.stop()
 
   private def acknowledgeJson(
-                               responseCode: Option[Int] = Some(ACCEPTED),
-                               responseMessage: Option[String] = Some("Accepted")
-                             ): JsValue =
+      responseCode: Option[Int] = Some(ACCEPTED),
+      responseMessage: Option[String] = Some("Accepted")
+  ): JsValue =
     Json.obj(
       "moduleId" -> "HMRC_ASSIST_VAT_FINSUB_FEEDBACK_ACK",
       "executionState" -> "completed",
@@ -379,7 +379,7 @@ class RdsConnectorSpec extends ConnectorSpec, BeforeAndAfterAll, Injecting, Mock
 
         await(generateReport()).value.responseData.reportId shouldBe feedbackId
 
-      "succeed when it is 204 (no feedback applicable)" in new Test:
+      "succeed when it is 204 with no feedback applicable" in new Test:
         stubReport(Some(reportJson(responseCode = Some(204)).toString), CREATED)
 
         await(generateReport()).value.responseData.reportId shouldBe feedbackId
@@ -389,7 +389,7 @@ class RdsConnectorSpec extends ConnectorSpec, BeforeAndAfterAll, Injecting, Mock
 
         await(generateReport()) shouldBe Left(ErrorWrapper(correlationId, DownstreamError))
 
-    "RDS returns its no-feedback report (responseCode 204.0)" should:
+    "RDS returns its no-feedback report responseCode 204.0" should:
 
       "return the no-feedback response rather than an error" in new Test:
         stubReport(Some(noFeedbackReportJson().toString), CREATED)
