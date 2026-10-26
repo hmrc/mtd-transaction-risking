@@ -711,7 +711,7 @@ components:
       properties:
         itemNumber:
           type: string
-          pattern: '^[0-9]+$'
+          pattern: '^[0-9]{1,3}$'
           description: |
             The unique identifier for the feedback message. Corresponding English and Welsh feedback messages will have the same number.
 
