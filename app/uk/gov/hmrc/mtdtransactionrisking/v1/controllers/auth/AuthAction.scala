@@ -28,9 +28,7 @@ import uk.gov.hmrc.http.HeaderCarrier
 import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
 import uk.gov.hmrc.mtdtransactionrisking.utils.{IdGenerator, Logging}
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.auth.IdentityData
-import uk.gov.hmrc.mtdtransactionrisking.v1.models.errors.{ErrorWrapper, MtdError, VrnFormatError}
-import uk.gov.hmrc.auth.core.{AuthConnector, AuthorisationException, AuthorisedFunctions, Enrolment, NoActiveSession}
-import uk.gov.hmrc.mtdtransactionrisking.v1.models.errors.{ErrorWrapper, InvalidCredentialsError, MtdError, UnauthorisedError, VrnFormatError}
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.errors.{ErrorWrapper, MtdError, VrnFormatError, InvalidCredentialsError, UnauthorisedError}
 import uk.gov.hmrc.play.http.HeaderCarrierConverter
 
 import javax.inject.Inject
@@ -82,13 +80,13 @@ class VATAuthAction @Inject() (override val authConnector: AuthConnector, config
             .retrieve(
               affinityGroup and allEnrolments
                 and internalId and externalId and agentCode and credentials
-                and confidenceLevel and nino and saUtr and name and dateOfBirth
+                and confidenceLevel and nino and saUtr and dateOfBirth
                 and email and agentInformation and groupIdentifier and credentialRole
                 and mdtpInformation and credentialStrength and loginTimes
                 and itmpName and itmpDateOfBirth and itmpAddress
             ) {
               case affinityGroup ~ userEnrolments ~ Some(userId) ~ externalId ~ agentCode ~ credentials
-                ~ confidenceLevel ~ nino ~ saUtr ~ name ~ dateOfBirth
+                ~ confidenceLevel ~ nino ~ saUtr ~ dateOfBirth
                 ~ email ~ agentInformation ~ groupIdentifier ~ credentialRole
                 ~ mdtpInformation ~ credentialStrength ~ loginTimes
                 ~ itmpName ~ itmpDateOfBirth ~ itmpAddress =>
@@ -111,7 +109,6 @@ class VATAuthAction @Inject() (override val authConnector: AuthConnector, config
                   confidenceLevel = confidenceLevel,
                   nino = nino,
                   saUtr = saUtr,
-                  name = name,
                   dateOfBirth = dateOfBirth,
                   email = email,
                   agentInformation = agentInformation,

@@ -30,7 +30,6 @@ final case class IdentityData(
                                confidenceLevel: ConfidenceLevel,
                                nino: Option[String] = None,
                                saUtr: Option[String] = None,
-                               name: Option[Name] = None,
                                dateOfBirth: Option[LocalDate] = None,
                                email: Option[String] = None,
                                agentInformation: AgentInformation,
@@ -49,7 +48,6 @@ object IdentityData:
 
   given Format[LocalDate] = Format(Reads.DefaultLocalDateReads, Writes.DefaultLocalDateWrites)
   given OFormat[Credentials] = Json.format[Credentials]
-  given OFormat[Name] = Json.format[Name]
   given OFormat[AgentInformation] = Json.format[AgentInformation]
   given OFormat[MdtpInformation] = Json.format[MdtpInformation]
   given OFormat[ItmpName] = Json.format[ItmpName]
