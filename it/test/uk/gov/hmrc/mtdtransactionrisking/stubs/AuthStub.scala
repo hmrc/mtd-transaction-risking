@@ -108,10 +108,6 @@ object AuthStub:
                  |  "confidenceLevel": 200,
                  |  "nino": "AA000003D",
                  |  "saUtr": "1234567890",
-                 |  "optionalName": {
-                 |    "name": "Test",
-                 |    "lastName": "User"
-                 |  },
                  |  "dateOfBirth": "1990-01-01",
                  |  "email": "test.user@example.com",
                  |  "agentInformation": {

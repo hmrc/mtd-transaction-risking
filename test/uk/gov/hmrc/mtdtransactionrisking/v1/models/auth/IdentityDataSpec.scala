@@ -34,7 +34,6 @@ class IdentityDataSpec extends UnitSpec:
     confidenceLevel = ConfidenceLevel.L200,
     nino = Some("AA000003D"),
     saUtr = Some("1234567890"),
-    name = Some(Name(Some("Test"), Some("User"))),
     dateOfBirth = Some(LocalDate.parse("1990-01-01")),
     email = Some("test.user@example.com"),
     agentInformation = AgentInformation(
@@ -90,10 +89,6 @@ class IdentityDataSpec extends UnitSpec:
             |  "confidenceLevel": 200,
             |  "nino": "AA000003D",
             |  "saUtr": "1234567890",
-            |  "name": {
-            |    "name": "Test",
-            |    "lastName": "User"
-            |  },
             |  "dateOfBirth": "1990-01-01",
             |  "email": "test.user@example.com",
             |  "agentInformation": {
@@ -204,7 +199,6 @@ class IdentityDataSpec extends UnitSpec:
           credentials = None,
           nino = None,
           saUtr = None,
-          name = None,
           dateOfBirth = None,
           email = None,
           groupIdentifier = None,
@@ -221,6 +215,7 @@ class IdentityDataSpec extends UnitSpec:
         (json \ "externalId").toOption shouldBe None
         (json \ "nino").toOption shouldBe None
         (json \ "name").toOption shouldBe None
+        (json \ "itmpName").toOption shouldBe defined
         (json \ "itmpDateOfBirth").toOption shouldBe None
         (json \ "affinityGroup").toOption shouldBe None
         (json \ "loginTimes" \ "previousLogin").toOption shouldBe None
