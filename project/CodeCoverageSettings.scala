@@ -9,7 +9,8 @@ object CodeCoverageSettings {
     "prod",
     "testOnlyDoNotUseInAppConf",
     ".*Reverse.*",
-    ".*javascript.*"
+    ".*javascript.*",
+    ".*IdentityData.*"
   )
 
   private val excludedFiles: Seq[String] = Seq(
