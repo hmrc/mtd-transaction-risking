@@ -17,7 +17,7 @@
 package uk.gov.hmrc.mtdtransactionrisking.v1.connectors
 
 import play.api.Logging
-import play.api.http.Status.OK
+import play.api.http.Status.{NOT_FOUND, OK, REQUEST_TIMEOUT, SERVICE_UNAVAILABLE}
 import play.api.libs.ws.WSBodyWritables.writeableOf_urlEncodedForm
 import uk.gov.hmrc.http.HttpReads.Implicits.*
 import uk.gov.hmrc.http.client.HttpClientV2
@@ -25,7 +25,7 @@ import uk.gov.hmrc.http.{HeaderCarrier, HttpResponse, StringContextOps}
 import uk.gov.hmrc.mtdtransactionrisking.config.AppConfig
 import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.auth.{RdsAuthCredentials, RdsCredentials}
-import uk.gov.hmrc.mtdtransactionrisking.v1.models.errors.{DownstreamError, ErrorWrapper}
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.errors.{DownstreamError, ErrorWrapper, ServiceUnavailableError}
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.outcomes.ResponseWrapper
 import uk.gov.hmrc.mtdtransactionrisking.v1.services.ServiceOutcome
 
@@ -59,8 +59,13 @@ class RdsAuthConnector @Inject() (httpClient: HttpClientV2, appConfig: AppConfig
                 logger.error(s"${correlationId.value}::[RdsAuthConnector] malformed token response")
                 Left(ErrorWrapper(correlationId, DownstreamError))
 
+          case NOT_FOUND | REQUEST_TIMEOUT | SERVICE_UNAVAILABLE =>
+            logger.error(s"${correlationId.value}::[RdsAuthConnector] SAS unavailable, status ${response.status}")
+            Left(ErrorWrapper(correlationId, ServiceUnavailableError))
+
+          // The body is not logged as error can contain credentials
           case status =>
-            logger.error(s"${correlationId.value}::[RdsAuthConnector] failed $status: ${response.body}")
+            logger.error(s"${correlationId.value}::[RdsAuthConnector] token request failed, status $status")
             Left(ErrorWrapper(correlationId, DownstreamError))
       }
       .recover:

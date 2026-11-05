@@ -25,7 +25,7 @@ import play.api.test.Injecting
 import uk.gov.hmrc.http.client.HttpClientV2
 import uk.gov.hmrc.mtdtransactionrisking.support.{ConnectorSpec, MockAppConfig}
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.auth.{RdsAuthCredentials, RdsCredentials}
-import uk.gov.hmrc.mtdtransactionrisking.v1.models.errors.{DownstreamError, ErrorWrapper}
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.errors.{DownstreamError, ErrorWrapper, ServiceUnavailableError}
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.outcomes.ResponseWrapper
 
 import java.nio.charset.StandardCharsets.UTF_8
@@ -33,19 +33,13 @@ import java.util.Base64
 
 class RdsAuthConnectorSpec extends ConnectorSpec, BeforeAndAfterAll, Injecting, MockAppConfig:
 
-  def port: Int = wireMockServer.port()
-
   val httpClient: HttpClientV2 = app.injector.instanceOf[HttpClientV2]
-
   private val authPath = "/SASLogon/oauth/token"
   private val urlPattern = urlPathMatching(authPath)
-
   private val clientId = "txr_api_user1"
   private val clientSecret = "a-client-secret"
-
   private val expectedBasicAuth =
     "Basic " + Base64.getEncoder.encodeToString(s"$clientId:$clientSecret".getBytes(UTF_8))
-
   private val tokenResponseJson: JsValue = Json.parse(
     """
       |{
@@ -57,10 +51,14 @@ class RdsAuthConnectorSpec extends ConnectorSpec, BeforeAndAfterAll, Injecting, 
       |}
       |""".stripMargin
   )
-
   private val expectedCredentials = RdsAuthCredentials("a-bearer-token", "bearer", 14399)
-
   private val malformedResponseJson: JsValue = Json.parse("""{ "unexpected": "shape" }""")
+
+  def port: Int = wireMockServer.port()
+
+  override def beforeAll(): Unit = wireMockServer.start()
+
+  override def afterAll(): Unit = wireMockServer.stop()
 
   class Test:
     MockedAppConfig.rdsAuthUrl.returns(s"http://localhost:$port$authPath").anyNumberOfTimes()
@@ -77,9 +75,6 @@ class RdsAuthConnectorSpec extends ConnectorSpec, BeforeAndAfterAll, Injecting, 
     def stubFault(): StubMapping =
       wireMockServer.stubFor(post(urlPattern).willReturn(aResponse().withFault(Fault.CONNECTION_RESET_BY_PEER)))
 
-  override def beforeAll(): Unit = wireMockServer.start()
-  override def afterAll(): Unit = wireMockServer.stop()
-
   "RdsAuthConnector.retrieveBearerToken" when:
 
     "SAS issues a token" should:
@@ -94,12 +89,45 @@ class RdsAuthConnectorSpec extends ConnectorSpec, BeforeAndAfterAll, Injecting, 
 
         await(connector.retrieveBearerToken()) shouldBe Left(ErrorWrapper(correlationId, DownstreamError))
 
-    "SAS rejects the request" should:
-      Seq(BAD_REQUEST, UNAUTHORIZED, FORBIDDEN, INTERNAL_SERVER_ERROR, SERVICE_UNAVAILABLE).foreach: status =>
-        s"return DownstreamError on $status" in new Test:
-          stubToken(None, status)
+    "SAS is unavailable" should :
 
-          await(connector.retrieveBearerToken()) shouldBe Left(ErrorWrapper(correlationId, DownstreamError))
+      "return ServiceUnavailableError on NOT_FOUND" in new Test:
+        stubToken(None, NOT_FOUND)
+
+        await(connector.retrieveBearerToken()) shouldBe Left(ErrorWrapper(correlationId, ServiceUnavailableError))
+
+      "return ServiceUnavailableError on REQUEST_TIMEOUT" in new Test:
+        stubToken(None, REQUEST_TIMEOUT)
+
+        await(connector.retrieveBearerToken()) shouldBe Left(ErrorWrapper(correlationId, ServiceUnavailableError))
+
+      "return ServiceUnavailableError on SERVICE_UNAVAILABLE" in new Test:
+        stubToken(None, SERVICE_UNAVAILABLE)
+
+        await(connector.retrieveBearerToken()) shouldBe Left(ErrorWrapper(correlationId, ServiceUnavailableError))
+
+    "SAS rejects the request" should :
+
+      "return DownstreamError on BAD_REQUEST" in new Test:
+        stubToken(None, BAD_REQUEST)
+
+        await(connector.retrieveBearerToken()) shouldBe Left(ErrorWrapper(correlationId, DownstreamError))
+
+      // Our client credentials are wrong
+      "return DownstreamError on UNAUTHORIZED" in new Test:
+        stubToken(None, UNAUTHORIZED)
+
+        await(connector.retrieveBearerToken()) shouldBe Left(ErrorWrapper(correlationId, DownstreamError))
+
+      "return DownstreamError on FORBIDDEN" in new Test:
+        stubToken(None, FORBIDDEN)
+
+        await(connector.retrieveBearerToken()) shouldBe Left(ErrorWrapper(correlationId, DownstreamError))
+
+      "return DownstreamError on INTERNAL_SERVER_ERROR" in new Test:
+        stubToken(None, INTERNAL_SERVER_ERROR)
+
+        await(connector.retrieveBearerToken()) shouldBe Left(ErrorWrapper(correlationId, DownstreamError))
 
     "the connection faults" should:
       "return DownstreamError via recover" in new Test:
