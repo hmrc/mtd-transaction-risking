@@ -20,45 +20,32 @@ import com.github.tomakehurst.wiremock.client.WireMock.*
 import com.github.tomakehurst.wiremock.http.Fault
 import com.github.tomakehurst.wiremock.stubbing.StubMapping
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
+import play.api.http.Status.*
 import play.api.libs.json.Json
 import play.api.test.Injecting
 import uk.gov.hmrc.http.client.HttpClientV2
 import uk.gov.hmrc.mtdtransactionrisking.support.{ConnectorSpec, MockAppConfig}
 import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.auth.InteractionCredentials
-import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.{Interaction, InteractionMetadata, InteractionPayload, SubmissionResult}
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.SubmissionResult.*
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.{Interaction, InteractionMetadata, InteractionPayload, SubmissionResult}
 
 import java.nio.charset.StandardCharsets.UTF_8
 import java.util.Base64
 import javax.net.ssl.SSLException
+import scala.concurrent.Future
 
-class InteractionConnectorSpec
-  extends ConnectorSpec
-    with BeforeAndAfterAll
-    with BeforeAndAfterEach
-    with Injecting
-    with MockAppConfig:
+class InteractionConnectorSpec extends ConnectorSpec with BeforeAndAfterAll with BeforeAndAfterEach with Injecting with MockAppConfig:
 
-  private val storePath =
-    "/rsd/receive-and-store"
+  private val storePath = "/rsd/receive-and-store"
+  private val urlPattern = urlPathMatching(storePath)
 
-  private val urlPattern =
-    urlPathMatching(storePath)
-
-  private val clientId =
-    "stub-client-id"
-
-  private val clientSecret =
-    "stub-client-secret"
-
-  private val correlationId =
-    CorrelationId("bd6c0972-34e7-11f1-9715-f35b3eb40b52")
+  private val clientId = "stub-client-id"
+  private val clientSecret = "stub-client-secret"
+  private val correlationId = CorrelationId("bd6c0972-34e7-11f1-9715-f35b3eb40b52")
 
   private val expectedBasicAuth =
-    "Basic " + Base64.getEncoder.encodeToString(
-      s"$clientId:$clientSecret".getBytes(UTF_8)
-    )
+    "Basic " + Base64.getEncoder.encodeToString(s"$clientId:$clientSecret".getBytes(UTF_8))
 
   private val interaction =
     Interaction(
@@ -71,9 +58,7 @@ class InteractionConnectorSpec
           vrn = "123456789",
           start = Some("2026-01-01"),
           end = Some("2026-03-31"),
-          additionalProperties = Json.obj(
-            "periodKey" -> "AB12"
-          )
+          additionalProperties = Json.obj("periodKey" -> "AB12")
         )
       ),
       payload = InteractionPayload(
@@ -82,55 +67,7 @@ class InteractionConnectorSpec
       )
     )
 
-  private val interactionBody =
-    Json.toJson(interaction)
-
-  private trait Test:
-    MockedAppConfig.interactionsBaseUrl
-      .returns(
-        s"http://localhost:${wireMockServer.port()}$storePath"
-      )
-      .anyNumberOfTimes()
-
-    MockedAppConfig.interactionCredentials
-      .returns(
-        InteractionCredentials(
-          clientId = clientId,
-          clientSecret = clientSecret
-        )
-      )
-      .anyNumberOfTimes()
-
-    val httpClient: HttpClientV2 =
-      app.injector.instanceOf[HttpClientV2]
-
-    val connector =
-      new InteractionConnector(
-        httpClient = httpClient,
-        appConfig = mockAppConfig
-      )
-
-    def store(): scala.concurrent.Future[SubmissionResult] =
-      connector.store(
-        body = interactionBody,
-        feedbackId = interaction.feedbackId,
-        eventName = interaction.eventName,
-        correlationId = correlationId
-      )
-
-    def stubStore(status: Int): StubMapping =
-      wireMockServer.stubFor(
-        post(urlPattern).willReturn(
-          aResponse().withStatus(status)
-        )
-      )
-
-    def stubConnectionReset(): StubMapping =
-      wireMockServer.stubFor(
-        post(urlPattern).willReturn(
-          aResponse().withFault(Fault.CONNECTION_RESET_BY_PEER)
-        )
-      )
+  private val interactionBody = Json.toJson(interaction)
 
   override protected def beforeAll(): Unit =
     super.beforeAll()
@@ -144,32 +81,65 @@ class InteractionConnectorSpec
     try wireMockServer.stop()
     finally super.afterAll()
 
+  private trait Test:
+    MockedAppConfig.interactionsBaseUrl
+      .returns(s"http://localhost:${wireMockServer.port()}$storePath")
+      .anyNumberOfTimes()
+
+    MockedAppConfig.interactionCredentials
+      .returns(InteractionCredentials(clientId = clientId, clientSecret = clientSecret))
+      .anyNumberOfTimes()
+
+    private val httpClient: HttpClientV2 = app.injector.instanceOf[HttpClientV2]
+
+    private val connector = new InteractionConnector(httpClient = httpClient, appConfig = mockAppConfig)
+
+    def store(): Future[SubmissionResult] =
+      connector.store(
+        body = interactionBody,
+        feedbackId = interaction.feedbackId,
+        eventName = interaction.eventName,
+        correlationId = correlationId
+      )
+
+    def stubStore(status: Int): StubMapping =
+      wireMockServer.stubFor(post(urlPattern).willReturn(aResponse().withStatus(status)))
+
+    def stubConnectionReset(): StubMapping =
+      wireMockServer.stubFor(post(urlPattern).willReturn(aResponse().withFault(Fault.CONNECTION_RESET_BY_PEER)))
+
   "InteractionConnector.store" should:
 
-    "return Success on HTTP 204" in new Test:
-      stubStore(204)
+    "return Success when RSD returns NO_CONTENT" in new Test:
+      stubStore(NO_CONTENT)
 
       await(store()) shouldBe Success
 
-    "return PermanentFailure on HTTP 400" in new Test:
-      stubStore(400)
-
-      await(store()) shouldBe PermanentFailure
-
-    "return RetryableFailure on HTTP 499" in new Test:
-      stubStore(499)
-
-      await(store()) shouldBe RetryableFailure
-
-    Seq(500, 503, 599).foreach { status =>
-      s"return RetryableFailure on HTTP $status" in new Test:
+    Seq(
+      NOT_FOUND,
+      499,
+      INTERNAL_SERVER_ERROR,
+      BAD_GATEWAY,
+      SERVICE_UNAVAILABLE,
+      GATEWAY_TIMEOUT,
+      NETWORK_AUTHENTICATION_REQUIRED
+    ).foreach { status =>
+      s"return RetryableFailure when RSD returns $status" in new Test:
         stubStore(status)
 
         await(store()) shouldBe RetryableFailure
     }
 
-    Seq(401, 403, 404, 408, 409, 422, 429).foreach { status =>
-      s"return PermanentFailure on HTTP status $status" in new Test:
+    Seq(
+      BAD_REQUEST,
+      UNAUTHORIZED,
+      FORBIDDEN,
+      REQUEST_TIMEOUT,
+      CONFLICT,
+      UNPROCESSABLE_ENTITY,
+      TOO_MANY_REQUESTS
+    ).foreach { status =>
+      s"return PermanentFailure when RSD returns $status" in new Test:
         stubStore(status)
 
         await(store()) shouldBe PermanentFailure
@@ -181,66 +151,45 @@ class InteractionConnectorSpec
       await(store()) shouldBe RetryableFailure
 
     "send the existing Basic authentication credentials" in new Test:
-      stubStore(204)
+      stubStore(NO_CONTENT)
 
       await(store()) shouldBe Success
 
       wireMockServer.verify(
-        postRequestedFor(urlPattern)
-          .withHeader(
-            "Authorization",
-            equalTo(expectedBasicAuth)
-          )
+        postRequestedFor(urlPattern).withHeader("Authorization", equalTo(expectedBasicAuth))
       )
 
     "send the supplied CorrelationId header unchanged" in new Test:
-      stubStore(204)
+      stubStore(NO_CONTENT)
 
       await(store()) shouldBe Success
 
       wireMockServer.verify(
-        postRequestedFor(urlPattern)
-          .withHeader(
-            "CorrelationId",
-            equalTo(correlationId.value)
-          )
+        postRequestedFor(urlPattern).withHeader("CorrelationId", equalTo(correlationId.value))
       )
 
     "send JSON content type and accept any response type" in new Test:
-      stubStore(204)
+      stubStore(NO_CONTENT)
 
       await(store()) shouldBe Success
 
       wireMockServer.verify(
         postRequestedFor(urlPattern)
-          .withHeader(
-            "Content-Type",
-            containing("application/json")
-          )
-          .withHeader(
-            "Accept",
-            equalTo("*/*")
-          )
+          .withHeader("Content-Type", containing("application/json"))
+          .withHeader("Accept", equalTo("*/*"))
       )
 
     "send the original interaction JSON as the request body" in new Test:
-      stubStore(204)
+      stubStore(NO_CONTENT)
 
       await(store()) shouldBe Success
 
       wireMockServer.verify(
-        postRequestedFor(urlPattern)
-          .withRequestBody(
-            equalToJson(
-              Json.stringify(interactionBody),
-              true,
-              false
-            )
-          )
+        postRequestedFor(urlPattern).withRequestBody(equalToJson(Json.stringify(interactionBody), true, false))
       )
 
     "reuse the supplied CorrelationId and body on repeated delivery attempts" in new Test:
-      stubStore(503)
+      stubStore(SERVICE_UNAVAILABLE)
 
       await(store()) shouldBe RetryableFailure
       await(store()) shouldBe RetryableFailure
@@ -248,25 +197,18 @@ class InteractionConnectorSpec
       wireMockServer.verify(
         2,
         postRequestedFor(urlPattern)
-          .withHeader(
-            "CorrelationId",
-            equalTo(correlationId.value)
-          )
-          .withRequestBody(
-            equalToJson(Json.stringify(interactionBody))
-          )
+          .withHeader("CorrelationId", equalTo(correlationId.value))
+          .withRequestBody(equalToJson(Json.stringify(interactionBody)))
       )
 
   "InteractionConnector.containsSslFailure" should:
-    "recognise a nested SSL/TLS failure" in :
+
+    "recognise a nested SSL/TLS failure" in:
       InteractionConnector.containsSslFailure(
-        new RuntimeException(
-          new SSLException("certificate validation failed")
-        )
+        new RuntimeException(new SSLException("certificate validation failed"))
       ) shouldBe true
 
     "return false for a non-SSL failure" in:
       InteractionConnector.containsSslFailure(
         new IllegalStateException("unexpected connector failure")
       ) shouldBe false
-

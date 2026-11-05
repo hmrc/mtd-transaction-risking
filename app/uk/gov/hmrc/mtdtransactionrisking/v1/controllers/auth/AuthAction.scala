@@ -67,7 +67,7 @@ class VATAuthAction @Inject() (override val authConnector: AuthConnector, config
         val correlationId: CorrelationId = IdGenerator.generateId()
 
         if !authEnabled then
-          logger.warn("[VATAuthAction] Auth disabled via feature switch — bypassing authorisation")
+          logger.warn("[VATAuthAction] Auth disabled via feature switch")
           block(AuthenticatedVATRequest(request, "local-test-user", requestedVRN, None, None))
         else if !requestedVRN.matches(vrnRegex) then
           logger.warn(s"VRN format invalid: $requestedVRN")
