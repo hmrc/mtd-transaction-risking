@@ -148,7 +148,7 @@ paths:
                         links:
                           - title: 'VAT Notice 700'
                             url: 'https://www.gov.uk/guidance/vat-notice-700-the-vat-guide'
-                        path: 'vatDueSales'
+                        path: '/vatDueSales'
                     welshFeedback:
                       - itemNumber: '1'
                         title: 'Adborth CThEF: Mae TAW sy''n ddyledus ar werthiannau yn ymddangos yn isel'
@@ -157,7 +157,7 @@ paths:
                         links:
                           - title: 'Hysbysiad TAW 700'
                             url: 'https://www.gov.uk/guidance/vat-notice-700-the-vat-guide'
-                        path: 'vatDueSales'
+                        path: '/vatDueSales'
                 "Example 2 (multiple feedback messages)":
                   description: |
                     The scenario where there are multiple HMRC Assist feedback messages.
@@ -174,7 +174,7 @@ paths:
                         links:
                           - title: 'VAT Notice 700'
                             url: 'https://www.gov.uk/guidance/vat-notice-700-the-vat-guide'
-                        path: 'vatDueSales'
+                        path: '/vatDueSales'
                       - itemNumber: '2'
                         title: 'HMRC feedback: Total value of purchases appears high'
                         body: 'The total value of purchases appears higher than expected based on your total sales value.'
@@ -182,7 +182,7 @@ paths:
                         links:
                           - title: 'VAT Notice 700'
                             url: 'https://www.gov.uk/guidance/vat-notice-700-the-vat-guide'
-                        path: 'totalValuePurchasesExVAT'
+                        path: '/totalValuePurchasesExVAT'
                     welshFeedback:
                       - itemNumber: '1'
                         title: 'Adborth CThEF: Mae TAW sy''n ddyledus ar werthiannau yn ymddangos yn isel'
@@ -191,7 +191,7 @@ paths:
                         links:
                           - title: 'Hysbysiad TAW 700'
                             url: 'https://www.gov.uk/guidance/vat-notice-700-the-vat-guide'
-                        path: 'vatDueSales'
+                        path: '/vatDueSales'
                       - itemNumber: '2'
                         title: 'Adborth CThEF: Mae cyfanswm pryniannau''n uchel'
                         body: 'Mae cyfanswm y pryniannau''n ymddangos yn uwch na''r disgwyl.'
@@ -199,7 +199,7 @@ paths:
                         links:
                           - title: 'Hysbysiad TAW 700'
                             url: 'https://www.gov.uk/guidance/vat-notice-700-the-vat-guide'
-                        path: 'totalValuePurchasesExVAT'
+                        path: '/totalValuePurchasesExVAT'
                 "Example 3 (no feedback)":
                   description: |
                     The scenario where there is no HMRC Assist feedback.
@@ -228,53 +228,84 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: '#/components/schemas/Feedback400ErrorResponse'
               examples:
                 invalidVrn:
                   description: Invalid VRN
                   value:
                     code: VRN_INVALID
                     message: The provided VRN is invalid
+                "invalidPeriodKey (wrong format)":
+                   description: The value that was supplied for the period key was incorrectly formatted.
+                   value:
+                     code: INVALID_REQUEST
+                     message: Invalid request
+                     errors:
+                       - code: PERIOD_KEY_INVALID
+                         message: period key should be a 4 character string
+                         path: /periodKey
                 invalidPeriodKey:
-                  description: Invalid period key
+                  description: Although the period key was in the correct format (4 characters), it did not match an open obligation.
                   value:
                     code: PERIOD_KEY_INVALID
-                    message: Invalid period key
-                invalidRequest:
-                  description: Invalid request
-                  value:
-                    code: INVALID_REQUEST
-                    message: Invalid request
+                    message: The supplied period key does not match an open obligation
                 invalidTotalValue:
                   description: totalVatDue should be equal to the sum of vatDueSales and vatDueAcquisitions
                   value:
-                    code: VAT_TOTAL_VALUE
-                    message: totalVatDue should be equal to the sum of vatDueSales and vatDueAcquisitions
+                    code: INVALID_REQUEST
+                    message: Invalid request
+                    errors:
+                      - code: VAT_TOTAL_VALUE
+                        message: totalVatDue should be equal to vatDueSales + vatDueAcquisitions
+                        path: /totalVatDue
                 invalidNetValue:
                   description: netVatDue should be the difference between the largest and the smallest values among totalVatDue and vatReclaimedCurrPeriod
                   value:
-                    code: VAT_NET_VALUE
-                    message: netVatDue should be the difference between the largest and the smallest values among totalVatDue and vatReclaimedCurrPeriod
+                    code: INVALID_REQUEST
+                    message: Invalid request
+                    errors:
+                      - code: VAT_NET_VALUE
+                        message: netVatDue should be the difference between the largest and the smallest values among totalVatDue and vatReclaimedCurrPeriod
+                        path: /netVatDue
                 invalidNumericValue:
-                  description: Please provide a numeric field
+                  description: The value that was supplied was not in a valid numeric format.
                   value:
-                    code: INVALID_NUMERIC_VALUE
-                    message: please provide a numeric field
+                    code: INVALID_REQUEST
+                    message: Invalid request
+                    errors:
+                      - code: INVALID_NUMERIC_VALUE
+                        message: please provide a numeric field
+                        path: /vatDueSales
                 invalidMonetaryAmount:
                   description: A monetary amount is outside the permitted range or has more than 2 decimal places.
                   value:
-                    code: INVALID_MONETARY_AMOUNT
-                    message: amount should be a monetary value (to 2 decimal places), between 0 and 99,999,999,999.99
-                submittedTooEarly:
-                  description: Return submitted too early
+                    code: INVALID_REQUEST
+                    message: Invalid request
+                    errors:
+                      - code: INVALID_MONETARY_AMOUNT
+                        message: amount should be a monetary value (to 2 decimal places), between 0 and 99,999,999,999.99
+                        path: /netVatDue
+                mandatoryFieldMissing:
+                  description: A mandatory field is missing.
                   value:
-                    code: TAX_PERIOD_NOT_ENDED
-                    message: The remote endpoint has indicated that the submission is for a tax period that has not ended
-                ruleInsolventTrader:
-                  description: The request could not be completed as it relates to an insolvent trader, which are not supported by this API.
+                    code: INVALID_REQUEST
+                    message: Invalid request
+                    errors:
+                      - code: MANDATORY_FIELD_MISSING
+                        message: a mandatory field is missing
+                        path: /totalVatDue
+                multipleValidationErrors:
+                  description: Multiple validation errors occurred.
                   value:
-                    code: RULE_INSOLVENT_TRADER
-                    message: The remote endpoint has indicated that the Trader is insolvent
+                    code: INVALID_REQUEST
+                    message: Invalid request
+                    errors:
+                      - code: VAT_NET_VALUE
+                        message: netVatDue should be the difference between the largest and the smallest values among totalVatDue and vatReclaimedCurrPeriod
+                        path: /netVatDue
+                      - code: VAT_TOTAL_VALUE
+                        message: totalVatDue should be equal to vatDueSales + vatDueAcquisitions
+                        path: /totalVatDue
         '401':
           description: Unauthorised. Invalid authentication information provided.
           content:
@@ -291,11 +322,21 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
               examples:
+                submittedTooEarly:
+                  description: Return submitted too early
+                  value:
+                    code: TAX_PERIOD_NOT_ENDED
+                    message: The remote endpoint has indicated that the submission is for a tax period that has not ended
                 clientNotSubscribedToMTD:
                   description: 'The client and/or agent is not authorised. This is normally because: the client is not subscribed to MTD, the agent is not subscribed to Agent Services, or the client has not authorised the agent to act on their behalf.'
                   value:
                     code: CLIENT_OR_AGENT_NOT_AUTHORISED
                     message: The client and/or agent is not authorised
+                ruleInsolventTrader:
+                  description: The request could not be completed as it relates to an insolvent trader, which are not supported by this API.
+                  value:
+                    code: RULE_INSOLVENT_TRADER
+                    message: The remote endpoint has indicated that the Trader is insolvent
         '404':
           description: Not found. The VRN could not be found. This response cannot be simulated in the sandbox.
           content:
@@ -776,6 +817,48 @@ components:
           type: string
           description: A human-readable description of the error.
           example: 'The provided VRN is invalid'
+
+    Feedback400ErrorResponse:
+      title: Feedback400ErrorResponse
+      required:
+        - code
+        - message
+      type: object
+      properties:
+        code:
+          type: string
+          description: The error code.
+          example: 'VRN_INVALID'
+        message:
+          type: string
+          description: A human-readable description of the error.
+          example: 'The provided VRN is invalid'
+        errors:
+          type: array
+          description: An array that is only present if error code INVALID_REQUEST is returned. It lists each field that failed validation.
+          items:
+            $ref: '#/components/schemas/Feedback400ErrorItem'
+
+    Feedback400ErrorItem:
+      title: Feedback400ErrorItem
+      required:
+        - code
+        - message
+        - path
+      type: object
+      properties:
+        code:
+          type: string
+          description: The error code.
+          example: 'INVALID_MONETARY_AMOUNT'
+        message:
+          type: string
+          description: A human-readable description of the error.
+          example: 'Amount should be a monetary value (to 2 decimal places)'
+        path:
+          type: string
+          description: The name of the request field that is the focus of the error message.
+          example: /vatDueSales
 
   securitySchemes:
     userRestricted:
