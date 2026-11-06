@@ -228,7 +228,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: '#/components/schemas/Feedback400ErrorResponse'
               examples:
                 invalidVrn:
                   description: Invalid VRN
@@ -817,12 +817,29 @@ components:
           type: string
           description: A human-readable description of the error.
           example: 'The provided VRN is invalid'
+
+    Feedback400ErrorResponse:
+      title: Feedback400ErrorResponse
+      required:
+        - code
+        - message
+      type: object
+      properties:
+        code:
+          type: string
+          description: The error code.
+          example: 'VRN_INVALID'
+        message:
+          type: string
+          description: A human-readable description of the error.
+          example: 'The provided VRN is invalid'
         errors:
           type: array
           items:
-            $ref: '#/components/schemas/ErrorItem'
-    ErrorItem:
-      title: ErrorItem
+            $ref: '#/components/schemas/Feedback400ErrorItem'
+
+    Feedback400ErrorItem:
+      title: Feedback400ErrorItem
       required:
         - code
         - message
@@ -839,7 +856,9 @@ components:
           example: 'Amount should be a monetary value (to 2 decimal places)'
         path:
           type: string
+          description: The name of the request field that is the focus of the error message.
           example: /vatDueSales
+
   securitySchemes:
     userRestricted:
       type: oauth2
