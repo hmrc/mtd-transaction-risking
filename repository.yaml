@@ -4,3 +4,4 @@ description: A service designed to identify and flag potential risks or inaccura
 test-repositories:
   - mtd-transaction-risking-performance-tests
   - mtd-transaction-risking-api-tests
+serviceNowMapping: SNSVC0021058
