@@ -161,8 +161,7 @@ class GenerateFeedbackControllerISpec extends IntegrationBaseSpec:
 
         feedback().status shouldBe OK
 
-        assertNeverCalled(rsdPath)
-        assertNeverCalled(nrsPath)
+        assertNeverCalled(rsdPath, nrsPath)
 
     "the user is an agent" should:
 
@@ -259,11 +258,18 @@ class GenerateFeedbackControllerISpec extends IntegrationBaseSpec:
         assertError(feedback(), BAD_REQUEST, "INVALID_REQUEST")
         assertNotCalled(rdsGeneratePath, rsdPath, nrsPath)
 
-      "return 400 TAX_PERIOD_NOT_ENDED and not call RDS" in:
+      "return 403 TAX_PERIOD_NOT_ENDED and not call RDS" in:
         AuthStub.successfulAuthWith(vrn)
         VatApiStub.taxPeriodNotEnded()
 
-        assertError(feedback(), BAD_REQUEST, "TAX_PERIOD_NOT_ENDED")
+        assertError(feedback(), FORBIDDEN, "TAX_PERIOD_NOT_ENDED")
+        assertNotCalled(rdsGeneratePath, rsdPath, nrsPath)
+
+      "return 403 RULE_INSOLVENT_TRADER and not call RDS" in:
+        AuthStub.successfulAuthWith(vrn)
+        VatApiStub.insolventTrader()
+
+        assertError(feedback(), FORBIDDEN, "RULE_INSOLVENT_TRADER")
         assertNotCalled(rdsGeneratePath, rsdPath, nrsPath)
 
       "return 403 CLIENT_OR_AGENT_NOT_AUTHORISED and not call RDS" in:
@@ -273,36 +279,34 @@ class GenerateFeedbackControllerISpec extends IntegrationBaseSpec:
         assertError(feedback(), FORBIDDEN, "CLIENT_OR_AGENT_NOT_AUTHORISED")
         assertNotCalled(rdsGeneratePath, rsdPath, nrsPath)
 
-    // Status only for now: VATAuthAction returns plain text. Assert the JSON codes
-    // (INVALID_CREDENTIALS / CLIENT_OR_AGENT_NOT_AUTHORISED) once it returns MtdErrors.
     "the user is not authorised" should:
 
-      "return 401 when the request has no Authorization header" in:
+      "return 401 INVALID_CREDENTIALS when the request has no Authorization header" in:
         val response = await(
           buildRequest(s"/feedback/$vrn")
             .withHttpHeaders(acceptHeader)
             .post(validVatReturn)
         )
 
-        response.status shouldBe UNAUTHORIZED
+        assertError(response, UNAUTHORIZED, "INVALID_CREDENTIALS")
         assertNotCalled(vatApiValidatePath, rdsGeneratePath)
 
-      "return 401 when auth does not return the required values" in:
+      "return 401 INVALID_CREDENTIALS when auth does not return the required values" in:
         AuthStub.successfulAuthWithNoUserId()
 
-        feedback().status shouldBe UNAUTHORIZED
+        assertError(feedback(), UNAUTHORIZED, "INVALID_CREDENTIALS")
         assertNotCalled(vatApiValidatePath, rdsGeneratePath)
 
-      "return 403 when the user has no MTD VAT enrolment" in:
+      "return 403 CLIENT_OR_AGENT_NOT_AUTHORISED when the user has no MTD VAT enrolment" in:
         AuthStub.successfulAuthWithNoEnrolments()
 
-        feedback().status shouldBe FORBIDDEN
+        assertError(feedback(), FORBIDDEN, "CLIENT_OR_AGENT_NOT_AUTHORISED")
         assertNotCalled(vatApiValidatePath, rdsGeneratePath)
 
-      "return 403 when the user's VRN does not match the one requested" in:
+      "return 403 CLIENT_OR_AGENT_NOT_AUTHORISED when the user's VRN does not match the one requested" in:
         AuthStub.successfulAuthWith("999999999")
 
-        feedback().status shouldBe FORBIDDEN
+        assertError(feedback(), FORBIDDEN, "CLIENT_OR_AGENT_NOT_AUTHORISED")
         assertNotCalled(vatApiValidatePath, rdsGeneratePath)
 
     "a downstream service returns an error or an unusable response" should:
@@ -396,7 +400,7 @@ class GenerateFeedbackControllerISpec extends IntegrationBaseSpec:
     InteractionStub.stores()
     NrsStub.accepts()
 
-  // Auth, vat-api and insights succeed, so each test only sets up what happens at RDS and after
+  // Auth, vat-api and insights succeed so each test only sets up what happens at RDS and after
   private def stubUntilRds(): Unit =
     AuthStub.successfulAuthWith(vrn)
     VatApiStub.validationPasses(periodKey, fromDate, toDate)
@@ -408,13 +412,12 @@ class GenerateFeedbackControllerISpec extends IntegrationBaseSpec:
       (response.json \ "code").as[String] shouldBe code
     }
 
-  // For paths that are called before the response is returned, or not at all once the journey has stopped
   private def assertNotCalled(paths: String*): Unit =
     paths.foreach(path => wireMockServer.verify(0, postRequestedFor(urlPathMatching(path))))
 
-  // RSD and NRS are called in the background after the response, so watch for a short time rather than checking once
-  private def assertNeverCalled(path: String, within: FiniteDuration = 2.seconds): Unit =
-    val deadline = System.nanoTime() + within.toNanos
+  // RSD and NRS are called in the background after the response so watch for a short time.
+  private def assertNeverCalled(paths: String*): Unit =
+    val deadline = System.nanoTime() + 500.millis.toNanos
     while System.nanoTime() < deadline do
-      wireMockServer.verify(0, postRequestedFor(urlPathMatching(path)))
-      Thread.sleep(100)
+      assertNotCalled(paths*)
+      Thread.sleep(50)
