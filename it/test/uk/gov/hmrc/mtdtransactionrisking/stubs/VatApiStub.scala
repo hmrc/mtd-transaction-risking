@@ -89,13 +89,30 @@ object VatApiStub:
     stubFor(
       post(validateUrl).willReturn(
         aResponse()
-          .withStatus(BAD_REQUEST)
+          .withStatus(FORBIDDEN)
           .withHeader("Content-Type", "application/json")
           .withBody(
             """
               |{
               |  "code": "TAX_PERIOD_NOT_ENDED",
               |  "message": "The remote endpoint has indicated that the submission is for a tax period that has not ended"
+              |}
+              |""".stripMargin
+          )
+      )
+    )
+
+  def insolventTrader(): StubMapping =
+    stubFor(
+      post(validateUrl).willReturn(
+        aResponse()
+          .withStatus(FORBIDDEN)
+          .withHeader("Content-Type", "application/json")
+          .withBody(
+            """
+              |{
+              |  "code": "RULE_INSOLVENT_TRADER",
+              |  "message": "The remote endpoint has indicated that the Trader is insolvent"
               |}
               |""".stripMargin
           )
