@@ -61,12 +61,10 @@ class AcknowledgeController @Inject() (
             Future.successful(handleOutcomeUnit(Left(ErrorWrapper(internalCorrelationId, error))))
 
           case Right(acknowledgeRequest) =>
-            appConfig.acknowledgeStubBaseUrl match
-              case Some(_) =>
+            if appConfig.externalTestStubsEnabled then
                 logger.info(s"${internalCorrelationId.value}::[AcknowledgeController][acknowledgeReport] using stub path for reportId $reportId")
                 acknowledgeService.stubAcknowledge(acknowledgeRequest).map(handleOutcomeUnit)
-
-              case None =>
+            else
                 acknowledgeService
                   .acknowledge(
                     request = acknowledgeRequest,

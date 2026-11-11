@@ -46,7 +46,7 @@ class FeedbackConnector @Inject() (
     logger.info(s"${correlationId.value}::[FeedbackConnector][requestFeedback] calling feedback service")
 
     httpClient
-      .post(url"${appConfig.feedbackStubBaseUrl.getOrElse("")}")
+      .post(url"${appConfig.feedbackStubBaseUrl}")
       .withBody(Json.toJson(request))
       .setHeader(buildHeaders(correlationId, appConfig.appName)*)
       .execute[HttpResponse]

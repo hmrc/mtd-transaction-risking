@@ -32,9 +32,10 @@ trait AppConfig:
   def apiGatewayContext: String
   def apiStatus(version: String): String
   def endpointsEnabled(version: String): Boolean
+  def externalTestStubsEnabled: Boolean
 
   // feedback stub
-  def feedbackStubBaseUrl: Option[String]
+  def feedbackStubBaseUrl: String
   def feedbackEnvironmentHeaders: Option[Seq[String]]
 
   // vat-api validation
@@ -44,7 +45,7 @@ trait AppConfig:
   def insightsProxyServiceBaseUrl: String
 
   // acknowledge stub, used in external test
-  def acknowledgeStubBaseUrl: Option[String]
+  def acknowledgeStubBaseUrl: String
   def acknowledgeEnvironmentHeaders: Option[Seq[String]]
 
   // RDS report generation
@@ -92,10 +93,10 @@ class AppConfigImpl @Inject() (config: ServicesConfig, configuration: Configurat
   def apiStatus(version: String): String = config.getString(s"api.$version.status")
   def endpointsEnabled(version: String): Boolean = config.getBoolean(s"feature-switch.version-$version.enabled")
 
-  val feedbackStubBaseUrl: Option[String] =
-    configuration
-      .getOptional[Configuration]("microservice.services.feedback-stub")
-      .map(feedbackConfig => config.baseUrl("feedback-stub") + feedbackConfig.get[String]("submit-url"))
+  val externalTestStubsEnabled: Boolean = FeatureSwitch(featureSwitch).isEnabled(ExternalTestStubsFeature)
+
+  lazy val feedbackStubBaseUrl: String =
+    config.baseUrl("feedback-stub") + configuration.get[String]("microservice.services.feedback-stub.submit-url")
 
   val feedbackEnvironmentHeaders: Option[Seq[String]] =
     configuration.getOptional[Seq[String]]("microservice.services.feedback-stub.environmentHeaders")
@@ -106,10 +107,12 @@ class AppConfigImpl @Inject() (config: ServicesConfig, configuration: Configurat
   private val insightsProxyConfig = configuration.get[Configuration]("microservice.services.insights-proxy")
   val insightsProxyServiceBaseUrl: String = config.baseUrl("insights-proxy") + insightsProxyConfig.get[String]("submit-url")
 
-  val acknowledgeStubBaseUrl: Option[String] =
-    configuration
-      .getOptional[Configuration]("microservice.services.acknowledge-stub")
-      .map(acknowledgeConfig => config.baseUrl("acknowledge-stub") + acknowledgeConfig.get[String]("submit-url"))
+  lazy val acknowledgeStubBaseUrl: String =
+    config.baseUrl("acknowledge-stub") + configuration.get[String]("microservice.services.acknowledge-stub.submit-url")
+
+  if externalTestStubsEnabled then
+    feedbackStubBaseUrl
+    acknowledgeStubBaseUrl
 
   val acknowledgeEnvironmentHeaders: Option[Seq[String]] =
     configuration.getOptional[Seq[String]]("microservice.services.acknowledge-stub.environmentHeaders")

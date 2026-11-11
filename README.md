@@ -22,13 +22,10 @@ relevant feedback before submission.
   case workers
 - **NRS** — Non-Repudiation Service where events are submitted via the NRS orchestrator
 - **Feedback stub** — the VAT Assist stub that returns `reportId`, `correlationId`,
-  and English and Welsh feedback messages called in external test when configured
+  and English and Welsh feedback messages when External Test stubs are enabled
 - **Gov-Test-Scenario** — an HTTP request header used in external test environments to select
   which canned scenario the stub returns; forwarded downstream by this service via
   `environmentHeaders` configuration
-- **feedbackStubBaseUrl** — an optional config value present only in external test
-  environments its presence determines whether the service calls the feedback stub or
-  the real downstream services
 
 ## How it works
 
@@ -92,10 +89,15 @@ Feature switches are configured in `application.conf` under the `feature-switch`
 |---|---|---|
 | `version-1.enabled` | `true` | Enables v1 routing via the `Accept` header |
 | `auth.enabled` | `true` | Enables MTD VAT enrolment authentication. Set to `false` locally to bypass auth |
+| `external-test-stubs.enabled` | `false` | Routes both feedback and acknowledgement to the External Test stubs instead of the normal downstream flow |
 | `nrs-submission.enabled` | `false` | Submits NRS notable events for feedback and acknowledgements |
 | `nrs-retry.enabled` | `false` | Runs the scheduler that retries failed NRS submissions |
 
 To bypass auth locally, set `auth.enabled = false` in `application.conf`.
+
+External Test must set `feature-switch.external-test-stubs.enabled = true` in its app-config
+and configure both `microservice.services.feedback-stub` and `microservice.services.acknowledge-stub`,
+including their `submit-url` and `environmentHeaders`. Both URLs are required at startup when enabled.
 
 When either NRS switch is enabled, `nrs-retry.crypto.key` must be configured (it encrypts the
 stored submissions). The service fails at startup if it is missing. Each environment should set
