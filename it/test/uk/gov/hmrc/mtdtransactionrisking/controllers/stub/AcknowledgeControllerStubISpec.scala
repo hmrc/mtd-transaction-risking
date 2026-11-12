@@ -21,13 +21,18 @@ import play.api.libs.ws.{EmptyBody, WSResponse, writeableOf_WsBody}
 import play.api.test.Helpers.*
 import uk.gov.hmrc.mtdtransactionrisking.stubs.{AcknowledgeStub, AuthStub, CommonTestData}
 import uk.gov.hmrc.mtdtransactionrisking.support.IntegrationBaseSpec
+import com.github.tomakehurst.wiremock.client.WireMock.{postRequestedFor, urlPathEqualTo}
 
 class AcknowledgeControllerStubISpec extends IntegrationBaseSpec:
 
   override def servicesConfig: Map[String, Any] =
     super.servicesConfig ++ Map(
+      "feature-switch.external-test-stubs.enabled"        -> true,
       "microservice.services.acknowledge-stub.host"       -> mockHost,
       "microservice.services.acknowledge-stub.port"       -> mockPort,
+      "microservice.services.feedback-stub.host"       -> mockHost,
+      "microservice.services.feedback-stub.port"       -> mockPort,
+      "microservice.services.feedback-stub.submit-url" -> "/feedback",
       "microservice.services.acknowledge-stub.submit-url" -> "/acknowledge"
     )
 
@@ -50,6 +55,8 @@ class AcknowledgeControllerStubISpec extends IntegrationBaseSpec:
         val response: WSResponse = await(buildRequest(uri).post(EmptyBody))
         response.status shouldBe NO_CONTENT
         response.header("X-CorrelationId") shouldBe defined
+        wireMockServer.verify(1, postRequestedFor(urlPathEqualTo("/acknowledge")))
+        wireMockServer.verify(0, postRequestedFor(urlPathEqualTo("/rds/assessments/acknowledge")))
 
     "the downstream returns a report ID format error" should:
       "return 400 with FORMAT_REPORT_ID" in new Test:

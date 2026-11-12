@@ -25,6 +25,7 @@ import uk.gov.hmrc.http.SessionKeys.authToken
 import uk.gov.hmrc.mtdtransactionrisking.stubs.{AuthStub, CommonTestData, FeedbackStub}
 import uk.gov.hmrc.mtdtransactionrisking.support.IntegrationBaseSpec
 import uk.gov.hmrc.mtdtransactionrisking.v1.controllers.GenerateFeedbackController
+import com.github.tomakehurst.wiremock.client.WireMock.{postRequestedFor, urlPathEqualTo}
 
 import scala.concurrent.Future
 
@@ -32,9 +33,13 @@ class GenerateFeedbackControllerStubISpec extends IntegrationBaseSpec:
 
   override def servicesConfig: Map[String, Any] =
     super.servicesConfig ++ Map(
+      "feature-switch.external-test-stubs.enabled"     -> true,
       "microservice.services.feedback-stub.host"       -> mockHost,
       "microservice.services.feedback-stub.port"       -> mockPort,
-      "microservice.services.feedback-stub.submit-url" -> "/feedback"
+      "microservice.services.feedback-stub.submit-url" -> "/feedback",
+      "microservice.services.acknowledge-stub.host"      -> mockHost,
+      "microservice.services.acknowledge-stub.port"      -> mockPort,
+      "microservice.services.acknowledge-stub.submit-url" -> "/acknowledge"
     )
 
   "GenerateFeedbackController feedback path" when:
@@ -67,6 +72,8 @@ class GenerateFeedbackControllerStubISpec extends IntegrationBaseSpec:
           status(response) shouldBe OK
           (contentAsJson(response) \ "englishFeedback").as[JsArray].value shouldBe empty
           (contentAsJson(response) \ "welshFeedback").as[JsArray].value   shouldBe empty
+          wireMockServer.verify(1, postRequestedFor(urlPathEqualTo("/feedback")))
+          wireMockServer.verify(0, postRequestedFor(urlPathEqualTo("/rds/assessments/generate")))
 
       // --- Error scenarios ---
 

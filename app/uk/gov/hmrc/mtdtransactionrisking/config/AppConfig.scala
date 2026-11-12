@@ -16,7 +16,7 @@
 
 package uk.gov.hmrc.mtdtransactionrisking.config
 
-import play.api.Configuration
+import play.api.{Configuration, Logging}
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.auth.{InteractionCredentials, RdsCredentials}
 import uk.gov.hmrc.play.bootstrap.config.ServicesConfig
 
@@ -32,9 +32,10 @@ trait AppConfig:
   def apiGatewayContext: String
   def apiStatus(version: String): String
   def endpointsEnabled(version: String): Boolean
+  def externalTestStubsEnabled: Boolean
 
   // feedback stub
-  def feedbackStubBaseUrl: Option[String]
+  def feedbackStubBaseUrl: String
   def feedbackEnvironmentHeaders: Option[Seq[String]]
 
   // vat-api validation
@@ -44,7 +45,7 @@ trait AppConfig:
   def insightsProxyServiceBaseUrl: String
 
   // acknowledge stub, used in external test
-  def acknowledgeStubBaseUrl: Option[String]
+  def acknowledgeStubBaseUrl: String
   def acknowledgeEnvironmentHeaders: Option[Seq[String]]
 
   // RDS report generation
@@ -83,7 +84,7 @@ trait AppConfig:
   def nrsRetryRetention: FiniteDuration
 
 @Singleton
-class AppConfigImpl @Inject() (config: ServicesConfig, configuration: Configuration) extends AppConfig:
+class AppConfigImpl @Inject() (config: ServicesConfig, configuration: Configuration) extends AppConfig, Logging:
 
   val appName: String = config.getString("appName")
 
@@ -91,28 +92,33 @@ class AppConfigImpl @Inject() (config: ServicesConfig, configuration: Configurat
   val apiGatewayContext: String = config.getString("api.gateway.context")
   def apiStatus(version: String): String = config.getString(s"api.$version.status")
   def endpointsEnabled(version: String): Boolean = config.getBoolean(s"feature-switch.version-$version.enabled")
-
-  val feedbackStubBaseUrl: Option[String] =
-    configuration
-      .getOptional[Configuration]("microservice.services.feedback-stub")
-      .map(feedbackConfig => config.baseUrl("feedback-stub") + feedbackConfig.get[String]("submit-url"))
-
-  val feedbackEnvironmentHeaders: Option[Seq[String]] =
-    configuration.getOptional[Seq[String]]("microservice.services.feedback-stub.environmentHeaders")
-
+  
   private val vatApiConfig = configuration.get[Configuration]("microservice.services.vat-api")
   val vatApiBaseUrl: String = config.baseUrl("vat-api") + vatApiConfig.get[String]("submit-url")
 
   private val insightsProxyConfig = configuration.get[Configuration]("microservice.services.insights-proxy")
   val insightsProxyServiceBaseUrl: String = config.baseUrl("insights-proxy") + insightsProxyConfig.get[String]("submit-url")
 
-  val acknowledgeStubBaseUrl: Option[String] =
-    configuration
-      .getOptional[Configuration]("microservice.services.acknowledge-stub")
-      .map(acknowledgeConfig => config.baseUrl("acknowledge-stub") + acknowledgeConfig.get[String]("submit-url"))
+  // External Test stubs
+  val externalTestStubsEnabled: Boolean = FeatureSwitch(featureSwitch).isEnabled(ExternalTestStubsFeature)
+
+  lazy val feedbackStubBaseUrl: String =
+    config.baseUrl("feedback-stub") + configuration.get[String]("microservice.services.feedback-stub.submit-url")
+
+  val feedbackEnvironmentHeaders: Option[Seq[String]] =
+    configuration.getOptional[Seq[String]]("microservice.services.feedback-stub.environmentHeaders")
+
+  lazy val acknowledgeStubBaseUrl: String =
+    config.baseUrl("acknowledge-stub") + configuration.get[String]("microservice.services.acknowledge-stub.submit-url")
 
   val acknowledgeEnvironmentHeaders: Option[Seq[String]] =
-    configuration.getOptional[Seq[String]]("microservice.services.acknowledge-stub.environmentHeaders")
+    configuration.getOptional[Seq[String]]("microservice.services.acknowledge-stub.environmentHeaders")  
+
+  if externalTestStubsEnabled then
+    logger.warn("External Test stubs are ENABLED: feedback and acknowledge return stubbed responses")
+    feedbackStubBaseUrl
+    acknowledgeStubBaseUrl
+  
 
   private val rdsConfig = configuration.get[Configuration]("microservice.services.rds")
 

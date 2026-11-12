@@ -26,6 +26,7 @@ class FeatureSwitchSpec extends UnitSpec:
     FeatureSwitch(Some(Configuration(ConfigFactory.parseString(config))))
 
   Seq(
+    ExternalTestStubsFeature -> "external-test-stubs",
     NrsSubmissionFeature -> "nrs-submission",
     NrsRetryFeature -> "nrs-retry",
     RsdRetryFeature -> "rsd-retry"

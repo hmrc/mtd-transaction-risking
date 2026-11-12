@@ -49,12 +49,9 @@ class GenerateFeedbackController @Inject() (cc: ControllerComponents,
 
         val submissionTimestamp = Instant.now(clock)
 
-        appConfig.feedbackStubBaseUrl match
-          // Feedback stub path used in external test while the real downstream is built
-          case Some(_) =>
+        if appConfig.externalTestStubsEnabled then
             generateFeedbackService.requestStubFeedback(vrn).map(handleOutcome)
-
-          case None =>
+        else
             generateFeedbackService
               .generateFeedback(
                 vrn = vrn,

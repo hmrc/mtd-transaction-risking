@@ -46,7 +46,10 @@ trait MockAppConfig extends MockFactory:
     def endpointsEnabled(version: String): CallHandler[Boolean] =
       (mockAppConfig.endpointsEnabled(_: String)).expects(version)
 
-    def feedbackStubBaseUrl: CallHandler[Option[String]] =
+    def externalTestStubsEnabled: CallHandler[Boolean] =
+      (() => mockAppConfig.externalTestStubsEnabled).expects()
+
+    def feedbackStubBaseUrl: CallHandler[String] =
       (() => mockAppConfig.feedbackStubBaseUrl).expects()
 
     def feedbackEnvironmentHeaders: CallHandler[Option[Seq[String]]] =
@@ -58,7 +61,7 @@ trait MockAppConfig extends MockFactory:
     def insightsProxyServiceBaseUrl: CallHandler[String] =
       (() => mockAppConfig.insightsProxyServiceBaseUrl).expects()
 
-    def acknowledgeStubBaseUrl: CallHandler[Option[String]] =
+    def acknowledgeStubBaseUrl: CallHandler[String] =
       (() => mockAppConfig.acknowledgeStubBaseUrl).expects()
 
     def acknowledgeEnvironmentHeaders: CallHandler[Option[Seq[String]]] =

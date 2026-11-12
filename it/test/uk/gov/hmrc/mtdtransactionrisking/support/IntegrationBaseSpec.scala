@@ -62,6 +62,7 @@ trait IntegrationBaseSpec
     "rsd-retry.crypto.key"                                    -> "aI7/ACVHrJOYOdI1pCVuOaulZomDlMiLYE08dyIX1lM=",
     "feature-switch.nrs-submission.enabled"                   -> true,
     "feature-switch.nrs-retry.enabled"                        -> false,
+    "feature-switch.external-test-stubs.enabled"              -> false,
     "nrs-retry.crypto.key"                                    -> "9EMrIXA5uyAUjKzd/uViY0JAH2UqIl+VFWuTug4a7Uc=",
     "microservice.services.nrs-orchestrator.host"             -> mockHost,
     "microservice.services.nrs-orchestrator.port"             -> mockPort,
