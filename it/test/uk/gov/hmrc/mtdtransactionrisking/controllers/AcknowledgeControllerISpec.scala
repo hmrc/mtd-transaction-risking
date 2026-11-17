@@ -20,195 +20,197 @@ import com.github.tomakehurst.wiremock.client.WireMock.{equalTo, matchingJsonPat
 import com.github.tomakehurst.wiremock.stubbing.StubMapping
 import play.api.libs.ws.{EmptyBody, WSResponse, writeableOf_WsBody}
 import play.api.test.Helpers.*
-import uk.gov.hmrc.mtdtransactionrisking.stubs.{AuthStub, CommonTestData, InteractionStub, NrsStub, RdsStub}
+import uk.gov.hmrc.mtdtransactionrisking.stubs.*
 import uk.gov.hmrc.mtdtransactionrisking.support.IntegrationBaseSpec
 
 class AcknowledgeControllerISpec extends IntegrationBaseSpec:
 
   private val vrn = CommonTestData.simpleVrn
+  private val arn = "LARN0085901"
   private val reportId = "f2fb30e5-4ab6-4a29-b3c1-c00000000001"
   private val requestCorrelationId = "E9F65715BBC9222477B27074804BBDD5C73CDE62F84D8B00CFD05B883534AF3D"
   private val presentedDateTime = "2026-06-09T10:30:00Z"
 
-  private def uri: String =
+  private val rdsAcknowledgePath = "/rds/assessments/acknowledge"
+  private val rsdPath = "/rsd/receive-and-store"
+  private val nrsPath = "/nrs-orchestrator/submission"
+
+  private val validUri: String =
     s"/acknowledge/$vrn/$reportId/$requestCorrelationId?presentedDateTime=$presentedDateTime"
 
   "POST /acknowledge/:vrn/:reportId/:correlationId" when:
-    
-    "every downstream succeeds" should:
 
-      "return 204 and store the interaction" in new Test:
-        override def setupStubs(): StubMapping =
-          AuthStub.successfulAuthWith(vrn)
-          InteractionStub.stores()
-          RdsStub.acknowledgeAccepted()
-          NrsStub.accepts()
+    // ---------- Successful journeys ----------
 
-        val response: WSResponse = await(buildRequest(uri).post(EmptyBody))
-        response.status shouldBe NO_CONTENT
+    "every downstream responds successfully" should:
 
+      "return 204, acknowledge the report in RDS, store it in RSD and submit it to NRS" in:
+        stubFullJourney()
+
+        acknowledge().status shouldBe NO_CONTENT
+
+        // RSD and NRS are called in the background after the response
         eventually {
-          wireMockServer.verify(postRequestedFor(urlPathMatching("/rsd/receive-and-store")))
-          wireMockServer.verify(postRequestedFor(urlPathMatching("/rds/assessments/acknowledge")))
-          wireMockServer.verify(postRequestedFor(urlPathMatching("/nrs-orchestrator/submission"))
+          wireMockServer.verify(postRequestedFor(urlPathMatching(rdsAcknowledgePath)))
+          wireMockServer.verify(postRequestedFor(urlPathMatching(rsdPath)))
+          wireMockServer.verify(
+            postRequestedFor(urlPathMatching(nrsPath))
               .withRequestBody(matchingJsonPath("$.metadata.notableEvent", equalTo("vata-acknowledge-report")))
               .withRequestBody(matchingJsonPath("$.metadata.searchKeys.vrn", equalTo(vrn)))
               .withRequestBody(matchingJsonPath("$.metadata.searchKeys.reportId", equalTo(reportId)))
           )
         }
 
-      "return 204 even when the interactions datastore is unavailable" in new Test:
-        override def setupStubs(): StubMapping =
-          AuthStub.successfulAuthWith(vrn)
-          InteractionStub.unavailable()
-          RdsStub.acknowledgeAccepted()
-          NrsStub.accepts()
+    "the user is an agent acting for their client" should:
 
-        val response: WSResponse = await(buildRequest(uri).post(EmptyBody))
-        response.status shouldBe NO_CONTENT
+      "return 204 and acknowledge the report in RDS" in:
+        stubFullJourney(auth = AuthStub.successfulAuthWithAgent(arn))
+
+        acknowledge().status shouldBe NO_CONTENT
+
+        wireMockServer.verify(postRequestedFor(urlPathMatching(rdsAcknowledgePath)))
+
+    "the user is an organisation" should:
+
+      "return 204 store the report in RSD and submit the acknowledge-report event to NRS" in:
+        stubFullJourney(auth = AuthStub.successfulAuthWithOrganisation(vrn))
+
+        acknowledge().status shouldBe NO_CONTENT
 
         eventually {
+          wireMockServer.verify(postRequestedFor(urlPathMatching(rdsAcknowledgePath)))
+          wireMockServer.verify(postRequestedFor(urlPathMatching(rsdPath)))
           wireMockServer.verify(
-            postRequestedFor(urlPathMatching("/nrs-orchestrator/submission"))
-              .withRequestBody(
-                matchingJsonPath(
-                  "$.metadata.notableEvent",
-                  equalTo("vata-acknowledge-report")
-                )
-              )
-          )
-        }
-
-      "return 204 and submit NRS evidence when Auth returns an Organisation identity-data response" in new Test:
-
-        override def setupStubs(): StubMapping =
-          AuthStub.successfulAuthWithOrganisation(vrn)
-          InteractionStub.stores()
-          RdsStub.acknowledgeAccepted()
-          NrsStub.accepts()
-
-        val response: WSResponse = await(buildRequest(uri).post(EmptyBody))
-        response.status shouldBe NO_CONTENT
-
-        eventually {
-          wireMockServer.verify(postRequestedFor(urlPathMatching("/rds/assessments/acknowledge")))
-          wireMockServer.verify(postRequestedFor(urlPathMatching("/rsd/receive-and-store")))
-          wireMockServer.verify(postRequestedFor(urlPathMatching("/nrs-orchestrator/submission"))
+            postRequestedFor(urlPathMatching(nrsPath))
               .withRequestBody(matchingJsonPath("$.metadata.notableEvent", equalTo("vata-acknowledge-report")))
           )
         }
 
-      "return 204 when NRS is unavailable after RDS accepts the acknowledgement" in new Test:
-          override def setupStubs(): StubMapping =
-            AuthStub.successfulAuthWith(vrn)
-            InteractionStub.stores()
-            RdsStub.acknowledgeAccepted()
-            NrsStub.unavailable()
+    "RSD or NRS fails after RDS accepts the acknowledgement" should:
 
-          val response: WSResponse = await(buildRequest(uri).post(EmptyBody))
+      "return 204 and submit to NRS when RSD is unavailable" in:
+        AuthStub.successfulAuthWith(vrn)
+        RdsStub.acknowledgeAccepted()
+        InteractionStub.unavailable()
+        NrsStub.accepts()
 
-          response.status shouldBe NO_CONTENT
+        acknowledge().status shouldBe NO_CONTENT
 
-          eventually {
-            wireMockServer.verify(
-              postRequestedFor(urlPathMatching("/nrs-orchestrator/submission"))
-            )
-          }
+        eventually {
+          wireMockServer.verify(
+            postRequestedFor(urlPathMatching(nrsPath))
+              .withRequestBody(matchingJsonPath("$.metadata.notableEvent", equalTo("vata-acknowledge-report")))
+          )
+        }
 
-    "the request fails validation" should:
+      "return 204 and store in RSD when NRS is unavailable" in:
+        AuthStub.successfulAuthWith(vrn)
+        RdsStub.acknowledgeAccepted()
+        InteractionStub.stores()
+        NrsStub.unavailable()
 
-      "return 400 when the report id is not a valid UUID" in new Test:
-        override def setupStubs(): StubMapping = AuthStub.successfulAuthWith(vrn)
+        acknowledge().status shouldBe NO_CONTENT
 
-        val response: WSResponse =
-          await(buildRequest(s"/acknowledge/$vrn/not-a-uuid/$requestCorrelationId?presentedDateTime=$presentedDateTime").post(EmptyBody))
+        eventually {
+          wireMockServer.verify(postRequestedFor(urlPathMatching(rsdPath)))
+          wireMockServer.verify(postRequestedFor(urlPathMatching(nrsPath)))
+        }
 
-        response.status shouldBe BAD_REQUEST
-        (document(response) \ "code").as[String] shouldBe "REPORT_ID_INVALID"
+    // ---------- Errors in order of the journey  ----------
 
-        wireMockServer.verify(0, postRequestedFor(urlPathMatching("/nrs-orchestrator/submission")))
+    "the request is invalid" should:
 
-      "return 400 when the correlation id is not 64 hex characters" in new Test:
-        override def setupStubs(): StubMapping = AuthStub.successfulAuthWith(vrn)
+      "return 400 REPORT_ID_INVALID when the report ID is not a UUId without calling any downstream" in:
+        AuthStub.successfulAuthWith(vrn)
 
-        val response: WSResponse =
-          await(buildRequest(s"/acknowledge/$vrn/$reportId/WrongCorrId?presentedDateTime=$presentedDateTime").post(EmptyBody))
+        val response = acknowledge(s"/acknowledge/$vrn/not-a-uuid/$requestCorrelationId?presentedDateTime=$presentedDateTime")
 
-        response.status shouldBe BAD_REQUEST
-        (document(response) \ "code").as[String] shouldBe "CORRELATION_ID_INVALID"
+        assertError(response, BAD_REQUEST, "REPORT_ID_INVALID")
+        assertNotCalled(rdsAcknowledgePath, rsdPath, nrsPath)
 
-        wireMockServer.verify(0, postRequestedFor(urlPathMatching("/nrs-orchestrator/submission")))
+      "return 400 CORRELATION_ID_INVALID when the correlation ID is not 64 hex characters" in:
+        AuthStub.successfulAuthWith(vrn)
 
-      "return 400 when presentedDateTime is missing" in new Test:
-        override def setupStubs(): StubMapping = AuthStub.successfulAuthWith(vrn)
+        val response = acknowledge(s"/acknowledge/$vrn/$reportId/WrongCorrId?presentedDateTime=$presentedDateTime")
 
-        val response: WSResponse = await(buildRequest(s"/acknowledge/$vrn/$reportId/$requestCorrelationId").post(EmptyBody))
+        assertError(response, BAD_REQUEST, "CORRELATION_ID_INVALID")
+        assertNotCalled(rdsAcknowledgePath, rsdPath, nrsPath)
 
-        response.status shouldBe BAD_REQUEST
-        (document(response) \ "code").as[String] shouldBe "PRESENTED_DATE_TIME_INVALID"
+      "return 400 PRESENTED_DATE_TIME_INVALID when presentedDateTime is missing" in:
+        AuthStub.successfulAuthWith(vrn)
 
-        wireMockServer.verify(0, postRequestedFor(urlPathMatching("/nrs-orchestrator/submission")))
+        val response = acknowledge(s"/acknowledge/$vrn/$reportId/$requestCorrelationId")
 
-      "return 400 when presentedDateTime is not a valid date-time" in new Test:
-        override def setupStubs(): StubMapping = AuthStub.successfulAuthWith(vrn)
+        assertError(response, BAD_REQUEST, "PRESENTED_DATE_TIME_INVALID")
+        assertNotCalled(rdsAcknowledgePath, rsdPath, nrsPath)
 
-        val response: WSResponse =
-          await(buildRequest(s"/acknowledge/$vrn/$reportId/$requestCorrelationId?presentedDateTime=09/06/2026").post(EmptyBody))
+      "return 400 PRESENTED_DATE_TIME_INVALID when presentedDateTime is not a valid date-time" in:
+        AuthStub.successfulAuthWith(vrn)
 
-        response.status shouldBe BAD_REQUEST
-        (document(response) \ "code").as[String] shouldBe "PRESENTED_DATE_TIME_INVALID"
+        val response = acknowledge(s"/acknowledge/$vrn/$reportId/$requestCorrelationId?presentedDateTime=09/06/2026")
 
-        wireMockServer.verify(0, postRequestedFor(urlPathMatching("/nrs-orchestrator/submission")))
+        assertError(response, BAD_REQUEST, "PRESENTED_DATE_TIME_INVALID")
+        assertNotCalled(rdsAcknowledgePath, rsdPath, nrsPath)
 
-      "return an acknowledgement-failed error and not store the interaction when RDS rejects with responseCode 401" in new Test:
-        override def setupStubs(): StubMapping =
-          AuthStub.successfulAuthWith(vrn)
-          InteractionStub.stores()
-          RdsStub.acknowledgeRejected()
+    "auth fails" should:
 
-        val response: WSResponse = await(buildRequest(uri).post(EmptyBody))
+      "return 401 INVALID_CREDENTIALS when auth does not return an internal ID" in:
+        AuthStub.successfulAuthWithNoUserId()
 
-        response.status shouldBe BAD_REQUEST
-        (document(response) \ "code").as[String] shouldBe "ACKNOWLEDGEMENT_VALIDATION_FAILED"
+        assertError(acknowledge(), UNAUTHORIZED, "INVALID_CREDENTIALS")
+        assertNotCalled(rdsAcknowledgePath, rsdPath, nrsPath)
 
-        wireMockServer.verify(0, postRequestedFor(urlPathMatching("/rsd/receive-and-store")))
-        wireMockServer.verify(0, postRequestedFor(urlPathMatching("/nrs-orchestrator/submission")))
+      // Not enrolled for the VRN or an agent no relation with client
+      "return 403 CLIENT_OR_AGENT_NOT_AUTHORISED when the user may not act for the VRN" in:
+        AuthStub.insufficientEnrolments()
 
-      "not call RDS or the interaction store" in new Test:
-        override def setupStubs(): StubMapping = AuthStub.successfulAuthWith(vrn)
+        assertError(acknowledge(), FORBIDDEN, "CLIENT_OR_AGENT_NOT_AUTHORISED")
+        assertNotCalled(rdsAcknowledgePath, rsdPath, nrsPath)
 
-        await(buildRequest(s"/acknowledge/$vrn/not-a-uuid/$requestCorrelationId?presentedDateTime=$presentedDateTime").post(EmptyBody))
+    "RDS rejects the acknowledgement" should:
 
-        wireMockServer.verify(0, postRequestedFor(urlPathMatching("/rds/assessments/acknowledge")))
-        wireMockServer.verify(0, postRequestedFor(urlPathMatching("/rsd/receive-and-store")))
-        wireMockServer.verify(0, postRequestedFor(urlPathMatching("/nrs-orchestrator/submission")))
+      "return 400 ACKNOWLEDGEMENT_VALIDATION_FAILED without storing in RSD or submitting to NRS" in:
+        AuthStub.successfulAuthWith(vrn)
+        RdsStub.acknowledgeRejected()
+        InteractionStub.stores()
 
-    "RDS rejects or fails to process the acknowledgement" should:
+        assertError(acknowledge(), BAD_REQUEST, "ACKNOWLEDGEMENT_VALIDATION_FAILED")
+        assertNotCalled(rsdPath, nrsPath)
 
-      "return 503 and not store the interaction when RDS is unavailable" in new Test:
-        override def setupStubs(): StubMapping =
-          AuthStub.successfulAuthWith(vrn)
-          InteractionStub.stores()
-          RdsStub.acknowledgeUnavailable()
+    "RDS fails" should:
 
-        val response: WSResponse = await(buildRequest(uri).post(EmptyBody))
-        response.status shouldBe SERVICE_UNAVAILABLE
+      "return 500 when RDS returns a malformed response without storing in RSD or submitting to NRS" in:
+        AuthStub.successfulAuthWith(vrn)
+        RdsStub.acknowledgeMalformedResponse()
+        InteractionStub.stores()
 
-        wireMockServer.verify(0, postRequestedFor(urlPathMatching("/rsd/receive-and-store")))
-        wireMockServer.verify(0, postRequestedFor(urlPathMatching("/nrs-orchestrator/submission")))
+        acknowledge().status shouldBe INTERNAL_SERVER_ERROR
+        assertNotCalled(rsdPath, nrsPath)
 
-      "return 500 and not store the interaction or submit NRS evidence when RDS returns a malformed response" in new Test:
-        override def setupStubs(): StubMapping =
-          AuthStub.successfulAuthWith(vrn)
-          InteractionStub.stores()
-          RdsStub.acknowledgeMalformedResponse()
+      "return 503 when RDS is unavailable without storing in RSD or submitting to NRS" in:
+        AuthStub.successfulAuthWith(vrn)
+        RdsStub.acknowledgeUnavailable()
+        InteractionStub.stores()
 
-        val response: WSResponse = await(buildRequest(uri).post(EmptyBody))
-        response.status shouldBe INTERNAL_SERVER_ERROR
+        acknowledge().status shouldBe SERVICE_UNAVAILABLE
+        assertNotCalled(rsdPath, nrsPath)
 
-        wireMockServer.verify(0, postRequestedFor(urlPathMatching("/rsd/receive-and-store")))
-        wireMockServer.verify(0, postRequestedFor(urlPathMatching("/nrs-orchestrator/submission")))
+  // ---------- Helpers ----------
 
-  private trait Test:
-    def setupStubs(): StubMapping
-    setupStubs()
+  private def acknowledge(uri: String = validUri): WSResponse =
+    await(buildRequest(uri).post(EmptyBody))
+
+  private def stubFullJourney(auth: => StubMapping = AuthStub.successfulAuthWith(vrn)): Unit =
+    auth
+    RdsStub.acknowledgeAccepted()
+    InteractionStub.stores()
+    NrsStub.accepts()
+
+  private def assertError(response: WSResponse, status: Int, code: String): Unit =
+    withClue(s"Response body: ${response.body}. ") {
+      response.status shouldBe status
+      (response.json \ "code").as[String] shouldBe code
+    }
+
+  private def assertNotCalled(paths: String*): Unit =
+    paths.foreach(path => wireMockServer.verify(0, postRequestedFor(urlPathMatching(path))))

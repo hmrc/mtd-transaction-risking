@@ -17,6 +17,7 @@
 package uk.gov.hmrc.mtdtransactionrisking.controllers
 
 import com.github.tomakehurst.wiremock.client.WireMock.{equalTo, matchingJsonPath, postRequestedFor, urlPathMatching}
+import com.github.tomakehurst.wiremock.stubbing.StubMapping
 import play.api.libs.json.{JsValue, Json}
 import play.api.libs.ws.{WSResponse, writeableOf_JsValue, writeableOf_String}
 import play.api.test.Helpers.*
@@ -29,6 +30,7 @@ import scala.concurrent.duration.*
 class GenerateFeedbackControllerISpec extends IntegrationBaseSpec:
 
   private val vrn = CommonTestData.simpleVrn
+  private val arn = "LARN0085901"
   private val periodKey = "AB12"
   private val fromDate = "2020-01-01"
   private val toDate = "2020-03-31"
@@ -58,6 +60,8 @@ class GenerateFeedbackControllerISpec extends IntegrationBaseSpec:
   private val authHeader = "Authorization" -> "Bearer abc123"
 
   "POST /feedback/:vrn" when:
+
+    // ---------- Successful journeys ----------
 
     "every downstream responds successfully" should:
 
@@ -99,12 +103,12 @@ class GenerateFeedbackControllerISpec extends IntegrationBaseSpec:
             .withRequestBody(matchingJsonPath("$.inputs[?(@.name == 'endDate')].value", equalTo(toDate)))
         )
 
-      "store the interaction in RSD with the obligation dates and message paths" in:
+      "store the report in RSD with the obligation dates and message paths" in:
         stubFullJourney()
 
         feedback().status shouldBe OK
 
-        // The RSD call is made in the background after the response
+        // RSD is called in the background after the response
         eventually {
           wireMockServer.verify(
             postRequestedFor(urlPathMatching(rsdPath))
@@ -123,7 +127,7 @@ class GenerateFeedbackControllerISpec extends IntegrationBaseSpec:
 
         feedback().status shouldBe OK
 
-        // The NRS calls are made in the background after the response
+        // NRS is called in the background after the response
         eventually {
           Seq("vata-request-feedback", "vata-generate-report").foreach { event =>
             wireMockServer.verify(
@@ -135,9 +139,36 @@ class GenerateFeedbackControllerISpec extends IntegrationBaseSpec:
           }
         }
 
-    "RDS returns the no-feedback item 0" should:
+    "the user is an agent acting for their client" should:
+      
+      "return 200 and send the ARN to RDS" in:
+        stubFullJourney(auth = AuthStub.successfulAuthWithAgent(arn))
 
-      "return 200 with item 0, and no correlationId or path" in:
+        feedback().status shouldBe OK
+
+        wireMockServer.verify(
+          postRequestedFor(urlPathMatching(rdsGeneratePath))
+            .withRequestBody(matchingJsonPath("$.inputs[?(@.name == 'agentReferenceNumber')].value", equalTo(arn)))
+        )
+
+    "the user is an organisation" should:
+
+      "return 200 and submit both NRS events with the organisation's identity" in:
+        stubFullJourney(auth = AuthStub.successfulAuthWithOrganisation(vrn))
+
+        feedback().status shouldBe OK
+
+        eventually {
+          wireMockServer.verify(
+            2,
+            postRequestedFor(urlPathMatching(nrsPath))
+              .withRequestBody(matchingJsonPath("$.metadata.identityData.affinityGroup", equalTo("Organisation")))
+          )
+        }
+
+    "RDS has no feedback for the return (item 0)" should:
+
+      "return 200 with only item 0 without a correlationId or path" in:
         stubUntilRds()
         RdsStub.noFeedback()
 
@@ -153,7 +184,7 @@ class GenerateFeedbackControllerISpec extends IntegrationBaseSpec:
           (response.json \ language \ 0 \ "path").toOption shouldBe None
         }
 
-      "not store an interaction in RSD or submit to NRS" in:
+      "not store anything in RSD or submit anything to NRS" in:
         stubUntilRds()
         RdsStub.noFeedback()
         InteractionStub.stores()
@@ -163,48 +194,9 @@ class GenerateFeedbackControllerISpec extends IntegrationBaseSpec:
 
         assertNeverCalled(rsdPath, nrsPath)
 
-    "the user is an agent" should:
+    "RSD or NRS fails after the report is generated" should:
 
-      "send the ARN to RDS" in:
-        val arn = "LARN0085901"
-
-        AuthStub.successfulAuthWithAgent(vrn, arn)
-        VatApiStub.validationPasses(periodKey, fromDate, toDate)
-        InsightsRiskStub.successResponse(vrn)
-        RdsStub.reportGenerated()
-        InteractionStub.stores()
-        NrsStub.accepts()
-
-        feedback().status shouldBe OK
-
-        wireMockServer.verify(
-          postRequestedFor(urlPathMatching(rdsGeneratePath))
-            .withRequestBody(matchingJsonPath("$.inputs[?(@.name == 'agentReferenceNumber')].value", equalTo(arn)))
-        )
-
-    "the user is an organisation" should:
-
-      "submit NRS evidence with the organisation's identity" in:
-        AuthStub.successfulAuthWithOrganisation(vrn)
-        VatApiStub.validationPasses(periodKey, fromDate, toDate)
-        InsightsRiskStub.successResponse(vrn)
-        RdsStub.reportGenerated()
-        InteractionStub.stores()
-        NrsStub.accepts()
-
-        feedback().status shouldBe OK
-
-        eventually {
-          wireMockServer.verify(
-            2,
-            postRequestedFor(urlPathMatching(nrsPath))
-              .withRequestBody(matchingJsonPath("$.metadata.identityData.affinityGroup", equalTo("Organisation")))
-          )
-        }
-
-    "RSD or NRS fail after the report is generated" should:
-
-      "return 200 and still submit to NRS when RSD is unavailable" in:
+      "return 200 and submit to NRS when RSD is unavailable" in:
         stubUntilRds()
         RdsStub.reportGenerated()
         InteractionStub.unavailable()
@@ -217,7 +209,7 @@ class GenerateFeedbackControllerISpec extends IntegrationBaseSpec:
           wireMockServer.verify(2, postRequestedFor(urlPathMatching(nrsPath)))
         }
 
-      "return 200 and still store in RSD when NRS is unavailable" in:
+      "return 200 and store in RSD when NRS is unavailable" in:
         stubUntilRds()
         RdsStub.reportGenerated()
         InteractionStub.stores()
@@ -229,6 +221,8 @@ class GenerateFeedbackControllerISpec extends IntegrationBaseSpec:
           wireMockServer.verify(postRequestedFor(urlPathMatching(rsdPath)))
           wireMockServer.verify(2, postRequestedFor(urlPathMatching(nrsPath)))
         }
+
+    // ---------- Errors in order of journey ----------
 
     "the request is invalid" should:
 
@@ -249,39 +243,9 @@ class GenerateFeedbackControllerISpec extends IntegrationBaseSpec:
         response.status shouldBe BAD_REQUEST
         assertNotCalled(authPath, vatApiValidatePath, rdsGeneratePath, rsdPath, nrsPath)
 
-    "vat-api rejects the VAT return" should:
+    "auth fails" should:
 
-      "return 400 INVALID_REQUEST and not call RDS" in:
-        AuthStub.successfulAuthWith(vrn)
-        VatApiStub.validationFails()
-
-        assertError(feedback(), BAD_REQUEST, "INVALID_REQUEST")
-        assertNotCalled(rdsGeneratePath, rsdPath, nrsPath)
-
-      "return 403 TAX_PERIOD_NOT_ENDED and not call RDS" in:
-        AuthStub.successfulAuthWith(vrn)
-        VatApiStub.taxPeriodNotEnded()
-
-        assertError(feedback(), FORBIDDEN, "TAX_PERIOD_NOT_ENDED")
-        assertNotCalled(rdsGeneratePath, rsdPath, nrsPath)
-
-      "return 403 RULE_INSOLVENT_TRADER and not call RDS" in:
-        AuthStub.successfulAuthWith(vrn)
-        VatApiStub.insolventTrader()
-
-        assertError(feedback(), FORBIDDEN, "RULE_INSOLVENT_TRADER")
-        assertNotCalled(rdsGeneratePath, rsdPath, nrsPath)
-
-      "return 403 CLIENT_OR_AGENT_NOT_AUTHORISED and not call RDS" in:
-        AuthStub.successfulAuthWith(vrn)
-        VatApiStub.clientOrAgentNotAuthorised()
-
-        assertError(feedback(), FORBIDDEN, "CLIENT_OR_AGENT_NOT_AUTHORISED")
-        assertNotCalled(rdsGeneratePath, rsdPath, nrsPath)
-
-    "the user is not authorised" should:
-
-      "return 401 INVALID_CREDENTIALS when the request has no Authorization header" in:
+      "return 401 INVALID_CREDENTIALS when there is no Authorization header" in:
         val response = await(
           buildRequest(s"/feedback/$vrn")
             .withHttpHeaders(acceptHeader)
@@ -291,27 +255,52 @@ class GenerateFeedbackControllerISpec extends IntegrationBaseSpec:
         assertError(response, UNAUTHORIZED, "INVALID_CREDENTIALS")
         assertNotCalled(vatApiValidatePath, rdsGeneratePath)
 
-      "return 401 INVALID_CREDENTIALS when auth does not return the required values" in:
+      "return 401 INVALID_CREDENTIALS when auth does not return an internal ID" in:
         AuthStub.successfulAuthWithNoUserId()
 
         assertError(feedback(), UNAUTHORIZED, "INVALID_CREDENTIALS")
         assertNotCalled(vatApiValidatePath, rdsGeneratePath)
 
-      "return 403 CLIENT_OR_AGENT_NOT_AUTHORISED when the user has no MTD VAT enrolment" in:
-        AuthStub.successfulAuthWithNoEnrolments()
+      // Not enrolled for the VRN or an agent with no relationship with the client
+      "return 403 CLIENT_OR_AGENT_NOT_AUTHORISED when the user may not act for the VRN" in:
+        AuthStub.insufficientEnrolments()
 
         assertError(feedback(), FORBIDDEN, "CLIENT_OR_AGENT_NOT_AUTHORISED")
         assertNotCalled(vatApiValidatePath, rdsGeneratePath)
 
-      "return 403 CLIENT_OR_AGENT_NOT_AUTHORISED when the user's VRN does not match the one requested" in:
-        AuthStub.successfulAuthWith("999999999")
+    "vat-api rejects the VAT return" should:
+
+      "return 400 INVALID_REQUEST without calling RDS" in:
+        AuthStub.successfulAuthWith(vrn)
+        VatApiStub.validationFails()
+
+        assertError(feedback(), BAD_REQUEST, "INVALID_REQUEST")
+        assertNotCalled(rdsGeneratePath, rsdPath, nrsPath)
+
+      "return 403 TAX_PERIOD_NOT_ENDED without calling RDS" in:
+        AuthStub.successfulAuthWith(vrn)
+        VatApiStub.taxPeriodNotEnded()
+
+        assertError(feedback(), FORBIDDEN, "TAX_PERIOD_NOT_ENDED")
+        assertNotCalled(rdsGeneratePath, rsdPath, nrsPath)
+
+      "return 403 RULE_INSOLVENT_TRADER without calling RDS" in:
+        AuthStub.successfulAuthWith(vrn)
+        VatApiStub.insolventTrader()
+
+        assertError(feedback(), FORBIDDEN, "RULE_INSOLVENT_TRADER")
+        assertNotCalled(rdsGeneratePath, rsdPath, nrsPath)
+
+      "return 403 CLIENT_OR_AGENT_NOT_AUTHORISED without calling RDS" in:
+        AuthStub.successfulAuthWith(vrn)
+        VatApiStub.clientOrAgentNotAuthorised()
 
         assertError(feedback(), FORBIDDEN, "CLIENT_OR_AGENT_NOT_AUTHORISED")
-        assertNotCalled(vatApiValidatePath, rdsGeneratePath)
+        assertNotCalled(rdsGeneratePath, rsdPath, nrsPath)
 
-    "a downstream service returns an error or an unusable response" should:
+    "a downstream returns an error or an unusable response" should:
 
-      "return 500 when vat-api returns 200 with a body that is not an obligation" in:
+      "return 500 when vat-api returns 200 without an obligation" in:
         AuthStub.successfulAuthWith(vrn)
         VatApiStub.malformedObligation()
 
@@ -334,41 +323,41 @@ class GenerateFeedbackControllerISpec extends IntegrationBaseSpec:
         assertError(feedback(), INTERNAL_SERVER_ERROR, "INTERNAL_SERVER_ERROR")
         assertNotCalled(rdsGeneratePath, rsdPath, nrsPath)
 
-      "return 500 when RDS rejects the report request with 400" in:
+      "return 500 when RDS rejects the request with 400" in:
         stubUntilRds()
         RdsStub.badRequest()
 
         assertError(feedback(), INTERNAL_SERVER_ERROR, "INTERNAL_SERVER_ERROR")
         assertNotCalled(rsdPath, nrsPath)
 
-      "return 500 when RDS returns 201 with a malformed report" in:
+      "return 500 when RDS returns a malformed report" in:
         stubUntilRds()
         RdsStub.malformedReport()
 
         assertError(feedback(), INTERNAL_SERVER_ERROR, "INTERNAL_SERVER_ERROR")
         assertNotCalled(rsdPath, nrsPath)
 
-      "return 500 when RDS returns 201 with a responseCode other than 201" in:
+      "return 500 when RDS returns a responseCode other than 201" in:
         stubUntilRds()
         RdsStub.reportResponds(responseCode = 500)
 
         assertError(feedback(), INTERNAL_SERVER_ERROR, "INTERNAL_SERVER_ERROR")
         assertNotCalled(rsdPath, nrsPath)
 
-      "return 500 when RDS returns a report with no feedbackId" in:
+      "return 500 when RDS returns a report without a feedbackId" in:
         stubUntilRds()
         RdsStub.reportWithoutFeedbackId()
 
         assertError(feedback(), INTERNAL_SERVER_ERROR, "INTERNAL_SERVER_ERROR")
         assertNotCalled(rsdPath, nrsPath)
 
-    "a downstream service is unavailable" should:
+    "a downstream is unavailable" should:
 
       "return 503 when vat-api's obligations lookup is unavailable" in:
         AuthStub.successfulAuthWith(vrn)
         VatApiStub.serviceUnavailable()
 
-        // vat-api's body is relayed as it is so only the status is from us
+        // vat-api's body is relayed unchanged so only the status is checked
         feedback().status shouldBe SERVICE_UNAVAILABLE
         assertNotCalled(rdsGeneratePath, rsdPath, nrsPath)
 
@@ -387,6 +376,8 @@ class GenerateFeedbackControllerISpec extends IntegrationBaseSpec:
         assertError(feedback(), SERVICE_UNAVAILABLE, "SERVICE_UNAVAILABLE")
         assertNotCalled(rsdPath, nrsPath)
 
+  // ---------- Helpers ----------
+
   private def feedback(vrn: String = vrn, body: JsValue = validVatReturn): WSResponse =
     await(
       buildRequest(s"/feedback/$vrn")
@@ -394,15 +385,16 @@ class GenerateFeedbackControllerISpec extends IntegrationBaseSpec:
         .post(body)
     )
 
-  private def stubFullJourney(): Unit =
-    stubUntilRds()
+  // Pass a different auth stub to test an agent or organisation.
+  private def stubFullJourney(auth: => StubMapping = AuthStub.successfulAuthWith(vrn)): Unit =
+    stubUntilRds(auth)
     RdsStub.reportGenerated()
     InteractionStub.stores()
     NrsStub.accepts()
 
-  // Auth, vat-api and insights succeed so each test only sets up what happens at RDS and after
-  private def stubUntilRds(): Unit =
-    AuthStub.successfulAuthWith(vrn)
+  // Auth, vat-api and insights succeed each test only sets up RDS and what follows
+  private def stubUntilRds(auth: => StubMapping = AuthStub.successfulAuthWith(vrn)): Unit =
+    auth
     VatApiStub.validationPasses(periodKey, fromDate, toDate)
     InsightsRiskStub.successResponse(vrn)
 
@@ -412,12 +404,12 @@ class GenerateFeedbackControllerISpec extends IntegrationBaseSpec:
       (response.json \ "code").as[String] shouldBe code
     }
 
-  private def assertNotCalled(paths: String*): Unit =
-    paths.foreach(path => wireMockServer.verify(0, postRequestedFor(urlPathMatching(path))))
-
-  // RSD and NRS are called in the background after the response so watch for a short time.
+  // RSD and NRS are called in the background after the response so keep checking for a short time
   private def assertNeverCalled(paths: String*): Unit =
     val deadline = System.nanoTime() + 500.millis.toNanos
     while System.nanoTime() < deadline do
       assertNotCalled(paths*)
       Thread.sleep(50)
+
+  private def assertNotCalled(paths: String*): Unit =
+    paths.foreach(path => wireMockServer.verify(0, postRequestedFor(urlPathMatching(path))))

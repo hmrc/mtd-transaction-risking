@@ -88,13 +88,13 @@ class AcknowledgeControllerStubISpec extends IntegrationBaseSpec:
         response.status shouldBe NOT_FOUND
         (document(response) \ "code").as[String] shouldBe "MATCHING_RESOURCE_NOT_FOUND"
 
-    "the user has no MTD VAT enrolment" should:
+    "auth rejects the VRN" should :
       "return 403" in new Test:
-        override def setupStubs(): StubMapping = AuthStub.successfulAuthWithNoEnrolments()
+        override def setupStubs(): StubMapping = AuthStub.insufficientEnrolments()
 
         val response: WSResponse = await(buildRequest(uri).post(EmptyBody))
         response.status shouldBe FORBIDDEN
-
+        
     "auth returns no internal id" should:
       "return 401" in new Test:
         override def setupStubs(): StubMapping = AuthStub.successfulAuthWithNoUserId()
