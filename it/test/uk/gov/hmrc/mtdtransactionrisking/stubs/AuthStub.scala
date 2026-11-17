@@ -27,68 +27,22 @@ object AuthStub:
     HeaderNames.COOKIE -> SessionCookieBaker.bakeSessionCookie(Map("authToken" -> "mock-bearer-token"), Some("en"))
 
   def successfulAuthWith(vrn: String): StubMapping =
-    successfulAuthWithIdentityData(vrn, "Individual")
+    successfulAuthWithIdentityData("Individual", vatEnrolment(vrn))
 
   def successfulAuthWithOrganisation(vrn: String): StubMapping =
-    successfulAuthWithIdentityData(vrn, "Organisation")
+    successfulAuthWithIdentityData("Organisation", vatEnrolment(vrn))
 
-  def successfulAuthWithAgent(vrn: String, arn: String): StubMapping =
-    successfulAuthWithIdentityData(vrn, "Agent", Some(arn))
+  def successfulAuthWithAgent(arn: String): StubMapping =
+    successfulAuthWithIdentityData("Agent", agentEnrolment(arn))
 
-  def successfulAuthWithNoEnrolments(): StubMapping =
-    stubFor(
-      post(urlMatching("/auth/authorise"))
-        .willReturn(
-          aResponse()
-            .withStatus(OK)
-            .withBody(
-              """
-                |{
-                |  "affinityGroup": "Individual",
-                |  "internalId": "12345-credId",
-                |  "optionalCredentials": {
-                |    "providerId": "12345-credId",
-                |    "providerType": "GovernmentGateway"
-                |  },
-                |  "confidenceLevel": 200,
-                |  "agentInformation": {},
-                |  "loginTimes": {
-                |    "currentLogin": "2026-09-20T10:00:00.000Z"
-                |  },
-                |  "allEnrolments": []
-                |}
-                |""".stripMargin
-            )
-        )
-    )
+  private def vatEnrolment(vrn: String): String = enrolment("HMRC-MTD-VAT", "VRN", vrn)
 
-  def successfulAuthWithNoUserId(): StubMapping =
-    stubFor(
-      post(urlMatching("/auth/authorise"))
-        .willReturn(
-          aResponse()
-            .withStatus(OK)
-            .withBody(
-              """
-                |{
-                |  "affinityGroup": "Individual",
-                |  "optionalCredentials": {
-                |    "providerId": "12345-credId",
-                |    "providerType": "GovernmentGateway"
-                |  },
-                |  "confidenceLevel": 200,
-                |  "agentInformation": {},
-                |  "loginTimes": {
-                |    "currentLogin": "2026-09-20T10:00:00.000Z"
-                |  },
-                |  "allEnrolments": []
-                |}
-                |""".stripMargin
-            )
-        )
-    )
+  private def agentEnrolment(arn: String): String = enrolment("HMRC-AS-AGENT", "AgentReferenceNumber", arn)
 
-  private def successfulAuthWithIdentityData(vrn: String, affinityGroup: String, arn: Option[String] = None): StubMapping =
+  private def enrolment(key: String, identifierKey: String, value: String): String =
+    s"""{"key": "$key", "identifiers": [{"key": "$identifierKey", "value": "$value"}], "state": "Activated"}"""
+
+  private def successfulAuthWithIdentityData(affinityGroup: String, enrolments: String*): StubMapping =
     stubFor(
       post(urlMatching("/auth/authorise"))
         .willReturn(
@@ -138,31 +92,45 @@ object AuthStub:
                  |    "countryName": "United Kingdom",
                  |    "countryCode": "GB"
                  |  },
-                 |  "allEnrolments": [
-                 |    {
-                 |      "key": "HMRC-MTD-VAT",
-                 |      "identifiers": [
-                 |        {
-                 |          "key": "VRN",
-                 |          "value": "$vrn"
-                 |        }
-                 |      ],
-                 |      "state": "Activated"
-                 |    }${arn.fold("")(value =>
-                s""",
-                   |    {
-                   |      "key": "HMRC-AS-AGENT",
-                   |      "identifiers": [
-                   |        {
-                   |          "key": "AgentReferenceNumber",
-                   |          "value": "$value"
-                   |        }
-                   |      ],
-                   |      "state": "Activated"
-                   |    }""")}
-                 |  ]
+                 |  "allEnrolments": [${enrolments.mkString(", ")}]
                  |}
                  |""".stripMargin
+            )
+        )
+    )
+
+  def insufficientEnrolments(): StubMapping =
+    stubFor(
+      post(urlMatching("/auth/authorise"))
+        .willReturn(
+          aResponse()
+            .withStatus(UNAUTHORIZED)
+            .withHeader(HeaderNames.WWW_AUTHENTICATE, "MDTP detail=\"InsufficientEnrolments\"")
+        )
+    )
+
+  def successfulAuthWithNoUserId(): StubMapping =
+    stubFor(
+      post(urlMatching("/auth/authorise"))
+        .willReturn(
+          aResponse()
+            .withStatus(OK)
+            .withBody(
+              """
+                |{
+                |  "affinityGroup": "Individual",
+                |  "optionalCredentials": {
+                |    "providerId": "12345-credId",
+                |    "providerType": "GovernmentGateway"
+                |  },
+                |  "confidenceLevel": 200,
+                |  "agentInformation": {},
+                |  "loginTimes": {
+                |    "currentLogin": "2026-09-20T10:00:00.000Z"
+                |  },
+                |  "allEnrolments": []
+                |}
+                |""".stripMargin
             )
         )
     )
