@@ -23,10 +23,10 @@ import uk.gov.hmrc.crypto.Sensitive.SensitiveString
 import uk.gov.hmrc.crypto.json.JsonEncryption
 import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
 
-final case class NrsSubmissionWorkItem private(
-                                                private val encryptedNrsSubmission: SensitiveString,
-                                                correlationId: CorrelationId
-                                              ):
+final case class NrsSubmissionWorkItem private (
+    private val encryptedNrsSubmission: SensitiveString,
+    correlationId: CorrelationId
+):
 
   lazy val nrsSubmission: NrsSubmission =
     Json
@@ -39,9 +39,9 @@ object NrsSubmissionWorkItem:
     "encryptedNrsSubmission"
 
   def apply(
-             nrsSubmission: NrsSubmission,
-             correlationId: CorrelationId
-           ): NrsSubmissionWorkItem =
+      nrsSubmission: NrsSubmission,
+      correlationId: CorrelationId
+  ): NrsSubmissionWorkItem =
     new NrsSubmissionWorkItem(
       encryptedNrsSubmission = SensitiveString(
         Json.stringify(
@@ -52,17 +52,17 @@ object NrsSubmissionWorkItem:
     )
 
   private def fromEncrypted(
-                             encryptedNrsSubmission: SensitiveString,
-                             correlationId: CorrelationId
-                           ): NrsSubmissionWorkItem =
+      encryptedNrsSubmission: SensitiveString,
+      correlationId: CorrelationId
+  ): NrsSubmissionWorkItem =
     new NrsSubmissionWorkItem(
       encryptedNrsSubmission = encryptedNrsSubmission,
       correlationId = correlationId
     )
 
-  given format(
-                using crypto: Encrypter & Decrypter
-              ): OFormat[NrsSubmissionWorkItem] =
+  given format(using
+      crypto: Encrypter & Decrypter
+  ): OFormat[NrsSubmissionWorkItem] =
 
     given Format[SensitiveString] =
       JsonEncryption.sensitiveEncrypterDecrypter(
@@ -72,10 +72,11 @@ object NrsSubmissionWorkItem:
     (
       (__ \ EncryptedNrsSubmission).format[SensitiveString] and
         (__ \ "correlationId").format[CorrelationId]
-      )(
+    )(
       fromEncrypted,
-      workItem => (
-        workItem.encryptedNrsSubmission,
-        workItem.correlationId
-      )
+      workItem =>
+        (
+          workItem.encryptedNrsSubmission,
+          workItem.correlationId
+        )
     )

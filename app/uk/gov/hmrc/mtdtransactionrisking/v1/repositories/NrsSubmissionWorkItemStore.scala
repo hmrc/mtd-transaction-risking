@@ -27,23 +27,23 @@ import scala.concurrent.Future
 @ImplementedBy(classOf[NrsSubmissionWorkItemRepository])
 trait NrsSubmissionWorkItemStore:
   def enqueueRetryableFailure(
-                               submission: NrsSubmission,
-                               correlationId: CorrelationId
-                             ): Future[WorkItem[NrsSubmissionWorkItem]]
+      submission: NrsSubmission,
+      correlationId: CorrelationId
+  ): Future[WorkItem[NrsSubmissionWorkItem]]
 
   def enqueuePermanentFailure(
-                               submission: NrsSubmission,
-                               correlationId: CorrelationId
-                             ): Future[WorkItem[NrsSubmissionWorkItem]]
+      submission: NrsSubmission,
+      correlationId: CorrelationId
+  ): Future[WorkItem[NrsSubmissionWorkItem]]
 
   def pullDue(): Future[Option[WorkItem[NrsSubmissionWorkItem]]]
 
   def markRetryableFailure(
-                            workItem: WorkItem[NrsSubmissionWorkItem]
-                          ): Future[Boolean]
+      workItem: WorkItem[NrsSubmissionWorkItem]
+  ): Future[Boolean]
 
   def markPermanentFailure(
-                            workItem: WorkItem[NrsSubmissionWorkItem]
-                          ): Future[Boolean]
+      workItem: WorkItem[NrsSubmissionWorkItem]
+  ): Future[Boolean]
 
   def completeAndDelete(id: ObjectId): Future[Boolean]

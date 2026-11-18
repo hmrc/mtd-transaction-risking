@@ -123,7 +123,7 @@ class ReportResponseSpec extends UnitSpec:
 
     "an output is absent" should:
 
-      "return None rather than failing" in :
+      "return None rather than failing" in:
         val report = ReportResponse(Seq.empty)
 
         report.feedbackId shouldBe None

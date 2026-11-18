@@ -36,17 +36,19 @@ trait MockNrsSubmissionWorkItemRepository extends MockFactory:
   object MockNrsSubmissionWorkItemRepository:
 
     def enqueueRetryableFailure(
-                                 nrsSubmission: NrsSubmission,
-                                 correlationId: CorrelationId
-                               ): CallHandler[Future[WorkItem[NrsSubmissionWorkItem]]] =
-      (mockNrsSubmissionWorkItemRepository.enqueueRetryableFailure(_: NrsSubmission, _: CorrelationId))
+        nrsSubmission: NrsSubmission,
+        correlationId: CorrelationId
+    ): CallHandler[Future[WorkItem[NrsSubmissionWorkItem]]] =
+      (mockNrsSubmissionWorkItemRepository
+        .enqueueRetryableFailure(_: NrsSubmission, _: CorrelationId))
         .expects(nrsSubmission, correlationId)
 
     def enqueuePermanentFailure(
-                                 nrsSubmission: NrsSubmission,
-                                 correlationId: CorrelationId
-                               ): CallHandler[Future[WorkItem[NrsSubmissionWorkItem]]] =
-      (mockNrsSubmissionWorkItemRepository.enqueuePermanentFailure(_: NrsSubmission, _: CorrelationId))
+        nrsSubmission: NrsSubmission,
+        correlationId: CorrelationId
+    ): CallHandler[Future[WorkItem[NrsSubmissionWorkItem]]] =
+      (mockNrsSubmissionWorkItemRepository
+        .enqueuePermanentFailure(_: NrsSubmission, _: CorrelationId))
         .expects(nrsSubmission, correlationId)
 
     def pullDue(): CallHandler[Future[Option[WorkItem[NrsSubmissionWorkItem]]]] =
@@ -54,19 +56,22 @@ trait MockNrsSubmissionWorkItemRepository extends MockFactory:
         .expects()
 
     def markRetryableFailure(
-                              workItem: WorkItem[NrsSubmissionWorkItem]
-                            ): CallHandler[Future[Boolean]] =
-      (mockNrsSubmissionWorkItemRepository.markRetryableFailure(_: WorkItem[NrsSubmissionWorkItem]))
+        workItem: WorkItem[NrsSubmissionWorkItem]
+    ): CallHandler[Future[Boolean]] =
+      (mockNrsSubmissionWorkItemRepository
+        .markRetryableFailure(_: WorkItem[NrsSubmissionWorkItem]))
         .expects(workItem)
 
     def markPermanentFailure(
-                              workItem: WorkItem[NrsSubmissionWorkItem]
-                            ): CallHandler[Future[Boolean]] =
-      (mockNrsSubmissionWorkItemRepository.markPermanentFailure(_: WorkItem[NrsSubmissionWorkItem]))
+        workItem: WorkItem[NrsSubmissionWorkItem]
+    ): CallHandler[Future[Boolean]] =
+      (mockNrsSubmissionWorkItemRepository
+        .markPermanentFailure(_: WorkItem[NrsSubmissionWorkItem]))
         .expects(workItem)
 
     def completeAndDelete(
-                            id: ObjectId
-                          ): CallHandler[Future[Boolean]] =
-      (mockNrsSubmissionWorkItemRepository.completeAndDelete(_: ObjectId))
-        .expects(id)  
+        id: ObjectId
+    ): CallHandler[Future[Boolean]] =
+      (mockNrsSubmissionWorkItemRepository
+        .completeAndDelete(_: ObjectId))
+        .expects(id)

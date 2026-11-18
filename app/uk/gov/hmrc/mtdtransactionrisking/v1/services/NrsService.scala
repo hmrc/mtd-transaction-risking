@@ -23,9 +23,9 @@ import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
 import uk.gov.hmrc.mtdtransactionrisking.utils.Logging
 import uk.gov.hmrc.mtdtransactionrisking.v1.connectors.NrsConnector
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.auth.IdentityData
-import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.nrs.{Metadata, NotableEventType, NrsSubmission, NrsSubmissionWorkItem, SearchKeys}
-import uk.gov.hmrc.mtdtransactionrisking.v1.repositories.NrsSubmissionWorkItemStore
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.SubmissionResult
+import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.nrs.*
+import uk.gov.hmrc.mtdtransactionrisking.v1.repositories.NrsSubmissionWorkItemStore
 
 import java.nio.charset.StandardCharsets.UTF_8
 import java.security.MessageDigest
@@ -33,98 +33,61 @@ import java.time.Instant
 import java.util.Base64
 import javax.inject.{Inject, Provider, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
-import scala.util.{Failure, Success, Try}
 import scala.util.control.NonFatal
+import scala.util.{Failure, Success, Try}
 
 @Singleton
-class NrsService @Inject()(
-                            appConfig: AppConfig,
-                            connector: NrsConnector,
-                            nrsSubmissionWorkItemRepositoryProvider: Provider[NrsSubmissionWorkItemStore],
-                            retryPolicy: NrsRetryPolicy
-                          )(implicit ec: ExecutionContext)
-  extends Logging:
+class NrsService @Inject() (
+    appConfig: AppConfig,
+    connector: NrsConnector,
+    nrsSubmissionWorkItemRepositoryProvider: Provider[NrsSubmissionWorkItemStore],
+    retryPolicy: NrsRetryPolicy
+)(implicit ec: ExecutionContext)
+    extends Logging:
 
-  private def nrsSubmissionWorkItemRepository: NrsSubmissionWorkItemStore =
-    nrsSubmissionWorkItemRepositoryProvider.get()
+  // Logs are labelled by stage, so Kibana can filter first attempts from retries
+  private val InitialStage = "submitInitial"
+  private val RetryStage = "processWorkItem"
+
+  // ---------- Public API ----------
 
   def submit(
-              evidence: JsValue,
-              vrn: String,
-              reportId: String,
-              submissionTimestamp: Instant,
-              identityData: Option[IdentityData],
-              userAuthToken: Option[String],
-              requestHeaders: Seq[(String, String)],
-              notableEventType: NotableEventType,
-              correlationId: CorrelationId
-            ): Unit =
-    val logPrefix = s"${correlationId.value}::[NrsService][submit]"
+      evidence: JsValue,
+      vrn: String,
+      reportId: String,
+      submissionTimestamp: Instant,
+      identityData: Option[IdentityData],
+      userAuthToken: Option[String],
+      requestHeaders: Seq[(String, String)],
+      notableEventType: NotableEventType,
+      correlationId: CorrelationId
+  ): Unit =
+    val prefix = logPrefix(correlationId, InitialStage)
+    val event = notableEventType.value
 
     if !FeatureSwitch(appConfig.featureSwitch).isEnabled(NrsSubmissionFeature) then
-      logger.info(s"$logPrefix NRS submission is disabled; skipping ${notableEventType.value}")
+      logger.info(s"$prefix NRS submission is disabled; skipping $event")
     else
-      buildNrsSubmission(
-        evidence = evidence,
-        vrn = vrn,
-        reportId = reportId,
-        submissionTimestamp = submissionTimestamp,
-        identityData = identityData,
-        userAuthToken = userAuthToken,
-        requestHeaders = requestHeaders,
-        notableEventType = notableEventType
-      ) match
+      buildNrsSubmission(evidence, vrn, reportId, submissionTimestamp, identityData, userAuthToken, requestHeaders, notableEventType) match
         case Left(reason) =>
-          logger.warn(s"$logPrefix NRS submission skipped for ${notableEventType.value}: $reason")
+          logger.error(s"$prefix NRS submission skipped for $event: $reason")
 
         case Right(nrsSubmission) =>
-          submitInitial(nrsSubmission = nrsSubmission, correlationId = correlationId)
-
-  def processDueWorkItems(): Future[Unit] =
-
-    def processNext(
-                     processedCount: Int
-                   ): Future[Unit] =
-      if processedCount >= appConfig.nrsRetryBatchSize then
-        logger.info(
-          s"[NrsService][processDueWorkItems] reached configured retry batch " +
-            s"size ${appConfig.nrsRetryBatchSize}"
-        )
-        Future.unit
-      else
-        nrsSubmissionWorkItemRepository
-          .pullDue()
-          .flatMap {
-            case None =>
-              Future.unit
-
-            case Some(workItem) =>
-              processWorkItem(workItem)
-                .flatMap(
-                  _ => processNext(processedCount + 1)
-                )
-          }
-
-    processNext(processedCount = 0)
+          submitInitial(nrsSubmission, correlationId)
 
   def buildNrsSubmission(
-                          evidence: JsValue,
-                          vrn: String,
-                          reportId: String,
-                          submissionTimestamp: Instant,
-                          identityData: Option[IdentityData],
-                          userAuthToken: Option[String],
-                          requestHeaders: Seq[(String, String)],
-                          notableEventType: NotableEventType
-                        ): Either[String, NrsSubmission] =
+      evidence: JsValue,
+      vrn: String,
+      reportId: String,
+      submissionTimestamp: Instant,
+      identityData: Option[IdentityData],
+      userAuthToken: Option[String],
+      requestHeaders: Seq[(String, String)],
+      notableEventType: NotableEventType
+  ): Either[String, NrsSubmission] =
     for
-      authenticatedIdentityData <- identityData.toRight(
-        "identity data is unavailable"
-      )
-      token <- userAuthToken.toRight(
-        "original Authorization header is unavailable"
-      )
-      headers = headerData(requestHeaders)
+      authenticatedIdentityData <- identityData.toRight("identity data is unavailable")
+      token <- userAuthToken.toRight("original Authorization header is unavailable")
     yield
       val evidenceBytes = Json.stringify(evidence).getBytes(UTF_8)
 
@@ -138,170 +101,118 @@ class NrsService @Inject()(
           userSubmissionTimestamp = submissionTimestamp.toString,
           identityData = Json.toJson(authenticatedIdentityData),
           userAuthToken = token,
-          headerData = headers,
-          searchKeys = SearchKeys(
-            vrn = vrn,
-            reportId = reportId
-          )
+          headerData = headerData(requestHeaders),
+          searchKeys = SearchKeys(vrn = vrn, reportId = reportId)
         )
       )
 
+  def processDueWorkItems(): Future[Unit] =
+
+    def processNext(processedCount: Int): Future[Unit] =
+      if processedCount >= appConfig.nrsRetryBatchSize then
+        logger.info(s"[NrsService][processDueWorkItems] reached configured retry batch size ${appConfig.nrsRetryBatchSize}")
+        Future.unit
+      else
+        repository.pullDue().flatMap {
+          case None           => Future.unit
+          case Some(workItem) => processWorkItem(workItem).flatMap(_ => processNext(processedCount + 1))
+        }
+
+    processNext(processedCount = 0)
+
+  // ---------- First attempt ----------
+
   private def submitInitial(nrsSubmission: NrsSubmission, correlationId: CorrelationId): Unit =
-    val logPrefix = s"${correlationId.value}::[NrsService][submitInitial]"
+    val prefix = logPrefix(correlationId, InitialStage)
     val event = nrsSubmission.metadata.notableEvent
 
-    connector
-      .submit(nrsSubmission = nrsSubmission, correlationId = correlationId)
-      .recover { case NonFatal(error) =>
-        logger.warn(s"$logPrefix NRS submission failed unexpectedly for $event, scheduling retry", error)
-        SubmissionResult.RetryableFailure
-      }
+    submitWithRecovery(nrsSubmission, correlationId, prefix)
       .flatMap {
         case SubmissionResult.Success =>
-          logger.info(s"$logPrefix NRS submission accepted for $event")
           Future.unit
 
         case SubmissionResult.RetryableFailure =>
-          nrsSubmissionWorkItemRepository
+          repository
             .enqueueRetryableFailure(submission = nrsSubmission, correlationId = correlationId)
-            .map { workItem =>
-              logger.warn(
-                s"$logPrefix Retryable NRS failure for $event persisted work item ${workItem.id} for retry at ${workItem.availableAt}"
-              )
-            }
+            .map(workItem => logger.warn(s"$prefix retryable NRS failure for $event; work item ${workItem.id} scheduled for ${workItem.availableAt}"))
 
         case SubmissionResult.PermanentFailure =>
-          nrsSubmissionWorkItemRepository
+          repository
             .enqueuePermanentFailure(submission = nrsSubmission, correlationId = correlationId)
-            .map { workItem =>
-              logger.warn(
-                s"$logPrefix Permanent NRS failure for $event persisted work item ${workItem.id} for ${appConfig.nrsRetryRetention} retention"
-              )
-            }
+            .map(workItem =>
+              logger.warn(s"$prefix permanent NRS failure for $event; work item ${workItem.id} retained for ${appConfig.nrsRetryRetention}"))
       }
       .recover { case NonFatal(error) =>
-        logger.error(
-          s"$logPrefix Failed to persist NRS submission for $event, VAT Assist response is unaffected",
-          error
-        )
+        logger.error(s"$prefix failed to persist NRS delivery result for $event; VAT Assist response is unaffected", error)
       }
 
-  private def processWorkItem(
-                               workItem: WorkItem[NrsSubmissionWorkItem]
-                             ): Future[Unit] =
+  // ---------- Retries ----------
+
+  private def processWorkItem(workItem: WorkItem[NrsSubmissionWorkItem]): Future[Unit] =
+    val prefix = logPrefix(workItem.item.correlationId, RetryStage)
+
     Try(workItem.item.nrsSubmission) match
       case Failure(error) =>
-        logger.error(
-          s"${workItem.item.correlationId.value}::[NrsService][processWorkItem] " +
-            s"Could not decrypt or parse NRS work item ${workItem.id}; " +
-            "marking it permanently failed",
-          error
-        )
-
-        nrsSubmissionWorkItemRepository
-          .markPermanentFailure(workItem)
-          .map(_ => ())
+        logger.error(s"$prefix could not decrypt or parse NRS work item ${workItem.id}; marking permanently failed", error)
+        repository.markPermanentFailure(workItem).map(_ => ())
 
       case Success(nrsSubmission) =>
-        submitRetry(
-          workItem = workItem,
-          nrsSubmission = nrsSubmission
-        ).flatMap { result =>
-          recordRetryResult(
-            workItem = workItem,
-            result = result
-          )
-        }
+        submitWithRecovery(nrsSubmission, workItem.item.correlationId, prefix)
+          .flatMap(result => recordResult(workItem, nrsSubmission.metadata.notableEvent, result, prefix))
 
-  private def submitRetry(
-                           workItem: WorkItem[NrsSubmissionWorkItem],
-                           nrsSubmission: NrsSubmission
-                         ): Future[SubmissionResult] =
-    connector
-      .submit(
-        nrsSubmission = nrsSubmission,
-        correlationId = workItem.item.correlationId
-      )
-      .recover { case NonFatal(error) =>
-        logger.error(
-          s"${workItem.item.correlationId.value}::" +
-            s"[NrsService][processWorkItem] unexpected NRS connector failure " +
-            s"for work item ${workItem.id}; treating it as retryable",
-          error
-        )
-        SubmissionResult.RetryableFailure
-      }
-
-  private def recordRetryResult(
-                                 workItem: WorkItem[NrsSubmissionWorkItem],
-                                 result: SubmissionResult
-                               ): Future[Unit] =
-    val logPrefix =
-      s"${workItem.item.correlationId.value}::[NrsService][processWorkItem]"
-
+  private def recordResult(workItem: WorkItem[NrsSubmissionWorkItem], event: String, result: SubmissionResult, prefix: String): Future[Unit] =
     result match
       case SubmissionResult.Success =>
-        nrsSubmissionWorkItemRepository
+        repository
           .completeAndDelete(workItem.id)
-          .map { deleted =>
-            logger.info(
-              s"$logPrefix Retry succeeded for NRS work item " +
-                s"${workItem.id}; deleted=$deleted"
-            )
-            ()
-          }
+          .map(deleted => logger.info(s"$prefix NRS retry succeeded for $event, work item ${workItem.id}; deleted=$deleted"))
+
+      case SubmissionResult.PermanentFailure =>
+        repository
+          .markPermanentFailure(workItem)
+          .map(updated =>
+            logger.warn(
+              s"$prefix permanent NRS failure for $event, work item ${workItem.id}; retained for ${appConfig.nrsRetryRetention}; updated=$updated"))
 
       case SubmissionResult.RetryableFailure =>
-        val retryNumber =
-          workItem.failureCount + 1
+        val retryNumber = workItem.failureCount + 1
 
-        nrsSubmissionWorkItemRepository
+        repository
           .markRetryableFailure(workItem)
           .map { updated =>
             if retryPolicy.isExhaustedAfterFailure(retryNumber) then
-              logger.warn(
-                s"$logPrefix NRS work item ${workItem.id} exhausted retry " +
-                  s"$retryNumber/${retryPolicy.maxRetries}; retained for " +
-                  s"${appConfig.nrsRetryRetention}; updated=$updated"
-              )
+              logger.error(
+                s"$prefix NRS work item ${workItem.id} for $event exhausted retry $retryNumber/${retryPolicy.maxRetries}; " +
+                  s"retained for ${appConfig.nrsRetryRetention}; updated=$updated")
             else
               logger.warn(
-                s"$logPrefix Retry $retryNumber/${retryPolicy.maxRetries} " +
-                  s"failed for NRS work item ${workItem.id}; " +
-                  "next retry scheduled; " +
-                  s"updated=$updated"
-              )
-
-            ()
+                s"$prefix NRS retry $retryNumber/${retryPolicy.maxRetries} failed for $event, work item ${workItem.id}; next retry scheduled; updated=$updated")
           }
 
-      case SubmissionResult.PermanentFailure =>
-        nrsSubmissionWorkItemRepository
-          .markPermanentFailure(workItem)
-          .map { updated =>
-            logger.warn(
-              s"$logPrefix Permanent NRS failure for work item " +
-                s"${workItem.id}; retained for " +
-                s"${appConfig.nrsRetryRetention}; updated=$updated"
-            )
-            ()
-          }
+  // ---------- Shared ----------
 
-  private def headerData(
-                          headers: Seq[(String, String)]
-                        ): JsObject =
+  private def submitWithRecovery(nrsSubmission: NrsSubmission, correlationId: CorrelationId, prefix: String): Future[SubmissionResult] =
+    connector
+      .submit(nrsSubmission = nrsSubmission, correlationId = correlationId)
+      .recover { case NonFatal(error) =>
+        logger.warn(s"$prefix NRS submission failed unexpectedly for ${nrsSubmission.metadata.notableEvent}; treating as retryable", error)
+        SubmissionResult.RetryableFailure
+      }
+
+  private def repository: NrsSubmissionWorkItemStore =
+    nrsSubmissionWorkItemRepositoryProvider.get()
+
+  private def logPrefix(correlationId: CorrelationId, stage: String): String =
+    s"${correlationId.value}::[NrsService][$stage]"
+
+  // ---------- Evidence helpers ----------
+
+  private def headerData(headers: Seq[(String, String)]): JsObject =
     Json.obj(
       headers.collect {
-        case (name, value) if !name.equalsIgnoreCase("Authorization") =>
-          name -> value
+        case (name, value) if !name.equalsIgnoreCase("Authorization") => name -> value
       }*
     )
 
-  private def sha256(
-                      bytes: Array[Byte]
-                    ): String =
-    MessageDigest
-      .getInstance("SHA-256")
-      .digest(bytes)
-      .map("%02x".format(_))
-      .mkString
+  private def sha256(bytes: Array[Byte]): String =
+    MessageDigest.getInstance("SHA-256").digest(bytes).map("%02x".format(_)).mkString

@@ -19,9 +19,9 @@ package uk.gov.hmrc.mtdtransactionrisking.v1.models.request.nrs
 import play.api.libs.json.{Json, OFormat}
 
 final case class SearchKeys(
-                             vrn: String,
-                             reportId: String
-                           )
+    vrn: String,
+    reportId: String
+)
 
 object SearchKeys:
   given OFormat[SearchKeys] = Json.format[SearchKeys]

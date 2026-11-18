@@ -27,11 +27,7 @@ import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.SubmissionResult
 import java.io.IOException
 import java.util.concurrent.TimeoutException
 
-class NrsConnectorSpec
-  extends ConnectorSpec
-    with MockAppConfig
-    with BeforeAndAfterAll
-    with BeforeAndAfterEach:
+class NrsConnectorSpec extends ConnectorSpec with MockAppConfig with BeforeAndAfterAll with BeforeAndAfterEach:
 
   private val path =
     "/nrs-orchestrator/submission"
@@ -100,7 +96,7 @@ class NrsConnectorSpec
   "NrsConnector.submit" should:
 
     "send the supplied correlation ID unchanged and accept HTTP 202" in new Test:
-      val submissionJson =
+      val submissionJson: String =
         Json.stringify(
           Json.toJson(submission)
         )
@@ -249,19 +245,19 @@ class NrsConnectorSpec
           )
       )
 
-    "NrsConnector transport failure classification" should :
+    "NrsConnector transport failure classification" should:
 
-      "recognise an IOException" in :
+      "recognise an IOException" in:
         NrsConnector.isRetryableTransportFailure(
           new IOException("connection failed")
         ) shouldBe true
 
-      "recognise a TimeoutException" in :
+      "recognise a TimeoutException" in:
         NrsConnector.isRetryableTransportFailure(
           new TimeoutException("request timed out")
         ) shouldBe true
 
-      "recognise retryable transport failures nested as causes" in :
+      "recognise retryable transport failures nested as causes" in:
         val error =
           new RuntimeException(
             "HTTP client failure",
@@ -270,7 +266,7 @@ class NrsConnectorSpec
 
         NrsConnector.isRetryableTransportFailure(error) shouldBe true
 
-      "recognise a nested timeout" in :
+      "recognise a nested timeout" in:
         val error =
           new RuntimeException(
             "HTTP client failure",
@@ -282,8 +278,7 @@ class NrsConnectorSpec
 
         NrsConnector.isRetryableTransportFailure(error) shouldBe true
 
-      "reject an exception without an IOException or TimeoutException cause" in :
+      "reject an exception without an IOException or TimeoutException cause" in:
         NrsConnector.isRetryableTransportFailure(
           new IllegalStateException("invalid request")
         ) shouldBe false
-

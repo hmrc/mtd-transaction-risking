@@ -110,10 +110,10 @@ class InsightsConnectorSpec extends ConnectorSpec, BeforeAndAfterAll, Injecting,
           stubInsights(None, status)
           await(connector.getRiskInsights(request)) shouldBe Left(ErrorWrapper(correlationId, DownstreamError))
 
-    "the proxy responds with an 503 status" should :
-        "return Left(ServiceUnavailableError)" in new Test:
-          stubInsights(None, SERVICE_UNAVAILABLE)
-          await(connector.getRiskInsights(request)) shouldBe Left(ErrorWrapper(correlationId, ServiceUnavailableError))
+    "the proxy responds with an 503 status" should:
+      "return Left(ServiceUnavailableError)" in new Test:
+        stubInsights(None, SERVICE_UNAVAILABLE)
+        await(connector.getRiskInsights(request)) shouldBe Left(ErrorWrapper(correlationId, ServiceUnavailableError))
 
     "the connection faults" should:
       "return Left(DownstreamError) via recover" in new Test:

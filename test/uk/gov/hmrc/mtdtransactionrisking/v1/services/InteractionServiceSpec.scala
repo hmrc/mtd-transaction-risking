@@ -122,8 +122,8 @@ class InteractionServiceSpec extends UnitSpec:
     )
 
   private def featureSwitch(
-                             retryEnabled: Boolean
-                           ): Option[Configuration] =
+      retryEnabled: Boolean
+  ): Option[Configuration] =
     Some(
       Configuration(
         ConfigFactory.parseString(
@@ -166,15 +166,16 @@ class InteractionServiceSpec extends UnitSpec:
       )
 
     def expectConnectorResult(
-                               result: Future[SubmissionResult]
-                             ): Unit =
+        result: Future[SubmissionResult]
+    ): Unit =
       (
-        connector.store(
-          _: JsValue,
-          _: String,
-          _: String,
-          _: CorrelationId
-        )(_: HeaderCarrier)
+        connector
+          .store(
+            _: JsValue,
+            _: String,
+            _: String,
+            _: CorrelationId
+          )(_: HeaderCarrier)
         )
         .expects(
           Json.toJson(expectedInteraction),
@@ -230,7 +231,8 @@ class InteractionServiceSpec extends UnitSpec:
 
       expectRepository()
 
-      (repository.enqueueRetryableFailure(_: Interaction, _: CorrelationId))
+      (repository
+        .enqueueRetryableFailure(_: Interaction, _: CorrelationId))
         .expects(expectedInteraction, correlationId)
         .onCall { (_, _) =>
           enqueueAttempted.trySuccess(())
@@ -258,7 +260,8 @@ class InteractionServiceSpec extends UnitSpec:
 
       expectRepository()
 
-      (repository.enqueuePermanentFailure(_: Interaction, _: CorrelationId))
+      (repository
+        .enqueuePermanentFailure(_: Interaction, _: CorrelationId))
         .expects(expectedInteraction, correlationId)
         .onCall { (_, _) =>
           enqueueAttempted.trySuccess(())
@@ -288,7 +291,8 @@ class InteractionServiceSpec extends UnitSpec:
 
       expectRepository()
 
-      (repository.enqueueRetryableFailure(_: Interaction, _: CorrelationId))
+      (repository
+        .enqueueRetryableFailure(_: Interaction, _: CorrelationId))
         .expects(expectedInteraction, correlationId)
         .onCall { (_, _) =>
           enqueueAttempted.trySuccess(())
@@ -314,12 +318,13 @@ class InteractionServiceSpec extends UnitSpec:
         Promise[Unit]()
 
       (
-        connector.store(
-          _: JsValue,
-          _: String,
-          _: String,
-          _: CorrelationId
-        )(_: HeaderCarrier)
+        connector
+          .store(
+            _: JsValue,
+            _: String,
+            _: String,
+            _: CorrelationId
+          )(_: HeaderCarrier)
         )
         .expects(
           Json.toJson(expectedInteraction),
@@ -350,12 +355,13 @@ class InteractionServiceSpec extends UnitSpec:
         Promise[Unit]()
 
       (
-        connector.store(
-          _: JsValue,
-          _: String,
-          _: String,
-          _: CorrelationId
-        )(_: HeaderCarrier)
+        connector
+          .store(
+            _: JsValue,
+            _: String,
+            _: String,
+            _: CorrelationId
+          )(_: HeaderCarrier)
         )
         .expects(
           Json.toJson(expectedInteraction),

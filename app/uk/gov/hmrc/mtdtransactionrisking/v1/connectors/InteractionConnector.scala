@@ -60,44 +60,33 @@ class InteractionConnector @Inject() (httpClient: HttpClientV2, appConfig: AppCo
             response.status match
               case NO_CONTENT =>
                 logger.info(
-                  s"${correlationId.value}::[InteractionConnector][store] " +
-                    s"interaction stored for $eventName, " +
-                    s"feedbackId $feedbackId"
+                  s"${correlationId.value}::[InteractionConnector][store] interaction stored for $eventName, feedbackId $feedbackId"
                 )
                 SubmissionResult.Success
 
               // NOT_FOUND is retried like a server error as it can mean RSD or its HIP route is temporarily unavailable,
               case status if status == NOT_FOUND || status >= 499 =>
                 logger.warn(
-                  s"${correlationId.value}::[InteractionConnector][store] " +
-                    s"retryable RSD status $status for $eventName, " +
-                    s"feedbackId $feedbackId"
-                )
+                  s"${correlationId.value}::[InteractionConnector][store] retryable RSD status $status for $eventName, feedbackId $feedbackId")
                 SubmissionResult.RetryableFailure
 
               case status =>
-                logger.warn(
-                  s"${correlationId.value}::[InteractionConnector][store] " +
-                    s"non-retryable RSD status $status for $eventName, " +
-                    s"feedbackId $feedbackId"
-                )
+                logger.error(
+                  s"${correlationId.value}::[InteractionConnector][store] permanent RSD status $status for $eventName, feedbackId $feedbackId")
                 SubmissionResult.PermanentFailure
           }
       }
       .recover {
         case error if InteractionConnector.containsSslFailure(error) =>
-          logger.warn(
-            s"${correlationId.value}::[InteractionConnector][store] " +
-              s"permanent SSL/TLS failure for $eventName, feedbackId $feedbackId",
+          logger.error(
+            s"${correlationId.value}::[InteractionConnector][store] permanent SSL/TLS failure for $eventName, feedbackId $feedbackId",
             error
           )
           SubmissionResult.PermanentFailure
 
         case NonFatal(error) =>
           logger.warn(
-            s"${correlationId.value}::[InteractionConnector][store] " +
-              s"RSD request failed for $eventName, feedbackId $feedbackId; " +
-              "treating as retryable",
+            s"${correlationId.value}::[InteractionConnector][store] RSD request failed for $eventName, feedbackId $feedbackId, treating as retryable",
             error
           )
           SubmissionResult.RetryableFailure

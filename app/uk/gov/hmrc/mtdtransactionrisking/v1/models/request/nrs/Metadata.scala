@@ -19,16 +19,16 @@ package uk.gov.hmrc.mtdtransactionrisking.v1.models.request.nrs
 import play.api.libs.json.{JsObject, JsValue, Json, OFormat}
 
 final case class Metadata(
-                           businessId: String,
-                           notableEvent: String,
-                           payloadContentType: String,
-                           payloadSha256Checksum: String,
-                           userSubmissionTimestamp: String,
-                           identityData: JsValue,
-                           userAuthToken: String,
-                           headerData: JsObject,
-                           searchKeys: SearchKeys
-                         )
+    businessId: String,
+    notableEvent: String,
+    payloadContentType: String,
+    payloadSha256Checksum: String,
+    userSubmissionTimestamp: String,
+    identityData: JsValue,
+    userAuthToken: String,
+    headerData: JsObject,
+    searchKeys: SearchKeys
+)
 
 object Metadata:
   given OFormat[Metadata] = Json.format[Metadata]

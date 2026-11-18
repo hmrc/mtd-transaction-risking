@@ -27,13 +27,13 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.util.control.NonFatal
 
 @Singleton
-class RsdRetryScheduler @Inject()(
-                                   actorSystem: ActorSystem,
-                                   applicationLifecycle: ApplicationLifecycle,
-                                   appConfig: AppConfig,
-                                   interactionService: InteractionService
-                                 )(using ec: ExecutionContext)
-  extends Logging:
+class RsdRetryScheduler @Inject() (
+    actorSystem: ActorSystem,
+    applicationLifecycle: ApplicationLifecycle,
+    appConfig: AppConfig,
+    interactionService: InteractionService
+)(using ec: ExecutionContext)
+    extends Logging:
 
   private val retryEnabled =
     FeatureSwitch(appConfig.featureSwitch).isEnabled(
@@ -53,13 +53,12 @@ class RsdRetryScheduler @Inject()(
           initialDelay = appConfig.rsdRetryInitialDelay,
           interval = appConfig.rsdRetryInterval
         ) { () =>
-          interactionService.processDueWorkItems().recover {
-            case NonFatal(error) =>
-              logger.error(
-                "[RsdRetryScheduler] unexpected RSD retry worker failure",
-                error
-              )
-              ()
+          interactionService.processDueWorkItems().recover { case NonFatal(error) =>
+            logger.error(
+              "[RsdRetryScheduler] unexpected RSD retry worker failure",
+              error
+            )
+            ()
           }
           ()
         }

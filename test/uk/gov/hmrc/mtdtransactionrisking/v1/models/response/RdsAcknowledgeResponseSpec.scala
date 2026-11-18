@@ -23,17 +23,17 @@ class RdsAcknowledgeResponseSpec extends UnitSpec:
 
   private def acknowledgeJson(outputs: (String, JsValue)*): JsValue =
     Json.obj(
-      "moduleId"       -> "HMRC_ASSIST_VAT_FINSUB_FEEDBACK_ACK",
+      "moduleId" -> "HMRC_ASSIST_VAT_FINSUB_FEEDBACK_ACK",
       "executionState" -> "completed",
-      "outputs"        -> outputs.map((name, value) => Json.obj("name" -> name, "value" -> value))
+      "outputs" -> outputs.map((name, value) => Json.obj("name" -> name, "value" -> value))
     )
 
   private val qaRejection: JsValue = acknowledgeJson(
-    "VRN"                      -> Json.toJson("888852841"),
-    "createdDttm"              -> Json.toJson("2026-10-12T14:25:44.688"),
-    "feedbackId"               -> Json.toJson("bc3877bc-5490-4775-9849-cdd566a9aa3c"),
-    "responseCode"             -> Json.parse("401.0"),
-    "responseMessage"          -> Json.toJson("Acknowledgement validation failed"),
+    "VRN" -> Json.toJson("888852841"),
+    "createdDttm" -> Json.toJson("2026-10-12T14:25:44.688"),
+    "feedbackId" -> Json.toJson("bc3877bc-5490-4775-9849-cdd566a9aa3c"),
+    "responseCode" -> Json.parse("401.0"),
+    "responseMessage" -> Json.toJson("Acknowledgement validation failed"),
     "rt_Record_Contacts_Outer" -> Json.toJson("bb07e500-8a7e-0a48-b3b0-8f639f4bf413")
   )
 

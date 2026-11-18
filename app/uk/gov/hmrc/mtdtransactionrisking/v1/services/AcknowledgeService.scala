@@ -44,12 +44,11 @@ class AcknowledgeService @Inject() (rdsAuthService: RdsAuthService,
   def stubAcknowledge(request: AcknowledgeRequest)(implicit hc: HeaderCarrier, correlationId: CorrelationId): Future[ServiceOutcome[Unit]] =
     acknowledgeConnector.acknowledge(request)
 
-  def acknowledge(
-                   request: AcknowledgeRequest,
-                   identityData: Option[IdentityData],
-                   userAuthToken: Option[String],
-                   requestHeaders: Seq[(String, String)],
-                   submissionTimestamp: Instant)(implicit hc: HeaderCarrier, correlationId: CorrelationId): Future[ServiceOutcome[Unit]] =
+  def acknowledge(request: AcknowledgeRequest,
+                  identityData: Option[IdentityData],
+                  userAuthToken: Option[String],
+                  requestHeaders: Seq[(String, String)],
+                  submissionTimestamp: Instant)(implicit hc: HeaderCarrier, correlationId: CorrelationId): Future[ServiceOutcome[Unit]] =
 
     logger.info(s"${correlationId.value}::[AcknowledgeService][acknowledge] acknowledgement received for reportId ${request.reportId}")
 
@@ -58,15 +57,15 @@ class AcknowledgeService @Inject() (rdsAuthService: RdsAuthService,
       _ <- EitherT(rdsConnector.acknowledge(request, credentials.responseData))
       _ = interactionService.storeAcknowledgement(request)
       _ = nrsService.submit(
-          evidence = Json.toJson(request),
-          vrn = request.vrn,
-          reportId = request.reportId,
-          submissionTimestamp = submissionTimestamp,
-          identityData = identityData,
-          userAuthToken = userAuthToken,
-          requestHeaders = requestHeaders,
-          notableEventType = AssistReportAcknowledged,
-          correlationId = correlationId
+        evidence = Json.toJson(request),
+        vrn = request.vrn,
+        reportId = request.reportId,
+        submissionTimestamp = submissionTimestamp,
+        identityData = identityData,
+        userAuthToken = userAuthToken,
+        requestHeaders = requestHeaders,
+        notableEventType = AssistReportAcknowledged,
+        correlationId = correlationId
       )
     yield ResponseWrapper(correlationId, ())
 

@@ -23,26 +23,26 @@ import uk.gov.hmrc.auth.core.{AffinityGroup, ConfidenceLevel, CredentialRole}
 import java.time.LocalDate
 
 final case class IdentityData(
-                               internalId: Option[String] = None,
-                               externalId: Option[String] = None,
-                               agentCode: Option[String] = None,
-                               credentials: Option[Credentials] = None,
-                               confidenceLevel: ConfidenceLevel,
-                               nino: Option[String] = None,
-                               saUtr: Option[String] = None,
-                               dateOfBirth: Option[LocalDate] = None,
-                               email: Option[String] = None,
-                               agentInformation: AgentInformation,
-                               groupIdentifier: Option[String] = None,
-                               credentialRole: Option[CredentialRole],
-                               mdtpInformation: Option[MdtpInformation] = None,
-                               itmpName: ItmpName,
-                               itmpDateOfBirth: Option[LocalDate] = None,
-                               itmpAddress: ItmpAddress,
-                               affinityGroup: Option[AffinityGroup],
-                               credentialStrength: Option[String] = None,
-                               loginTimes: LoginTimes
-                             )
+    internalId: Option[String] = None,
+    externalId: Option[String] = None,
+    agentCode: Option[String] = None,
+    credentials: Option[Credentials] = None,
+    confidenceLevel: ConfidenceLevel,
+    nino: Option[String] = None,
+    saUtr: Option[String] = None,
+    dateOfBirth: Option[LocalDate] = None,
+    email: Option[String] = None,
+    agentInformation: AgentInformation,
+    groupIdentifier: Option[String] = None,
+    credentialRole: Option[CredentialRole],
+    mdtpInformation: Option[MdtpInformation] = None,
+    itmpName: ItmpName,
+    itmpDateOfBirth: Option[LocalDate] = None,
+    itmpAddress: ItmpAddress,
+    affinityGroup: Option[AffinityGroup],
+    credentialStrength: Option[String] = None,
+    loginTimes: LoginTimes
+)
 
 object IdentityData:
 
