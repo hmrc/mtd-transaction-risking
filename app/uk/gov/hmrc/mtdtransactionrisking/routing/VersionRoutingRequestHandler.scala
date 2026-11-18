@@ -61,7 +61,7 @@ class VersionRoutingRequestHandler @Inject() (versionRoutingMap: VersionRoutingM
           case Some(_) => Some(unsupportedVersionAction)
           case None    => Some(invalidAcceptHeaderError)
       case None =>
-        logger.warn(s"\n$request\n")
+        logger.warn("[VersionRoutingRequestHandler] Missing or invalid Accept header")
         Some(invalidAcceptHeaderError)
 
     documentHandler orElse apiHandler
