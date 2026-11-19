@@ -90,8 +90,8 @@ class AppConfigImpl @Inject() (config: ServicesConfig, configuration: Configurat
 
   def featureSwitch: Option[Configuration] = configuration.getOptional[Configuration]("feature-switch")
   val apiGatewayContext: String = config.getString("api.gateway.context")
-  def apiStatus(version: String): String = config.getString(s"api.$version.status")
-  def endpointsEnabled(version: String): Boolean = config.getBoolean(s"feature-switch.version-$version.enabled")
+  def apiStatus(version: String): String = configuration.getOptional[String](s"api.$version.status").getOrElse("ALPHA")
+  def endpointsEnabled(version: String): Boolean = configuration.getOptional[Boolean](s"api.$version.endpointsEnabled").getOrElse(false)
   
   private val vatApiConfig = configuration.get[Configuration]("microservice.services.vat-api")
   val vatApiBaseUrl: String = config.baseUrl("vat-api") + vatApiConfig.get[String]("submit-url")

@@ -22,7 +22,7 @@ import play.api.mvc.{DefaultActionBuilder, Handler, RequestHeader, Results}
 import play.api.routing.Router
 import play.core.DefaultWebCommands
 import uk.gov.hmrc.mtdtransactionrisking.config.{AppConfig, FeatureSwitch}
-import uk.gov.hmrc.mtdtransactionrisking.definitions.Versions
+import uk.gov.hmrc.mtdtransactionrisking.definition.Versions
 import uk.gov.hmrc.mtdtransactionrisking.utils.Logging
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.errors.{InvalidAcceptHeaderError, UnsupportedVersionError}
 

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package uk.gov.hmrc.mtdtransactionrisking.definitions
+package uk.gov.hmrc.mtdtransactionrisking.definition
 
 import play.api.http.HeaderNames.ACCEPT
 import play.api.mvc.RequestHeader
