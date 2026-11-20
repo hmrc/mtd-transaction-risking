@@ -42,8 +42,8 @@ class RsdRetrySchedulerSpec extends UnitSpec, MockitoSugar:
     30.seconds
 
   private def featureSwitch(
-                             enabled: Boolean
-                           ): Option[Configuration] =
+      enabled: Boolean
+  ): Option[Configuration] =
     Some(
       Configuration(
         ConfigFactory.parseString(
@@ -63,12 +63,12 @@ class RsdRetrySchedulerSpec extends UnitSpec, MockitoSugar:
     )
 
   private def configureEnabledScheduler(
-                                         actorSystem: ActorSystem,
-                                         pekkoScheduler: Scheduler,
-                                         appConfig: AppConfig,
-                                         interactionService: InteractionService,
-                                         cancellable: Cancellable
-                                       ): Unit =
+      actorSystem: ActorSystem,
+      pekkoScheduler: Scheduler,
+      appConfig: AppConfig,
+      interactionService: InteractionService,
+      cancellable: Cancellable
+  ): Unit =
     when(appConfig.featureSwitch)
       .thenReturn(featureSwitch(enabled = true))
 
@@ -101,7 +101,7 @@ class RsdRetrySchedulerSpec extends UnitSpec, MockitoSugar:
         appConfig,
         interactionService,
         cancellable
-        ) = createSchedulerMocks()
+      ) = createSchedulerMocks()
 
       configureEnabledScheduler(
         actorSystem,
@@ -131,7 +131,7 @@ class RsdRetrySchedulerSpec extends UnitSpec, MockitoSugar:
         appConfig,
         interactionService,
         _
-        ) = createSchedulerMocks()
+      ) = createSchedulerMocks()
 
       when(appConfig.featureSwitch)
         .thenReturn(featureSwitch(enabled = false))
@@ -156,7 +156,7 @@ class RsdRetrySchedulerSpec extends UnitSpec, MockitoSugar:
         appConfig,
         interactionService,
         cancellable
-        ) = createSchedulerMocks()
+      ) = createSchedulerMocks()
 
       configureEnabledScheduler(
         actorSystem,
@@ -193,7 +193,7 @@ class RsdRetrySchedulerSpec extends UnitSpec, MockitoSugar:
         appConfig,
         interactionService,
         cancellable
-        ) = createSchedulerMocks()
+      ) = createSchedulerMocks()
 
       configureEnabledScheduler(
         actorSystem,
@@ -233,7 +233,7 @@ class RsdRetrySchedulerSpec extends UnitSpec, MockitoSugar:
         appConfig,
         interactionService,
         cancellable
-        ) = createSchedulerMocks()
+      ) = createSchedulerMocks()
 
       configureEnabledScheduler(
         actorSystem,

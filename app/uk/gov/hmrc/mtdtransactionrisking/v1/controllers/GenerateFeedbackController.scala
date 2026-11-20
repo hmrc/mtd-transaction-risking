@@ -34,7 +34,8 @@ import scala.concurrent.ExecutionContext
 class GenerateFeedbackController @Inject() (cc: ControllerComponents,
                                             generateFeedbackService: GenerateFeedbackService,
                                             authAction: VATAuthAction,
-                                            appConfig: AppConfig, clock: Clock)(implicit ec: ExecutionContext)
+                                            appConfig: AppConfig,
+                                            clock: Clock)(implicit ec: ExecutionContext)
     extends BackendController(cc),
       Logging,
       ResponseHandler:
@@ -49,17 +50,16 @@ class GenerateFeedbackController @Inject() (cc: ControllerComponents,
 
         val submissionTimestamp = Instant.now(clock)
 
-        if appConfig.externalTestStubsEnabled then
-            generateFeedbackService.requestStubFeedback(vrn).map(handleOutcome)
+        if appConfig.externalTestStubsEnabled then generateFeedbackService.requestStubFeedback(vrn).map(handleOutcome)
         else
-            generateFeedbackService
-              .generateFeedback(
-                vrn = vrn,
-                body = request.body,
-                agentReferenceNumber = request.arn,
-                requestHeaders = request.headers.headers,
-                identityData = request.identityData,
-                userAuthToken = request.headers.get("Authorization"),
-                submissionTimestamp = submissionTimestamp
-              )
-              .map(handleOutcome)
+          generateFeedbackService
+            .generateFeedback(
+              vrn = vrn,
+              body = request.body,
+              agentReferenceNumber = request.arn,
+              requestHeaders = request.headers.headers,
+              identityData = request.identityData,
+              userAuthToken = request.headers.get("Authorization"),
+              submissionTimestamp = submissionTimestamp
+            )
+            .map(handleOutcome)

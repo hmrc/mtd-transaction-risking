@@ -37,29 +37,29 @@ import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
-class RsdInteractionWorkItemRepository @Inject()(
-                                                  mongoComponent: MongoComponent,
-                                                  appConfig: AppConfig,
-                                                  retryPolicy: RsdRetryPolicy,
-                                                  clock: Clock
-                                                )(using ec: ExecutionContext, rsdCrypto: RsdCrypto)
-  extends WorkItemRepository[RsdInteractionWorkItem](
-    collectionName = "rsd-interaction-work-items",
-    mongoComponent = mongoComponent,
-    itemFormat = summon[OFormat[RsdInteractionWorkItem]],
-    workItemFields = WorkItemFields.default,
-    extraIndexes = Seq(
-      IndexModel(
-        Indexes.ascending(WorkItemFields.default.updatedAt),
-        IndexOptions()
-          .name("rsd-interaction-work-items-updated-at-ttl")
-          .expireAfter(
-            appConfig.rsdRetryRetention.toSeconds,
-            TimeUnit.SECONDS
-          )
+class RsdInteractionWorkItemRepository @Inject() (
+    mongoComponent: MongoComponent,
+    appConfig: AppConfig,
+    retryPolicy: RsdRetryPolicy,
+    clock: Clock
+)(using ec: ExecutionContext, rsdCrypto: RsdCrypto)
+    extends WorkItemRepository[RsdInteractionWorkItem](
+      collectionName = "rsd-interaction-work-items",
+      mongoComponent = mongoComponent,
+      itemFormat = summon[OFormat[RsdInteractionWorkItem]],
+      workItemFields = WorkItemFields.default,
+      extraIndexes = Seq(
+        IndexModel(
+          Indexes.ascending(WorkItemFields.default.updatedAt),
+          IndexOptions()
+            .name("rsd-interaction-work-items-updated-at-ttl")
+            .expireAfter(
+              appConfig.rsdRetryRetention.toSeconds,
+              TimeUnit.SECONDS
+            )
+        )
       )
     )
-  )
     with RsdInteractionWorkItemStore:
 
   override def now(): Instant =
@@ -74,9 +74,9 @@ class RsdInteractionWorkItemRepository @Inject()(
     true
 
   override def enqueueRetryableFailure(
-                                        interaction: Interaction,
-                                        correlationId: CorrelationId
-                                      ): Future[WorkItem[RsdInteractionWorkItem]] =
+      interaction: Interaction,
+      correlationId: CorrelationId
+  ): Future[WorkItem[RsdInteractionWorkItem]] =
     pushNew(
       item = RsdInteractionWorkItem(
         interaction = interaction,
@@ -88,9 +88,9 @@ class RsdInteractionWorkItemRepository @Inject()(
     )
 
   override def enqueuePermanentFailure(
-                                        interaction: Interaction,
-                                        correlationId: CorrelationId
-                                      ): Future[WorkItem[RsdInteractionWorkItem]] =
+      interaction: Interaction,
+      correlationId: CorrelationId
+  ): Future[WorkItem[RsdInteractionWorkItem]] =
     pushNew(
       item = RsdInteractionWorkItem(
         interaction = interaction,
@@ -107,8 +107,8 @@ class RsdInteractionWorkItemRepository @Inject()(
     )
 
   override def markRetryableFailure(
-                                     workItem: WorkItem[RsdInteractionWorkItem]
-                                   ): Future[Boolean] =
+      workItem: WorkItem[RsdInteractionWorkItem]
+  ): Future[Boolean] =
     val completedRetryNumber =
       workItem.failureCount + 1
 
@@ -169,8 +169,8 @@ class RsdInteractionWorkItemRepository @Inject()(
       .map(_.getModifiedCount == 1)
 
   override def markPermanentFailure(
-                                     workItem: WorkItem[RsdInteractionWorkItem]
-                                   ): Future[Boolean] =
+      workItem: WorkItem[RsdInteractionWorkItem]
+  ): Future[Boolean] =
     collection
       .updateOne(
         Filters.and(

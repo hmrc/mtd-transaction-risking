@@ -74,9 +74,9 @@ class IdentityDataSpec extends UnitSpec:
 
       "write and read all VAT API-equivalent identity fields" in:
         val identityDataFormat = summon[OFormat[IdentityData]]
-          val json = identityDataFormat.writes(identityData)
+        val json = identityDataFormat.writes(identityData)
 
-          json shouldBe Json.parse(
+        json shouldBe Json.parse(
           """
             |{
             |  "internalId": "internal-id",
@@ -126,9 +126,9 @@ class IdentityDataSpec extends UnitSpec:
 
         identityDataFormat.reads(json).get shouldBe identityData
 
-    "deserialised from JSON" should :
+    "deserialised from JSON" should:
 
-      "read a minimal Auth identity response with missing optional fields" in :
+      "read a minimal Auth identity response with missing optional fields" in:
         val identityDataFormat = summon[OFormat[IdentityData]]
 
         val json = Json.parse(

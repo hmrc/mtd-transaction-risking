@@ -61,12 +61,12 @@ class NrsRetrySchedulerSpec extends UnitSpec, MockitoSugar:
     )
 
   private def configureEnabledScheduler(
-                                         actorSystem: ActorSystem,
-                                         pekkoScheduler: Scheduler,
-                                         appConfig: AppConfig,
-                                         nrsService: NrsService,
-                                         cancellable: Cancellable
-                                       ): Unit =
+      actorSystem: ActorSystem,
+      pekkoScheduler: Scheduler,
+      appConfig: AppConfig,
+      nrsService: NrsService,
+      cancellable: Cancellable
+  ): Unit =
     when(appConfig.featureSwitch)
       .thenReturn(featureSwitch(enabled = true))
 
@@ -99,7 +99,7 @@ class NrsRetrySchedulerSpec extends UnitSpec, MockitoSugar:
         appConfig,
         nrsService,
         cancellable
-        ) = createSchedulerMocks()
+      ) = createSchedulerMocks()
 
       configureEnabledScheduler(
         actorSystem,
@@ -129,7 +129,7 @@ class NrsRetrySchedulerSpec extends UnitSpec, MockitoSugar:
         appConfig,
         nrsService,
         _
-        ) = createSchedulerMocks()
+      ) = createSchedulerMocks()
 
       when(appConfig.featureSwitch)
         .thenReturn(featureSwitch(enabled = false))
@@ -154,7 +154,7 @@ class NrsRetrySchedulerSpec extends UnitSpec, MockitoSugar:
         appConfig,
         nrsService,
         cancellable
-        ) = createSchedulerMocks()
+      ) = createSchedulerMocks()
 
       configureEnabledScheduler(
         actorSystem,
@@ -191,7 +191,7 @@ class NrsRetrySchedulerSpec extends UnitSpec, MockitoSugar:
         appConfig,
         nrsService,
         cancellable
-        ) = createSchedulerMocks()
+      ) = createSchedulerMocks()
 
       configureEnabledScheduler(
         actorSystem,
@@ -217,7 +217,7 @@ class NrsRetrySchedulerSpec extends UnitSpec, MockitoSugar:
 
       verify(cancellable).cancel()
 
-    "recover a failed retry-processing run" in :
+    "recover a failed retry-processing run" in:
       val (
         actorSystem,
         pekkoScheduler,
@@ -225,7 +225,7 @@ class NrsRetrySchedulerSpec extends UnitSpec, MockitoSugar:
         appConfig,
         nrsService,
         cancellable
-        ) = createSchedulerMocks()
+      ) = createSchedulerMocks()
 
       configureEnabledScheduler(
         actorSystem,

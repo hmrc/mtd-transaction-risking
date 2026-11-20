@@ -25,11 +25,11 @@ import uk.gov.hmrc.mtdtransactionrisking.utils.IdGenerator.CorrelationId
 import uk.gov.hmrc.mtdtransactionrisking.v1.models.request.Interaction
 
 final case class RsdInteractionWorkItem private (
-                                                  feedbackId: String,
-                                                  eventName: String,
-                                                  correlationId: CorrelationId,
-                                                  private val encryptedBody: SensitiveString
-                                                ):
+    feedbackId: String,
+    eventName: String,
+    correlationId: CorrelationId,
+    private val encryptedBody: SensitiveString
+):
 
   lazy val body: JsValue =
     Json.parse(encryptedBody.decryptedValue)
@@ -39,9 +39,9 @@ object RsdInteractionWorkItem:
   private val EncryptedBody = "encryptedBody"
 
   def apply(
-             interaction: Interaction,
-             correlationId: CorrelationId
-           )(using RsdCrypto): RsdInteractionWorkItem =
+      interaction: Interaction,
+      correlationId: CorrelationId
+  )(using RsdCrypto): RsdInteractionWorkItem =
     fromEncrypted(
       feedbackId = interaction.feedbackId,
       eventName = interaction.eventName,
@@ -52,11 +52,11 @@ object RsdInteractionWorkItem:
     )
 
   private def fromEncrypted(
-                             feedbackId: String,
-                             eventName: String,
-                             correlationId: CorrelationId,
-                             encryptedBody: SensitiveString
-                           ): RsdInteractionWorkItem =
+      feedbackId: String,
+      eventName: String,
+      correlationId: CorrelationId,
+      encryptedBody: SensitiveString
+  ): RsdInteractionWorkItem =
     new RsdInteractionWorkItem(
       feedbackId = feedbackId,
       eventName = eventName,
@@ -73,7 +73,7 @@ object RsdInteractionWorkItem:
         (__ \ "eventName").format[String] and
         (__ \ "correlationId").format[CorrelationId] and
         (__ \ EncryptedBody).format[SensitiveString]
-      )(
+    )(
       fromEncrypted,
       workItem =>
         (

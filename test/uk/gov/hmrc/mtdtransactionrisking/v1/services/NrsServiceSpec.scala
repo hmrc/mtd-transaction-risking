@@ -54,7 +54,7 @@ class NrsServiceSpec extends UnitSpec, MockAppConfig, MockNrsConnector:
     Instant.parse("2026-09-24T10:15:30Z")
 
   private val correlationId =
-    CorrelationId("bd6c0972-34e7-11f1-9715-f35b3eb40b52")  
+    CorrelationId("bd6c0972-34e7-11f1-9715-f35b3eb40b52")
 
   private val identityData =
     IdentityData(
@@ -106,13 +106,13 @@ class NrsServiceSpec extends UnitSpec, MockAppConfig, MockNrsConnector:
 
   private trait Test:
 
-    val repository =
+    val repository: NrsSubmissionWorkItemStore =
       mock[NrsSubmissionWorkItemStore]
 
-    val repositoryProvider =
+    private val repositoryProvider: Provider[NrsSubmissionWorkItemStore] =
       mock[Provider[NrsSubmissionWorkItemStore]]
 
-    val retryPolicy: NrsRetryPolicy =
+    private val retryPolicy: NrsRetryPolicy =
       mock[NrsRetryPolicy]
 
     val service =
@@ -138,9 +138,9 @@ class NrsServiceSpec extends UnitSpec, MockAppConfig, MockNrsConnector:
         .value
 
     def submit(
-                identity: Option[IdentityData] = Some(identityData),
-                userAuthToken: Option[String] = Some("Bearer vendor-token")
-              ): Unit =
+        identity: Option[IdentityData] = Some(identityData),
+        userAuthToken: Option[String] = Some("Bearer vendor-token")
+    ): Unit =
       service.submit(
         evidence = evidence,
         vrn = "123456789",
@@ -156,12 +156,12 @@ class NrsServiceSpec extends UnitSpec, MockAppConfig, MockNrsConnector:
   "NrsService.buildNrsSubmission" should:
 
     "build Request Feedback evidence from the supplied validated VAT return JSON" in new Test:
-      val submission =
+      val submission: NrsSubmission =
         expectedSubmission(
           reportId = "a1e8057e-fbbc-47a8-a8b4-78d9f015c253"
         )
 
-      val evidenceBytes =
+      val evidenceBytes: Array[Byte] =
         Json.stringify(evidence).getBytes(UTF_8)
 
       submission.payload shouldBe
@@ -183,7 +183,7 @@ class NrsServiceSpec extends UnitSpec, MockAppConfig, MockNrsConnector:
       submission.metadata.userAuthToken shouldBe "Bearer vendor-token"
 
     "exclude Authorization from headerData case-insensitively" in new Test:
-      val submission =
+      val submission: NrsSubmission =
         service
           .buildNrsSubmission(
             evidence = evidence,
@@ -288,4 +288,3 @@ class NrsServiceSpec extends UnitSpec, MockAppConfig, MockNrsConnector:
       submit()
 
       await(connectorCalled.future) shouldBe ()
-      

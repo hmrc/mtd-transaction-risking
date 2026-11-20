@@ -21,9 +21,9 @@ sealed trait Feature:
 
 case object AuthFeature extends Feature:
   override val name: String = "auth"
-  
+
 case object ExternalTestStubsFeature extends Feature:
-  override val name: String = "external-test-stubs"  
+  override val name: String = "external-test-stubs"
 
 case object NrsSubmissionFeature extends Feature:
   override val name: String = "nrs-submission"
@@ -32,4 +32,4 @@ case object NrsRetryFeature extends Feature:
   override val name: String = "nrs-retry"
 
 case object RsdRetryFeature extends Feature:
-  override val name: String = "rsd-retry"  
+  override val name: String = "rsd-retry"

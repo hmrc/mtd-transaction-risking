@@ -25,7 +25,7 @@ import scala.util.Try
 
 object AcknowledgeRequestParser:
 
-  private val reportIdRegex      = "^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+  private val reportIdRegex = "^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
   private val correlationIdRegex = "^[0-9A-Fa-f]{64}$"
 
   def parseRequest(vrn: String, reportId: String, correlationId: String)(implicit request: Request[?]): Either[MtdError, AcknowledgeRequest] =
@@ -33,8 +33,8 @@ object AcknowledgeRequestParser:
     val presentedDateTime = request.getQueryString("presentedDateTime")
 
     for
-      _  <- validateReportId(reportId)
-      _  <- validateCorrelationId(correlationId)
+      _ <- validateReportId(reportId)
+      _ <- validateCorrelationId(correlationId)
       dateTime <- validatePresentedDateTime(presentedDateTime)
     yield AcknowledgeRequest(vrn, reportId, correlationId, dateTime)
 

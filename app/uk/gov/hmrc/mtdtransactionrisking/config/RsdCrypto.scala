@@ -24,9 +24,9 @@ import javax.inject.{Inject, Provider, Singleton}
 trait RsdCrypto extends Encrypter, Decrypter
 
 @Singleton
-class RsdCryptoProvider @Inject()(
-                                   configuration: Configuration
-                                 ) extends Provider[RsdCrypto]:
+class RsdCryptoProvider @Inject() (
+    configuration: Configuration
+) extends Provider[RsdCrypto]:
 
   override def get(): RsdCrypto =
     new RsdCrypto:

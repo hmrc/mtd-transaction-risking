@@ -89,7 +89,7 @@ class RdsAuthConnectorSpec extends ConnectorSpec, BeforeAndAfterAll, Injecting, 
 
         await(connector.retrieveBearerToken()) shouldBe Left(ErrorWrapper(correlationId, DownstreamError))
 
-    "SAS is unavailable" should :
+    "SAS is unavailable" should:
 
       "return ServiceUnavailableError on NOT_FOUND" in new Test:
         stubToken(None, NOT_FOUND)
@@ -106,7 +106,7 @@ class RdsAuthConnectorSpec extends ConnectorSpec, BeforeAndAfterAll, Injecting, 
 
         await(connector.retrieveBearerToken()) shouldBe Left(ErrorWrapper(correlationId, ServiceUnavailableError))
 
-    "SAS rejects the request" should :
+    "SAS rejects the request" should:
 
       "return DownstreamError on BAD_REQUEST" in new Test:
         stubToken(None, BAD_REQUEST)

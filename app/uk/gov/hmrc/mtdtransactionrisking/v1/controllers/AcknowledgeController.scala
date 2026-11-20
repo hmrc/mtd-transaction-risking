@@ -62,15 +62,15 @@ class AcknowledgeController @Inject() (
 
           case Right(acknowledgeRequest) =>
             if appConfig.externalTestStubsEnabled then
-                logger.info(s"${internalCorrelationId.value}::[AcknowledgeController][acknowledgeReport] using stub path for reportId $reportId")
-                acknowledgeService.stubAcknowledge(acknowledgeRequest).map(handleOutcomeUnit)
+              logger.info(s"${internalCorrelationId.value}::[AcknowledgeController][acknowledgeReport] using stub path for reportId $reportId")
+              acknowledgeService.stubAcknowledge(acknowledgeRequest).map(handleOutcomeUnit)
             else
-                acknowledgeService
-                  .acknowledge(
-                    request = acknowledgeRequest,
-                    identityData = request.identityData,
-                    userAuthToken = request.headers.get("Authorization"),
-                    requestHeaders = request.headers.headers,
-                    submissionTimestamp = submissionTimestamp
-                  )
-                  .map(handleOutcomeUnit)
+              acknowledgeService
+                .acknowledge(
+                  request = acknowledgeRequest,
+                  identityData = request.identityData,
+                  userAuthToken = request.headers.get("Authorization"),
+                  requestHeaders = request.headers.headers,
+                  submissionTimestamp = submissionTimestamp
+                )
+                .map(handleOutcomeUnit)

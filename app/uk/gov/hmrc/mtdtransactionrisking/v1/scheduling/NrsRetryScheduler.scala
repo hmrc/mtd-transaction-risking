@@ -27,13 +27,13 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.util.control.NonFatal
 
 @Singleton
-class NrsRetryScheduler @Inject()(
-                                   actorSystem: ActorSystem,
-                                   applicationLifecycle: ApplicationLifecycle,
-                                   appConfig: AppConfig,
-                                   nrsService: NrsService
-                                 )(using ec: ExecutionContext)
-  extends Logging:
+class NrsRetryScheduler @Inject() (
+    actorSystem: ActorSystem,
+    applicationLifecycle: ApplicationLifecycle,
+    appConfig: AppConfig,
+    nrsService: NrsService
+)(using ec: ExecutionContext)
+    extends Logging:
 
   private val retryEnabled =
     FeatureSwitch(appConfig.featureSwitch).isEnabled(NrsRetryFeature)
@@ -51,13 +51,12 @@ class NrsRetryScheduler @Inject()(
           initialDelay = appConfig.nrsRetryInitialDelay,
           interval = appConfig.nrsRetryInterval
         ) { () =>
-          nrsService.processDueWorkItems().recover {
-            case NonFatal(error) =>
-              logger.error(
-                "[NrsRetryScheduler] Unexpected NRS retry worker failure",
-                error
-              )
-              ()
+          nrsService.processDueWorkItems().recover { case NonFatal(error) =>
+            logger.error(
+              "[NrsRetryScheduler] Unexpected NRS retry worker failure",
+              error
+            )
+            ()
           }
           ()
         }

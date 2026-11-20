@@ -112,13 +112,12 @@ class AppConfigImpl @Inject() (config: ServicesConfig, configuration: Configurat
     config.baseUrl("acknowledge-stub") + configuration.get[String]("microservice.services.acknowledge-stub.submit-url")
 
   val acknowledgeEnvironmentHeaders: Option[Seq[String]] =
-    configuration.getOptional[Seq[String]]("microservice.services.acknowledge-stub.environmentHeaders")  
+    configuration.getOptional[Seq[String]]("microservice.services.acknowledge-stub.environmentHeaders")
 
   if externalTestStubsEnabled then
     logger.warn("External Test stubs are ENABLED: feedback and acknowledge return stubbed responses")
     feedbackStubBaseUrl
     acknowledgeStubBaseUrl
-  
 
   private val rdsConfig = configuration.get[Configuration]("microservice.services.rds")
 
@@ -145,35 +144,35 @@ class AppConfigImpl @Inject() (config: ServicesConfig, configuration: Configurat
   private val rsdRetryEnabled = FeatureSwitch(featureSwitch).isEnabled(RsdRetryFeature)
 
   if rsdRetryEnabled &&
-    configuration.getOptional[String]("rsd-retry.crypto.key")
+    configuration
+      .getOptional[String]("rsd-retry.crypto.key")
       .forall(_.trim.isEmpty)
-    then
-    throw new IllegalStateException("RSD retry encryption key rsd-retry.crypto.key is not configured")
-  
+  then throw new IllegalStateException("RSD retry encryption key rsd-retry.crypto.key is not configured")
+
   def rsdRetryInitialDelay: FiniteDuration =
     configuration.get[FiniteDuration]("rsd-retry.initial-delay")
-    
+
   def rsdRetryInterval: FiniteDuration =
     configuration.get[FiniteDuration]("rsd-retry.interval")
-    
+
   def rsdRetryBatchSize: Int =
     configuration.get[Int]("rsd-retry.batch-size")
-    
+
   def rsdRetryInProgressRetryAfter: FiniteDuration =
     configuration.get[FiniteDuration]("rsd-retry.in-progress-retry-after")
-    
+
   def rsdRetryMaxRetries: Int =
     configuration.get[Int]("rsd-retry.max-retries")
-    
+
   def rsdRetryInitialBackoff: FiniteDuration =
     configuration.get[FiniteDuration]("rsd-retry.initial-backoff")
-    
+
   def rsdRetryBackoffMultiplier: Double =
     configuration.get[Double]("rsd-retry.backoff-multiplier")
-    
+
   def rsdRetryMaxBackoff: FiniteDuration =
     configuration.get[FiniteDuration]("rsd-retry.max-backoff")
-    
+
   def rsdRetryRetention: FiniteDuration =
     configuration.get[FiniteDuration]("rsd-retry.retention")
 
@@ -183,8 +182,7 @@ class AppConfigImpl @Inject() (config: ServicesConfig, configuration: Configurat
 
   if (nrsSubmissionEnabled || nrsRetryEnabled) &&
     configuration.getOptional[String]("nrs-retry.crypto.key").forall(_.trim.isEmpty)
-  then
-    throw new IllegalStateException("NRS is enabled but nrs-retry.crypto.key is not configured")
+  then throw new IllegalStateException("NRS is enabled but nrs-retry.crypto.key is not configured")
 
   val nrsSubmissionUrl: String = config.baseUrl("nrs-orchestrator") + nrsConfig.get[String]("submission-url")
   val nrsApiKey: String =
@@ -197,8 +195,7 @@ class AppConfigImpl @Inject() (config: ServicesConfig, configuration: Configurat
             "NRS is enabled but microservice.services.nrs-orchestrator.api-key is not configured"
           )
         )
-    else
-      ""
+    else ""
 
   def nrsRetryInitialDelay: FiniteDuration =
     configuration.get[FiniteDuration]("nrs-retry.initial-delay")

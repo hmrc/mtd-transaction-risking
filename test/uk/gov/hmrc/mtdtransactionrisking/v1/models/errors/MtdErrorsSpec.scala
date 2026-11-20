@@ -55,19 +55,19 @@ class MtdErrorsSpec extends UnitSpec:
       )
       PeriodKeyFormatError.httpStatus shouldBe BAD_REQUEST
 
-    "generate the correct JSON and status for ReportIdFormatError" in :
+    "generate the correct JSON and status for ReportIdFormatError" in:
       Json.toJson(ReportIdFormatError) shouldBe Json.parse(
         """{"code": "REPORT_ID_INVALID", "message": "The provided report ID is invalid"}"""
       )
       ReportIdFormatError.httpStatus shouldBe BAD_REQUEST
 
-    "generate the correct JSON and status for RdsCorrelationIdFormatError" in :
+    "generate the correct JSON and status for RdsCorrelationIdFormatError" in:
       Json.toJson(RdsCorrelationIdFormatError) shouldBe Json.parse(
         """{"code": "CORRELATION_ID_INVALID", "message": "The provided correlation ID is invalid"}"""
       )
       RdsCorrelationIdFormatError.httpStatus shouldBe BAD_REQUEST
 
-    "generate the correct JSON and status for PresentedDateTimeFormatError" in :
+    "generate the correct JSON and status for PresentedDateTimeFormatError" in:
       Json.toJson(PresentedDateTimeFormatError) shouldBe Json.parse(
         """{"code": "PRESENTED_DATE_TIME_INVALID", "message": "The presentedDateTime query parameter is missing or invalid"}"""
       )

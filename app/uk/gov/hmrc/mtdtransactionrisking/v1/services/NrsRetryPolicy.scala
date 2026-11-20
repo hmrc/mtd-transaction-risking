@@ -29,7 +29,7 @@ trait NrsRetryPolicy:
   def isExhaustedAfterFailure(failureCount: Int): Boolean
 
 @Singleton
-class ConfiguredNrsRetryPolicy @Inject()(appConfig: AppConfig) extends NrsRetryPolicy:
+class ConfiguredNrsRetryPolicy @Inject() (appConfig: AppConfig) extends NrsRetryPolicy:
 
   override def maxRetries: Int =
     appConfig.nrsRetryMaxRetries
@@ -69,10 +69,13 @@ class ConfiguredNrsRetryPolicy @Inject()(appConfig: AppConfig) extends NrsRetryP
     val jitteredBackoffMillis =
       cappedBackoffMillis * (1.0 + jitter)
 
-    Math.min(
-      jitteredBackoffMillis,
-      appConfig.nrsRetryMaxBackoff.toMillis.toDouble
-    ).toLong.millis
+    Math
+      .min(
+        jitteredBackoffMillis,
+        appConfig.nrsRetryMaxBackoff.toMillis.toDouble
+      )
+      .toLong
+      .millis
 
   override def isExhaustedAfterFailure(retriesCompleted: Int): Boolean =
     retriesCompleted >= maxRetries

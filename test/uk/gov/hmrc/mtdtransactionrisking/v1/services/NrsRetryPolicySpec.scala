@@ -26,11 +26,11 @@ class NrsRetryPolicySpec extends UnitSpec, MockAppConfig:
 
     def configuredMaxRetries: Int = 10
 
-    def configuredInitialBackoff = 10.minutes
+    def configuredInitialBackoff: FiniteDuration = 10.minutes
 
     def configuredBackoffMultiplier: Double = 2.0
 
-    def configuredMaxBackoff = 5120.minutes
+    def configuredMaxBackoff: FiniteDuration = 5120.minutes
 
     def configuredJitterFactor: Double = 0.10
 
@@ -64,7 +64,7 @@ class NrsRetryPolicySpec extends UnitSpec, MockAppConfig:
       override def configuredJitterFactor: Double =
         0.0
 
-      val expected =
+      val expected: Seq[FiniteDuration] =
         Seq(
           10.minutes,
           20.minutes,
@@ -78,14 +78,14 @@ class NrsRetryPolicySpec extends UnitSpec, MockAppConfig:
           5120.minutes
         )
 
-      val actual =
+      val actual: Seq[FiniteDuration] =
         (1 to 10).map(policy.delayForRetry)
 
       actual shouldBe expected
 
     "apply jitter within the configured plus or minus ten percent range" in new Test:
 
-      val baseDelay =
+      val baseDelay: FiniteDuration =
         10.minutes
 
       (1 to 100).foreach { _ =>
@@ -101,15 +101,15 @@ class NrsRetryPolicySpec extends UnitSpec, MockAppConfig:
 
     "never exceed the configured maximum backoff" in new Test:
 
-        (1 to policy.maxRetries).foreach { retryNumber =>
-          policy.delayForRetry(retryNumber).toMillis should be <=
-            configuredMaxBackoff.toMillis
-        }
+      (1 to policy.maxRetries).foreach { retryNumber =>
+        policy.delayForRetry(retryNumber).toMillis should be <=
+          configuredMaxBackoff.toMillis
+      }
 
     "cap exponential backoff when it exceeds the configured maximum" in new Test:
       override def configuredMaxRetries: Int = 11
 
-      override def configuredMaxBackoff = 160.minutes
+      override def configuredMaxBackoff: FiniteDuration = 160.minutes
 
       override def configuredJitterFactor: Double = 0.0
 

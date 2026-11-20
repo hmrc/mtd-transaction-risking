@@ -27,16 +27,16 @@ trait RsdRetryPolicy:
   def isExhaustedAfterFailure(retriesCompleted: Int): Boolean
 
 @Singleton
-class ConfiguredRsdRetryPolicy @Inject()(
-                                          appConfig: AppConfig
-                                        ) extends RsdRetryPolicy:
+class ConfiguredRsdRetryPolicy @Inject() (
+    appConfig: AppConfig
+) extends RsdRetryPolicy:
 
   override def maxRetries: Int =
     appConfig.rsdRetryMaxRetries
 
   override def delayForRetry(
-                              retryNumber: Int
-                            ): FiniteDuration =
+      retryNumber: Int
+  ): FiniteDuration =
     require(
       retryNumber >= 1 && retryNumber <= maxRetries,
       s"Retry number $retryNumber must be between 1 and $maxRetries"
@@ -49,12 +49,15 @@ class ConfiguredRsdRetryPolicy @Inject()(
           retryNumber - 1
         )
 
-    Math.min(
-      calculatedMillis,
-      appConfig.rsdRetryMaxBackoff.toMillis.toDouble
-    ).toLong.millis
+    Math
+      .min(
+        calculatedMillis,
+        appConfig.rsdRetryMaxBackoff.toMillis.toDouble
+      )
+      .toLong
+      .millis
 
   override def isExhaustedAfterFailure(
-                                        retriesCompleted: Int
-                                      ): Boolean =
+      retriesCompleted: Int
+  ): Boolean =
     retriesCompleted >= maxRetries
