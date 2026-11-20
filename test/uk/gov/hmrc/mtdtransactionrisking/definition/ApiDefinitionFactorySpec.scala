@@ -25,8 +25,10 @@ import uk.gov.hmrc.mtdtransactionrisking.config.AppConfig
 
 class ApiDefinitionFactorySpec extends AnyWordSpec with Matchers with MockitoSugar:
 
+  val appConfig: AppConfig = mock[AppConfig]
+
   private def factoryWith(status: String, endpointsEnabled: Boolean = false): ApiDefinitionFactory =
-    val appConfig = mock[AppConfig]
+    when(appConfig.apiGatewayContext).thenReturn("organisations/vat-assist")
     when(appConfig.apiStatus("1.0")).thenReturn(status)
     when(appConfig.endpointsEnabled("1.0")).thenReturn(endpointsEnabled)
     new ApiDefinitionFactory(appConfig)

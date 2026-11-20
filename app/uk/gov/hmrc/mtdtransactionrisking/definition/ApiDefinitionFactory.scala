@@ -30,7 +30,7 @@ class ApiDefinitionFactory @Inject() (appConfig: AppConfig) extends Logging:
       api = APIDefinition(
         name = "VAT Assist (MTD)",
         description = "A service that identifies potential inaccuracies in returns before submission.",
-        context = "organisations/vat-assist",
+        context = appConfig.apiGatewayContext,
         categories = Seq("VAT_MTD"),
         versions = Seq(
           APIVersion(
