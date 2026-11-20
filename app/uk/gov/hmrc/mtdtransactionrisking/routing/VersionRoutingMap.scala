@@ -19,7 +19,7 @@ package uk.gov.hmrc.mtdtransactionrisking.routing
 import com.google.inject.ImplementedBy
 import play.api.routing.Router
 import uk.gov.hmrc.mtdtransactionrisking.config.{AppConfig, AuthFeature, FeatureSwitch}
-import uk.gov.hmrc.mtdtransactionrisking.definitions.Versions.VERSION_1
+import uk.gov.hmrc.mtdtransactionrisking.definition.Versions.VERSION_1
 import uk.gov.hmrc.mtdtransactionrisking.utils.Logging
 
 import javax.inject.Inject

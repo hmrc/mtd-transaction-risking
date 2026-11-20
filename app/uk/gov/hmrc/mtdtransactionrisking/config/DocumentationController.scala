@@ -16,8 +16,10 @@
 
 package uk.gov.hmrc.mtdtransactionrisking.config
 
-import play.api.mvc.{Action, AnyContent, ControllerComponents}
 import controllers.Assets
+import play.api.libs.json.Json
+import play.api.mvc.{Action, AnyContent, ControllerComponents}
+import uk.gov.hmrc.mtdtransactionrisking.definition.ApiDefinitionFactory
 import uk.gov.hmrc.play.bootstrap.backend.controller.BackendController
 
 import javax.inject.{Inject, Singleton}
@@ -25,11 +27,12 @@ import javax.inject.{Inject, Singleton}
 @Singleton
 class DocumentationController @Inject() (
     assets: Assets,
-    cc: ControllerComponents
+    cc: ControllerComponents,
+    apiDefinition: ApiDefinitionFactory
 ) extends BackendController(cc):
 
   def definition(): Action[AnyContent] =
-    assets.at("/public/api", "definition.json")
+    Action(Ok(Json.toJson(apiDefinition.definition)))
 
   def specification(version: String, file: String): Action[AnyContent] =
     assets.at(s"/public/api/conf/$version", file)
