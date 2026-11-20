@@ -19,9 +19,9 @@ package uk.gov.hmrc.mtdtransactionrisking.v1.models.request.nrs
 import play.api.libs.json.{Json, OFormat}
 
 final case class NrsSubmission(
-                                payload: String,
-                                metadata: Metadata
-                              )
+    payload: String,
+    metadata: Metadata
+)
 
 object NrsSubmission:
   given OFormat[NrsSubmission] = Json.format[NrsSubmission]

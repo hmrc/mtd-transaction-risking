@@ -21,7 +21,7 @@ import uk.gov.hmrc.mtdtransactionrisking.support.UnitSpec
 
 class ReportResponseTransformSpec extends UnitSpec:
 
-  private val feedbackId    = "f2fb30e5-4ab6-4a29-b3c1-c7264259ff1c"
+  private val feedbackId = "f2fb30e5-4ab6-4a29-b3c1-c7264259ff1c"
   private val correlationId = "E9F65715BBC9222477B27074804BBDD5C73CDE62F84D8B00CFD05B883534AF3D"
 
   private val rdsColumns = Seq("ITEMNUMBER", "MESSAGE", "ACTION", "TITLE", "LINKTITLE", "LINKURL", "PATH")
@@ -48,20 +48,20 @@ class ReportResponseTransformSpec extends UnitSpec:
 
   private def reportWithEnglish(englishActions: JsValue): ReportResponse =
     reportWith(
-      "feedbackId"     -> Json.toJson(feedbackId),
-      "correlationId"  -> Json.toJson(correlationId),
+      "feedbackId" -> Json.toJson(feedbackId),
+      "correlationId" -> Json.toJson(correlationId),
       "englishActions" -> englishActions,
-      "welshActions"   -> Json.arr()
+      "welshActions" -> Json.arr()
     )
 
   private def englishMessages(englishActions: JsValue): List[FeedbackMessage] =
     ReportResponseTransform.toFeedbackResponse(reportWithEnglish(englishActions)).value.englishFeedback
 
   private val fullReport: ReportResponse = reportWith(
-    "feedbackId"     -> Json.toJson(feedbackId),
-    "correlationId"  -> Json.toJson(correlationId),
+    "feedbackId" -> Json.toJson(feedbackId),
+    "correlationId" -> Json.toJson(correlationId),
     "englishActions" -> actionGrids(completeRow),
-    "welshActions"   -> actionGrids(completeRow)
+    "welshActions" -> actionGrids(completeRow)
   )
 
   "toFeedbackResponse" when:
@@ -95,7 +95,7 @@ class ReportResponseTransformSpec extends UnitSpec:
       "map every row in the grid" in:
         englishMessages(actionGrids(completeRow, completeRow)) should have size 2
 
-    "RDS returns the 'no feedback' report" should :
+    "RDS returns the 'no feedback' report" should:
 
       val noFeedbackRow = Json.arr(
         "0",
@@ -107,7 +107,7 @@ class ReportResponseTransformSpec extends UnitSpec:
         "0"
       )
 
-      "map item 0 with its placeholder content and no path" in :
+      "map item 0 with its placeholder content and no path" in:
         englishMessages(actionGrids(noFeedbackRow)) shouldBe List(
           FeedbackMessage(
             itemNumber = "0",
@@ -118,12 +118,12 @@ class ReportResponseTransformSpec extends UnitSpec:
             path = None
           ))
 
-      "omit path for item 0 even when RDS sends a non-zero path" in :
+      "omit path for item 0 even when RDS sends a non-zero path" in:
         val row = Json.arr("0", "No messages.", "", "HMRC feedback", "", "", "vatDueSales")
 
         englishMessages(actionGrids(row)).head.path shouldBe None
 
-      "omit path from item 0 in both english and welsh" in :
+      "omit path from item 0 in both english and welsh" in:
         val report = reportWith(
           "feedbackId" -> Json.toJson(feedbackId),
           "englishActions" -> actionGrids(noFeedbackRow),
@@ -134,13 +134,13 @@ class ReportResponseTransformSpec extends UnitSpec:
 
         (result.englishFeedback ++ result.welshFeedback).map(_.path) shouldBe List(None, None)
 
-      "not write a path field in the vendor JSON" in :
+      "not write a path field in the vendor JSON" in:
         val json = Json.toJson(englishMessages(actionGrids(noFeedbackRow)).head)
 
         (json \ "path").toOption shouldBe None
 
-    "RDS returns actual feedback alongside item 0" should :
-      "keep path on the feedback items and omit it only on item 0" in :
+    "RDS returns actual feedback alongside item 0" should:
+      "keep path on the feedback items and omit it only on item 0" in:
         val noFeedbackRow = Json.arr("0", "No messages.", "", "HMRC feedback", "", "", "0")
 
         englishMessages(actionGrids(completeRow, noFeedbackRow)).map(_.path) shouldBe
@@ -198,8 +198,8 @@ class ReportResponseTransformSpec extends UnitSpec:
         message.action shouldBe None
         message.links shouldBe None
 
-    "a row is missing path" should :
-      "retain the feedback message with no path" in :
+    "a row is missing path" should:
+      "retain the feedback message with no path" in:
         val noPath = grid(
           Seq("ITEMNUMBER", "MESSAGE", "TITLE"),
           Json.arr("1", "Please review.", "VAT Return Query")
@@ -214,8 +214,8 @@ class ReportResponseTransformSpec extends UnitSpec:
           path = None
         )
 
-    "a row has an empty path" should :
-      "retain the feedback message without surfacing path" in :
+    "a row has an empty path" should:
+      "retain the feedback message without surfacing path" in:
         val row = Json.arr("1", "Please review.", "", "VAT Return Query", "", "", "")
 
         englishMessages(actionGrids(row)).head.path shouldBe None
@@ -238,10 +238,10 @@ class ReportResponseTransformSpec extends UnitSpec:
     "the report's correlation id is null, as RDS currently returns it" should:
       "still produce a response, without a correlation id" in:
         val report = reportWith(
-          "feedbackId"     -> Json.toJson(feedbackId),
-          "correlationId"  -> JsNull,
+          "feedbackId" -> Json.toJson(feedbackId),
+          "correlationId" -> JsNull,
           "englishActions" -> actionGrids(completeRow),
-          "welshActions"   -> actionGrids(completeRow)
+          "welshActions" -> actionGrids(completeRow)
         )
 
         val result = ReportResponseTransform.toFeedbackResponse(report).value
@@ -259,7 +259,7 @@ class ReportResponseTransformSpec extends UnitSpec:
     "the report has no action grids" should:
       "return a response with empty feedback" in:
         val report = reportWith(
-          "feedbackId"    -> Json.toJson(feedbackId),
+          "feedbackId" -> Json.toJson(feedbackId),
           "correlationId" -> Json.toJson(correlationId)
         )
 

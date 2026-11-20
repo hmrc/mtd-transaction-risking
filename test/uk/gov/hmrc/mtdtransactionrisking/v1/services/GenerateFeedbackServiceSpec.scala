@@ -136,7 +136,7 @@ class GenerateFeedbackServiceSpec
         )
       ),
       welshFeedback = Nil
-    )  
+    )
 
   trait Test:
     val service = new GenerateFeedbackService(

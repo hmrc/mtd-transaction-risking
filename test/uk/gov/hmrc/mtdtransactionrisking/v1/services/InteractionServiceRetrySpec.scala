@@ -168,8 +168,8 @@ class InteractionServiceRetrySpec extends UnitSpec, MockFactory:
     )
 
   private def featureSwitch(
-                             retryEnabled: Boolean
-                           ): Option[Configuration] =
+      retryEnabled: Boolean
+  ): Option[Configuration] =
     Some(
       Configuration(
         ConfigFactory.parseString(
@@ -204,7 +204,7 @@ class InteractionServiceRetrySpec extends UnitSpec, MockFactory:
       .expects()
       .returning(featureSwitch(retryEnabled))
       .anyNumberOfTimes()
-    
+
     (() => appConfig.rsdRetryBatchSize)
       .expects()
       .returning(configuredBatchSize)
@@ -226,15 +226,16 @@ class InteractionServiceRetrySpec extends UnitSpec, MockFactory:
         .anyNumberOfTimes()
 
     def expectInitialStore(
-                            result: Future[SubmissionResult]
-                          ): Unit =
+        result: Future[SubmissionResult]
+    ): Unit =
       (
-        connector.store(
-          _: JsValue,
-          _: String,
-          _: String,
-          _: CorrelationId
-        )(_: HeaderCarrier)
+        connector
+          .store(
+            _: JsValue,
+            _: String,
+            _: String,
+            _: CorrelationId
+          )(_: HeaderCarrier)
         )
         .expects(
           initialBody,
@@ -246,16 +247,17 @@ class InteractionServiceRetrySpec extends UnitSpec, MockFactory:
         .returning(result)
 
     def expectRetryStore(
-                          result: Future[SubmissionResult],
-                          item: WorkItem[RsdInteractionWorkItem] = workItem
-                        ): Unit =
+        result: Future[SubmissionResult],
+        item: WorkItem[RsdInteractionWorkItem] = workItem
+    ): Unit =
       (
-        connector.store(
-          _: JsValue,
-          _: String,
-          _: String,
-          _: CorrelationId
-        )(_: HeaderCarrier)
+        connector
+          .store(
+            _: JsValue,
+            _: String,
+            _: String,
+            _: CorrelationId
+          )(_: HeaderCarrier)
         )
         .expects(
           item.item.body,
@@ -289,7 +291,8 @@ class InteractionServiceRetrySpec extends UnitSpec, MockFactory:
       )
       expectRepository()
 
-      (repository.enqueueRetryableFailure(_: Interaction, _: CorrelationId))
+      (repository
+        .enqueueRetryableFailure(_: Interaction, _: CorrelationId))
         .expects(initialInteraction, correlationId)
         .onCall { (_, _) =>
           enqueueAttempted.trySuccess(())
@@ -314,7 +317,8 @@ class InteractionServiceRetrySpec extends UnitSpec, MockFactory:
       )
       expectRepository()
 
-      (repository.enqueuePermanentFailure(_: Interaction, _: CorrelationId))
+      (repository
+        .enqueuePermanentFailure(_: Interaction, _: CorrelationId))
         .expects(initialInteraction, correlationId)
         .onCall { (_, _) =>
           enqueueAttempted.trySuccess(())
@@ -341,7 +345,8 @@ class InteractionServiceRetrySpec extends UnitSpec, MockFactory:
       )
       expectRepository()
 
-      (repository.enqueueRetryableFailure(_: Interaction, _: CorrelationId))
+      (repository
+        .enqueueRetryableFailure(_: Interaction, _: CorrelationId))
         .expects(initialInteraction, correlationId)
         .onCall { (_, _) =>
           enqueueAttempted.trySuccess(())
@@ -365,12 +370,13 @@ class InteractionServiceRetrySpec extends UnitSpec, MockFactory:
         Promise[Unit]()
 
       (
-        connector.store(
-          _: JsValue,
-          _: String,
-          _: String,
-          _: CorrelationId
-        )(_: HeaderCarrier)
+        connector
+          .store(
+            _: JsValue,
+            _: String,
+            _: String,
+            _: CorrelationId
+          )(_: HeaderCarrier)
         )
         .expects(
           initialBody,
@@ -401,12 +407,13 @@ class InteractionServiceRetrySpec extends UnitSpec, MockFactory:
         Promise[Unit]()
 
       (
-        connector.store(
-          _: JsValue,
-          _: String,
-          _: String,
-          _: CorrelationId
-        )(_: HeaderCarrier)
+        connector
+          .store(
+            _: JsValue,
+            _: String,
+            _: String,
+            _: CorrelationId
+          )(_: HeaderCarrier)
         )
         .expects(
           initialBody,
@@ -467,7 +474,8 @@ class InteractionServiceRetrySpec extends UnitSpec, MockFactory:
         Future.successful(SubmissionResult.Success)
       )
 
-      (repository.completeAndDelete(_: ObjectId))
+      (repository
+        .completeAndDelete(_: ObjectId))
         .expects(workItem.id)
         .returning(Future.successful(true))
 
@@ -490,7 +498,8 @@ class InteractionServiceRetrySpec extends UnitSpec, MockFactory:
         Future.successful(SubmissionResult.PermanentFailure)
       )
 
-      (repository.markPermanentFailure(_: WorkItem[RsdInteractionWorkItem]))
+      (repository
+        .markPermanentFailure(_: WorkItem[RsdInteractionWorkItem]))
         .expects(workItem)
         .returning(Future.successful(true))
 
@@ -513,7 +522,8 @@ class InteractionServiceRetrySpec extends UnitSpec, MockFactory:
         Future.successful(SubmissionResult.RetryableFailure)
       )
 
-      (retryPolicy.isExhaustedAfterFailure(_: Int))
+      (retryPolicy
+        .isExhaustedAfterFailure(_: Int))
         .expects(1)
         .returning(false)
 
@@ -521,14 +531,15 @@ class InteractionServiceRetrySpec extends UnitSpec, MockFactory:
         .expects()
         .returning(10)
 
-      (repository.markRetryableFailure(_: WorkItem[RsdInteractionWorkItem]))
+      (repository
+        .markRetryableFailure(_: WorkItem[RsdInteractionWorkItem]))
         .expects(workItem)
         .returning(Future.successful(true))
 
       await(service.processDueWorkItems()) shouldBe ()
 
     "mark the tenth failed retry as exhausted" in new Test:
-      val retryTenWorkItem =
+      val retryTenWorkItem: WorkItem[RsdInteractionWorkItem] =
         workItem.copy(failureCount = 9)
 
       expectRepository()
@@ -548,7 +559,8 @@ class InteractionServiceRetrySpec extends UnitSpec, MockFactory:
         item = retryTenWorkItem
       )
 
-      (retryPolicy.isExhaustedAfterFailure(_: Int))
+      (retryPolicy
+        .isExhaustedAfterFailure(_: Int))
         .expects(10)
         .returning(true)
 
@@ -556,7 +568,8 @@ class InteractionServiceRetrySpec extends UnitSpec, MockFactory:
         .expects()
         .returning(10)
 
-      (repository.markRetryableFailure(_: WorkItem[RsdInteractionWorkItem]))
+      (repository
+        .markRetryableFailure(_: WorkItem[RsdInteractionWorkItem]))
         .expects(retryTenWorkItem)
         .returning(Future.successful(true))
 
@@ -577,8 +590,9 @@ class InteractionServiceRetrySpec extends UnitSpec, MockFactory:
         Future.successful(SubmissionResult.Success)
       )
 
-      (repository.completeAndDelete(_: ObjectId))
+      (repository
+        .completeAndDelete(_: ObjectId))
         .expects(workItem.id)
         .returning(Future.successful(true))
-      
+
       await(service.processDueWorkItems()) shouldBe ()

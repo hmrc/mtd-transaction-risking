@@ -35,10 +35,11 @@ trait MockInteractionConnector extends MockFactory:
   object MockInteractionConnector:
 
     def store(body: JsValue, feedbackId: String, eventName: String, correlationId: CorrelationId): CallHandler[Future[SubmissionResult]] =
-      (mockInteractionConnector.store(
-        _: JsValue,
-        _: String,
-        _: String,
-        _: CorrelationId
-        )(_: HeaderCarrier)
-        ).expects(body, feedbackId, eventName, correlationId, *)
+      (mockInteractionConnector
+        .store(
+          _: JsValue,
+          _: String,
+          _: String,
+          _: CorrelationId
+        )(_: HeaderCarrier))
+        .expects(body, feedbackId, eventName, correlationId, *)

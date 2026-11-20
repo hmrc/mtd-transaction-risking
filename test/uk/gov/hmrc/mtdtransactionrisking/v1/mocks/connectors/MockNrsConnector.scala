@@ -34,5 +34,6 @@ trait MockNrsConnector extends MockFactory:
   object MockNrsConnector:
 
     def submit(nrsSubmission: NrsSubmission, correlationId: CorrelationId): CallHandler[Future[SubmissionResult]] =
-      (mockNrsConnector.submit(_: NrsSubmission, _: CorrelationId))
+      (mockNrsConnector
+        .submit(_: NrsSubmission, _: CorrelationId))
         .expects(nrsSubmission, correlationId)

@@ -81,8 +81,8 @@ trait MockAppConfig extends MockFactory:
 
     def rdsCredentials: CallHandler[RdsCredentials] =
       (() => mockAppConfig.rdsCredentials).expects()
-    
-    def rdsLogPayloads: CallHandler[Boolean] = 
+
+    def rdsLogPayloads: CallHandler[Boolean] =
       (() => mockAppConfig.rdsLogPayloads).expects()
 
     def interactionsBaseUrl: CallHandler[String] =
@@ -99,24 +99,24 @@ trait MockAppConfig extends MockFactory:
 
     def rsdRetryBatchSize: CallHandler[Int] =
       (() => mockAppConfig.rsdRetryBatchSize).expects()
-          
+
     def rsdRetryInProgressRetryAfter: CallHandler[FiniteDuration] =
       (() => mockAppConfig.rsdRetryInProgressRetryAfter).expects()
-        
+
     def rsdRetryMaxRetries: CallHandler[Int] =
       (() => mockAppConfig.rsdRetryMaxRetries).expects()
 
     def rsdRetryInitialBackoff: CallHandler[FiniteDuration] =
       (() => mockAppConfig.rsdRetryInitialBackoff).expects()
-          
+
     def rsdRetryBackoffMultiplier: CallHandler[Double] =
       (() => mockAppConfig.rsdRetryBackoffMultiplier).expects()
-          
+
     def rsdRetryMaxBackoff: CallHandler[FiniteDuration] =
       (() => mockAppConfig.rsdRetryMaxBackoff).expects()
-        
+
     def rsdRetryRetention: CallHandler[FiniteDuration] =
-      (() => mockAppConfig.rsdRetryRetention).expects()  
+      (() => mockAppConfig.rsdRetryRetention).expects()
 
     def nrsSubmissionUrl: CallHandler[String] =
       (() => mockAppConfig.nrsSubmissionUrl).expects()
@@ -126,7 +126,7 @@ trait MockAppConfig extends MockFactory:
 
     def nrsRetryInitialDelay: CallHandler[FiniteDuration] =
       (() => mockAppConfig.nrsRetryInitialDelay).expects()
-  
+
     def nrsRetryInterval: CallHandler[FiniteDuration] =
       (() => mockAppConfig.nrsRetryInterval).expects()
 
@@ -135,13 +135,13 @@ trait MockAppConfig extends MockFactory:
 
     def nrsRetryInProgressRetryAfter: CallHandler[FiniteDuration] =
       (() => mockAppConfig.nrsRetryInProgressRetryAfter).expects()
-  
+
     def nrsRetryMaxRetries: CallHandler[Int] =
       (() => mockAppConfig.nrsRetryMaxRetries).expects()
-  
+
     def nrsRetryInitialBackoff: CallHandler[FiniteDuration] =
       (() => mockAppConfig.nrsRetryInitialBackoff).expects()
-  
+
     def nrsRetryBackoffMultiplier: CallHandler[Double] =
       (() => mockAppConfig.nrsRetryBackoffMultiplier).expects()
 
@@ -150,7 +150,6 @@ trait MockAppConfig extends MockFactory:
 
     def nrsRetryJitterFactor: CallHandler[Double] =
       (() => mockAppConfig.nrsRetryJitterFactor).expects()
-  
+
     def nrsRetryRetention: CallHandler[FiniteDuration] =
       (() => mockAppConfig.nrsRetryRetention).expects()
-      

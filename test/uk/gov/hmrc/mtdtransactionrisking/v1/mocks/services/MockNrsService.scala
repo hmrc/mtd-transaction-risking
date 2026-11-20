@@ -35,34 +35,36 @@ trait MockNrsService extends MockFactory:
   object MockNrsService:
 
     def submit(
-                evidence: JsValue,
-                vrn: String,
-                reportId: String,
-                submissionTimestamp: Instant,
-                identityData: Option[IdentityData],
-                userAuthToken: Option[String],
-                requestHeaders: Seq[(String, String)],
-                notableEventType: NotableEventType,
-                correlationId: CorrelationId
-              ): CallHandler[Unit] =
-      (mockNrsService.submit(
-        _: JsValue,
-        _: String,
-        _: String,
-        _: Instant,
-        _: Option[IdentityData],
-        _: Option[String],
-        _: Seq[(String, String)],
-        _: NotableEventType,
-        _: CorrelationId
-      )).expects(
-        evidence,
-        vrn,
-        reportId,
-        submissionTimestamp,
-        identityData,
-        userAuthToken,
-        requestHeaders,
-        notableEventType,
-        correlationId
-      )
+        evidence: JsValue,
+        vrn: String,
+        reportId: String,
+        submissionTimestamp: Instant,
+        identityData: Option[IdentityData],
+        userAuthToken: Option[String],
+        requestHeaders: Seq[(String, String)],
+        notableEventType: NotableEventType,
+        correlationId: CorrelationId
+    ): CallHandler[Unit] =
+      (mockNrsService
+        .submit(
+          _: JsValue,
+          _: String,
+          _: String,
+          _: Instant,
+          _: Option[IdentityData],
+          _: Option[String],
+          _: Seq[(String, String)],
+          _: NotableEventType,
+          _: CorrelationId
+        ))
+        .expects(
+          evidence,
+          vrn,
+          reportId,
+          submissionTimestamp,
+          identityData,
+          userAuthToken,
+          requestHeaders,
+          notableEventType,
+          correlationId
+        )

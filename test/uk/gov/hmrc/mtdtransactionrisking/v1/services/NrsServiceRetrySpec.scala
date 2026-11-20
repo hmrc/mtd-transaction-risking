@@ -41,7 +41,7 @@ class NrsServiceRetrySpec extends UnitSpec, MockAppConfig:
     Instant.parse("2026-10-06T10:00:00Z")
 
   private val correlationId =
-    CorrelationId("bd6c0972-34e7-11f1-9715-f35b3eb40b52")  
+    CorrelationId("bd6c0972-34e7-11f1-9715-f35b3eb40b52")
 
   private val evidence =
     Json.obj(
@@ -121,16 +121,16 @@ class NrsServiceRetrySpec extends UnitSpec, MockAppConfig:
     def retryBatchSize: Int =
       100
 
-    val connector =
+    val connector: NrsConnector =
       mock[NrsConnector]
 
-    val repository =
+    val repository: NrsSubmissionWorkItemStore =
       mock[NrsSubmissionWorkItemStore]
 
-    val repositoryProvider =
+    private val repositoryProvider: Provider[NrsSubmissionWorkItemStore] =
       mock[Provider[NrsSubmissionWorkItemStore]]
 
-    val retryPolicy =
+    val retryPolicy: NrsRetryPolicy =
       mock[NrsRetryPolicy]
 
     MockedAppConfig.featureSwitch
@@ -192,8 +192,9 @@ class NrsServiceRetrySpec extends UnitSpec, MockAppConfig:
       val connectorCalled =
         Promise[Unit]()
 
-      (connector.submit(_: NrsSubmission, _: CorrelationId))
-       .expects(expectedBuiltSubmission, correlationId)
+      (connector
+        .submit(_: NrsSubmission, _: CorrelationId))
+        .expects(expectedBuiltSubmission, correlationId)
         .onCall { _ =>
           connectorCalled.success(())
           Future.successful(SubmissionResult.Success)
@@ -207,7 +208,8 @@ class NrsServiceRetrySpec extends UnitSpec, MockAppConfig:
       val persisted =
         Promise[NrsSubmission]()
 
-      (connector.submit(_: NrsSubmission, _: CorrelationId))
+      (connector
+        .submit(_: NrsSubmission, _: CorrelationId))
         .expects(expectedBuiltSubmission, correlationId)
         .returning(
           Future.successful(SubmissionResult.RetryableFailure)
@@ -215,7 +217,8 @@ class NrsServiceRetrySpec extends UnitSpec, MockAppConfig:
 
       expectRepositoryProvider()
 
-      (repository.enqueueRetryableFailure(_: NrsSubmission, _: CorrelationId))
+      (repository
+        .enqueueRetryableFailure(_: NrsSubmission, _: CorrelationId))
         .expects(expectedBuiltSubmission, correlationId)
         .onCall { (submission, _) =>
           persisted.success(submission)
@@ -230,7 +233,8 @@ class NrsServiceRetrySpec extends UnitSpec, MockAppConfig:
       val persisted =
         Promise[NrsSubmission]()
 
-      (connector.submit(_: NrsSubmission, _: CorrelationId))
+      (connector
+        .submit(_: NrsSubmission, _: CorrelationId))
         .expects(expectedBuiltSubmission, correlationId)
         .returning(
           Future.successful(SubmissionResult.PermanentFailure)
@@ -238,7 +242,8 @@ class NrsServiceRetrySpec extends UnitSpec, MockAppConfig:
 
       expectRepositoryProvider()
 
-      (repository.enqueuePermanentFailure(_: NrsSubmission, _: CorrelationId))
+      (repository
+        .enqueuePermanentFailure(_: NrsSubmission, _: CorrelationId))
         .expects(expectedBuiltSubmission, correlationId)
         .onCall { (submission, _) =>
           persisted.success(submission)
@@ -253,7 +258,8 @@ class NrsServiceRetrySpec extends UnitSpec, MockAppConfig:
       val persistenceAttempted =
         Promise[Unit]()
 
-      (connector.submit(_: NrsSubmission, _: CorrelationId))
+      (connector
+        .submit(_: NrsSubmission, _: CorrelationId))
         .expects(expectedBuiltSubmission, correlationId)
         .returning(
           Future.successful(SubmissionResult.RetryableFailure)
@@ -261,7 +267,8 @@ class NrsServiceRetrySpec extends UnitSpec, MockAppConfig:
 
       expectRepositoryProvider()
 
-      (repository.enqueueRetryableFailure(_: NrsSubmission, _: CorrelationId))
+      (repository
+        .enqueueRetryableFailure(_: NrsSubmission, _: CorrelationId))
         .expects(expectedBuiltSubmission, correlationId)
         .onCall { _ =>
           persistenceAttempted.success(())
@@ -298,13 +305,15 @@ class NrsServiceRetrySpec extends UnitSpec, MockAppConfig:
         .returning(Future.successful(None))
         .once()
 
-      (connector.submit(_: NrsSubmission, _: CorrelationId))
+      (connector
+        .submit(_: NrsSubmission, _: CorrelationId))
         .expects(persistedSubmission, correlationId)
         .returning(
           Future.successful(SubmissionResult.Success)
         )
 
-      (repository.completeAndDelete(_: ObjectId))
+      (repository
+        .completeAndDelete(_: ObjectId))
         .expects(storedWorkItem.id)
         .returning(Future.successful(true))
 
@@ -323,16 +332,18 @@ class NrsServiceRetrySpec extends UnitSpec, MockAppConfig:
         .returning(Future.successful(None))
         .once()
 
-      (connector.submit(_: NrsSubmission, _: CorrelationId))
-      .expects(
-        storedWorkItem.item.nrsSubmission,
-        storedWorkItem.item.correlationId
-      )
+      (connector
+        .submit(_: NrsSubmission, _: CorrelationId))
+        .expects(
+          storedWorkItem.item.nrsSubmission,
+          storedWorkItem.item.correlationId
+        )
         .returning(
           Future.successful(SubmissionResult.Success)
         )
 
-      (repository.completeAndDelete(_: ObjectId))
+      (repository
+        .completeAndDelete(_: ObjectId))
         .expects(storedWorkItem.id)
         .returning(Future.successful(true))
 
@@ -351,13 +362,15 @@ class NrsServiceRetrySpec extends UnitSpec, MockAppConfig:
         .returning(Future.successful(None))
         .once()
 
-      (connector.submit(_: NrsSubmission, _: CorrelationId))
+      (connector
+        .submit(_: NrsSubmission, _: CorrelationId))
         .expects(persistedSubmission, correlationId)
         .returning(
           Future.successful(SubmissionResult.RetryableFailure)
         )
 
-      (retryPolicy.isExhaustedAfterFailure(_: Int))
+      (retryPolicy
+        .isExhaustedAfterFailure(_: Int))
         .expects(1)
         .returning(false)
 
@@ -365,7 +378,8 @@ class NrsServiceRetrySpec extends UnitSpec, MockAppConfig:
         .expects()
         .returning(10)
 
-      (repository.markRetryableFailure(_: WorkItem[NrsSubmissionWorkItem]))
+      (repository
+        .markRetryableFailure(_: WorkItem[NrsSubmissionWorkItem]))
         .expects(storedWorkItem)
         .returning(Future.successful(true))
 
@@ -384,20 +398,22 @@ class NrsServiceRetrySpec extends UnitSpec, MockAppConfig:
         .returning(Future.successful(None))
         .once()
 
-      (connector.submit(_: NrsSubmission, _: CorrelationId))
+      (connector
+        .submit(_: NrsSubmission, _: CorrelationId))
         .expects(persistedSubmission, correlationId)
         .returning(
           Future.successful(SubmissionResult.PermanentFailure)
         )
 
-      (repository.markPermanentFailure(_: WorkItem[NrsSubmissionWorkItem]))
+      (repository
+        .markPermanentFailure(_: WorkItem[NrsSubmissionWorkItem]))
         .expects(storedWorkItem)
         .returning(Future.successful(true))
 
       await(service.processDueWorkItems()) shouldBe ()
 
     "not schedule an eleventh retry after retry ten fails" in new Test:
-      val retryTenWorkItem =
+      val retryTenWorkItem: WorkItem[NrsSubmissionWorkItem] =
         storedWorkItem.copy(failureCount = 9)
 
       expectRepositoryProvider()
@@ -412,13 +428,15 @@ class NrsServiceRetrySpec extends UnitSpec, MockAppConfig:
         .returning(Future.successful(None))
         .once()
 
-      (connector.submit(_: NrsSubmission, _: CorrelationId))
+      (connector
+        .submit(_: NrsSubmission, _: CorrelationId))
         .expects(persistedSubmission, correlationId)
         .returning(
           Future.successful(SubmissionResult.RetryableFailure)
         )
 
-      (retryPolicy.isExhaustedAfterFailure(_: Int))
+      (retryPolicy
+        .isExhaustedAfterFailure(_: Int))
         .expects(10)
         .returning(true)
 
@@ -426,7 +444,8 @@ class NrsServiceRetrySpec extends UnitSpec, MockAppConfig:
         .expects()
         .returning(10)
 
-      (repository.markRetryableFailure(_: WorkItem[NrsSubmissionWorkItem]))
+      (repository
+        .markRetryableFailure(_: WorkItem[NrsSubmissionWorkItem]))
         .expects(retryTenWorkItem)
         .returning(Future.successful(true))
 
@@ -445,26 +464,28 @@ class NrsServiceRetrySpec extends UnitSpec, MockAppConfig:
         .returning(Future.successful(None))
         .once()
 
-      (connector.submit(_: NrsSubmission, _: CorrelationId))
+      (connector
+        .submit(_: NrsSubmission, _: CorrelationId))
         .expects(
           storedWorkItem.item.nrsSubmission,
           storedWorkItem.item.correlationId
         )
         .returning(Future.successful(SubmissionResult.Success))
 
-      (repository.completeAndDelete(_: ObjectId))
+      (repository
+        .completeAndDelete(_: ObjectId))
         .expects(storedWorkItem.id)
         .returning(Future.successful(true))
 
-      await(service.processDueWorkItems()) shouldBe()
+      await(service.processDueWorkItems()) shouldBe ()
 
     "process no more than the configured number of due work items in one run" in new Test:
       override def retryBatchSize: Int = 2
 
-      val firstWorkItem =
+      val firstWorkItem: WorkItem[NrsSubmissionWorkItem] =
         storedWorkItem
 
-      val secondWorkItem =
+      val secondWorkItem: WorkItem[NrsSubmissionWorkItem] =
         storedWorkItem.copy(
           id = new ObjectId()
         )
@@ -481,7 +502,8 @@ class NrsServiceRetrySpec extends UnitSpec, MockAppConfig:
         .returning(Future.successful(Some(secondWorkItem)))
         .once()
 
-      (connector.submit(_: NrsSubmission, _: CorrelationId))
+      (connector
+        .submit(_: NrsSubmission, _: CorrelationId))
         .expects(
           firstWorkItem.item.nrsSubmission,
           firstWorkItem.item.correlationId
@@ -491,7 +513,8 @@ class NrsServiceRetrySpec extends UnitSpec, MockAppConfig:
         )
         .once()
 
-      (connector.submit(_: NrsSubmission, _: CorrelationId))
+      (connector
+        .submit(_: NrsSubmission, _: CorrelationId))
         .expects(
           secondWorkItem.item.nrsSubmission,
           secondWorkItem.item.correlationId
@@ -501,16 +524,18 @@ class NrsServiceRetrySpec extends UnitSpec, MockAppConfig:
         )
         .once()
 
-      (repository.completeAndDelete(_: ObjectId))
+      (repository
+        .completeAndDelete(_: ObjectId))
         .expects(firstWorkItem.id)
         .returning(Future.successful(true))
         .once()
 
-      (repository.completeAndDelete(_: ObjectId))
+      (repository
+        .completeAndDelete(_: ObjectId))
         .expects(secondWorkItem.id)
         .returning(Future.successful(true))
         .once()
 
       await(
         service.processDueWorkItems()
-      ) shouldBe()
+      ) shouldBe ()

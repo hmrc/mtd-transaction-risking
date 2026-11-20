@@ -67,4 +67,3 @@ class RdsAcknowledgeRequestSpec extends AnyWordSpec with Matchers:
       }
     }
   }
-

@@ -36,26 +36,27 @@ import javax.inject.{Inject, Singleton}
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
-class NrsSubmissionWorkItemRepository @Inject()(
-                                                 mongoComponent: MongoComponent,
-                                                 appConfig: AppConfig,
-                                                 retryPolicy: NrsRetryPolicy,
-                                                 clock: Clock
-                                               )(using ec: ExecutionContext, crypto: Encrypter & Decrypter)
-  extends WorkItemRepository[NrsSubmissionWorkItem](
-    collectionName = "nrs-submission-work-items",
-    mongoComponent = mongoComponent,
-    itemFormat = summon[OFormat[NrsSubmissionWorkItem]],
-    workItemFields = WorkItemFields.default,
-    extraIndexes = Seq(
-      IndexModel(
-        Indexes.ascending(WorkItemFields.default.updatedAt),
-        IndexOptions()
-          .name("nrs-submission-work-items-updated-at-ttl")
-          .expireAfter(appConfig.nrsRetryRetention.toSeconds, TimeUnit.SECONDS)
+class NrsSubmissionWorkItemRepository @Inject() (
+    mongoComponent: MongoComponent,
+    appConfig: AppConfig,
+    retryPolicy: NrsRetryPolicy,
+    clock: Clock
+)(using ec: ExecutionContext, crypto: Encrypter & Decrypter)
+    extends WorkItemRepository[NrsSubmissionWorkItem](
+      collectionName = "nrs-submission-work-items",
+      mongoComponent = mongoComponent,
+      itemFormat = summon[OFormat[NrsSubmissionWorkItem]],
+      workItemFields = WorkItemFields.default,
+      extraIndexes = Seq(
+        IndexModel(
+          Indexes.ascending(WorkItemFields.default.updatedAt),
+          IndexOptions()
+            .name("nrs-submission-work-items-updated-at-ttl")
+            .expireAfter(appConfig.nrsRetryRetention.toSeconds, TimeUnit.SECONDS)
+        )
       )
     )
-  ) with NrsSubmissionWorkItemStore:
+    with NrsSubmissionWorkItemStore:
 
   override def now(): Instant =
     Instant.now(clock)
@@ -67,18 +68,18 @@ class NrsSubmissionWorkItemRepository @Inject()(
     true
 
   def enqueueRetryableFailure(
-                               submission: NrsSubmission,
-                               correlationId: CorrelationId
-                             ): Future[WorkItem[NrsSubmissionWorkItem]] =
+      submission: NrsSubmission,
+      correlationId: CorrelationId
+  ): Future[WorkItem[NrsSubmissionWorkItem]] =
     pushNew(
       item = NrsSubmissionWorkItem(nrsSubmission = submission, correlationId = correlationId),
       availableAt = now().plusMillis(retryPolicy.delayForRetry(1).toMillis)
     )
 
   def enqueuePermanentFailure(
-                               submission: NrsSubmission,
-                               correlationId: CorrelationId
-                             ): Future[WorkItem[NrsSubmissionWorkItem]] =
+      submission: NrsSubmission,
+      correlationId: CorrelationId
+  ): Future[WorkItem[NrsSubmissionWorkItem]] =
     pushNew(
       item = NrsSubmissionWorkItem(nrsSubmission = submission, correlationId = correlationId),
       availableAt = now(),
@@ -92,8 +93,8 @@ class NrsSubmissionWorkItemRepository @Inject()(
     )
 
   def markRetryableFailure(
-                            workItem: WorkItem[NrsSubmissionWorkItem]
-                          ): Future[Boolean] =
+      workItem: WorkItem[NrsSubmissionWorkItem]
+  ): Future[Boolean] =
     val completedRetryNumber =
       workItem.failureCount + 1
 
@@ -134,14 +135,14 @@ class NrsSubmissionWorkItemRepository @Inject()(
             ProcessingStatus.InProgress
           )
         ),
-        Updates.combine(updates *)
+        Updates.combine(updates*)
       )
       .toFuture()
       .map(_.getModifiedCount == 1)
 
   def markPermanentFailure(
-                            workItem: WorkItem[NrsSubmissionWorkItem]
-                          ): Future[Boolean] =
+      workItem: WorkItem[NrsSubmissionWorkItem]
+  ): Future[Boolean] =
     collection
       .updateOne(
         Filters.and(

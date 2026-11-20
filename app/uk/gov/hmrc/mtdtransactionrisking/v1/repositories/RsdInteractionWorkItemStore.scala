@@ -29,25 +29,25 @@ import scala.concurrent.Future
 trait RsdInteractionWorkItemStore:
 
   def enqueueRetryableFailure(
-                               interaction: Interaction,
-                               correlationId: CorrelationId
-                             ): Future[WorkItem[RsdInteractionWorkItem]]
+      interaction: Interaction,
+      correlationId: CorrelationId
+  ): Future[WorkItem[RsdInteractionWorkItem]]
 
   def enqueuePermanentFailure(
-                               interaction: Interaction,
-                               correlationId: CorrelationId
-                             ): Future[WorkItem[RsdInteractionWorkItem]]
+      interaction: Interaction,
+      correlationId: CorrelationId
+  ): Future[WorkItem[RsdInteractionWorkItem]]
 
   def pullDue(): Future[Option[WorkItem[RsdInteractionWorkItem]]]
 
   def markRetryableFailure(
-                            workItem: WorkItem[RsdInteractionWorkItem]
-                          ): Future[Boolean]
+      workItem: WorkItem[RsdInteractionWorkItem]
+  ): Future[Boolean]
 
   def markPermanentFailure(
-                            workItem: WorkItem[RsdInteractionWorkItem]
-                          ): Future[Boolean]
+      workItem: WorkItem[RsdInteractionWorkItem]
+  ): Future[Boolean]
 
   def completeAndDelete(
-                         id: ObjectId
-                       ): Future[Boolean]
+      id: ObjectId
+  ): Future[Boolean]

@@ -42,9 +42,9 @@ trait MockRdsConnector extends MockFactory:
         .expects(vrn, *, *, *, *)
 
     def acknowledge(
-                     request: AcknowledgeRequest,
-                     credentials: Option[RdsAuthCredentials]
-                   ): CallHandler[Future[ServiceOutcome[RdsAcknowledgeResponse]]] =
+        request: AcknowledgeRequest,
+        credentials: Option[RdsAuthCredentials]
+    ): CallHandler[Future[ServiceOutcome[RdsAcknowledgeResponse]]] =
       (mockRdsConnector
         .acknowledge(_: AcknowledgeRequest, _: Option[RdsAuthCredentials])(_: HeaderCarrier, _: CorrelationId))
         .expects(request, credentials, *, *)
